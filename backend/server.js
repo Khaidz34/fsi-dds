@@ -502,6 +502,29 @@ app.get('/api/users/list', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all users (for admin)
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, username, fullname, role, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(users || []);
+  } catch (error) {
+    console.error('Users error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // Payments Routes
 app.get('/api/payments/today', authenticateToken, async (req, res) => {
   try {
@@ -524,6 +547,68 @@ app.get('/api/payments/today', authenticateToken, async (req, res) => {
     res.json(payments || []);
   } catch (error) {
     console.error('Payments error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get payments with optional month filter
+app.get('/api/payments', authenticateToken, async (req, res) => {
+  try {
+    const { month } = req.query;
+    let query = supabase
+      .from('payments')
+      .select(`
+        *,
+        user:user_id (id, fullname)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (month) {
+      const startDate = `${month}-01`;
+      const endDate = `${month}-31`;
+      query = query.gte('created_at', startDate).lte('created_at', endDate);
+    }
+
+    const { data: payments, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(payments || []);
+  } catch (error) {
+    console.error('Payments error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get payment history
+app.get('/api/payments/history', authenticateToken, async (req, res) => {
+  try {
+    const { month } = req.query;
+    let query = supabase
+      .from('payments')
+      .select(`
+        *,
+        user:user_id (id, fullname)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (month) {
+      const startDate = `${month}-01`;
+      const endDate = `${month}-31`;
+      query = query.gte('created_at', startDate).lte('created_at', endDate);
+    }
+
+    const { data: payments, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(payments || []);
+  } catch (error) {
+    console.error('Payment history error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
 });
@@ -610,6 +695,66 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin dashboard stats
+app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get today's orders
+    const { count: ordersToday, error: ordersTodayError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59');
+
+    // Get total users
+    const { count: totalUsers, error: usersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    // Get popular dishes (simplified)
+    const { data: popularDishes, error: dishesError } = await supabase
+      .from('orders')
+      .select(`
+        dish1_id,
+        dish1:dish1_id (name)
+      `)
+      .not('dish1_id', 'is', null)
+      .limit(5);
+
+    if (ordersTodayError || usersError || dishesError) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    // Count popular dishes
+    const dishCounts = {};
+    popularDishes?.forEach(order => {
+      if (order.dish1?.name) {
+        dishCounts[order.dish1.name] = (dishCounts[order.dish1.name] || 0) + 1;
+      }
+    });
+
+    const popularDishesArray = Object.entries(dishCounts)
+      .map(([name, orderCount]) => ({ name, orderCount }))
+      .sort((a, b) => b.orderCount - a.orderCount)
+      .slice(0, 5);
+
+    res.json({
+      ordersToday: ordersToday || 0,
+      totalUsers: totalUsers || 0,
+      popularDishesCount: popularDishesArray.length,
+      popularDishes: popularDishesArray
+    });
+  } catch (error) {
+    console.error('Admin dashboard stats error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // Feedback Routes
 app.post('/api/feedback', authenticateToken, async (req, res) => {
   try {
@@ -638,6 +783,75 @@ app.post('/api/feedback', authenticateToken, async (req, res) => {
     res.json({ success: true, feedback });
   } catch (error) {
     console.error('Feedback error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get all feedback (admin only)
+app.get('/api/feedback', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const { data: feedback, error } = await supabase
+      .from('feedback')
+      .select(`
+        *,
+        user:user_id (id, fullname)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(feedback || []);
+  } catch (error) {
+    console.error('Feedback list error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Orders weekly stats
+app.get('/api/orders/weekly-stats', authenticateToken, async (req, res) => {
+  try {
+    // Get last 7 days of orders
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 6);
+
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('created_at')
+      .gte('created_at', startDate.toISOString().split('T')[0])
+      .lte('created_at', endDate.toISOString().split('T')[0]);
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    // Group by date
+    const stats = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(endDate.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayOrders = orders?.filter(order => 
+        order.created_at.startsWith(dateStr)
+      ).length || 0;
+
+      stats.push({
+        name: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
+        orders: dayOrders,
+        date: dateStr
+      });
+    }
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Weekly stats error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
 });
