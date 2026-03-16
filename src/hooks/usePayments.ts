@@ -60,16 +60,17 @@ export const usePayments = (month?: string) => {
         setPaymentStats(data);
       }
     } catch (err) {
+      console.error('Payment stats error:', err);
       setError(err instanceof Error ? err.message : 'Lỗi khi tải thông tin thanh toán');
-      // Fallback to mock data
+      // Set empty stats instead of mock data
       setPaymentStats({
         month: month || new Date().toISOString().slice(0, 7),
-        ordersCount: 15,
-        ordersTotal: 600000,
-        paidCount: 10,
-        paidTotal: 400000,
-        remainingCount: 5,
-        remainingTotal: 200000
+        ordersCount: 0,
+        ordersTotal: 0,
+        paidCount: 0,
+        paidTotal: 0,
+        remainingCount: 0,
+        remainingTotal: 0
       });
     } finally {
       setIsLoading(false);

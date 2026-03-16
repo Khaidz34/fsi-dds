@@ -726,7 +726,7 @@ export default function App() {
         fetchStatsData();
       }
     }
-  }, [user]);
+  }, [user?.id]); // Only re-run when user ID changes, not the entire user object
 
   const fetchAllUsers = async () => {
     try {

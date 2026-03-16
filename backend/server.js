@@ -613,6 +613,59 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
   }
 });
 
+// Get my payments
+app.get('/api/payments/my', authenticateToken, async (req, res) => {
+  try {
+    const { month } = req.query;
+    
+    // Calculate user's payment stats based on orders and payments
+    const currentMonth = month || new Date().toISOString().slice(0, 7);
+    const startDate = `${currentMonth}-01`;
+    const endDate = `${currentMonth}-31`;
+    
+    // Get user's orders for the month
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('price')
+      .eq('user_id', req.user.id)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+    
+    // Get user's payments for the month
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('user_id', req.user.id)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+    
+    if (ordersError || paymentsError) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+    
+    const ordersCount = orders?.length || 0;
+    const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+    const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+    const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+    
+    const stats = {
+      month: currentMonth,
+      ordersCount,
+      ordersTotal,
+      paidCount: payments?.length || 0,
+      paidTotal,
+      remainingCount: remainingTotal > 0 ? 1 : 0,
+      remainingTotal,
+      overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('My payments error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 app.post('/api/payments', authenticateToken, async (req, res) => {
   try {
     const { amount, method, notes } = req.body;
