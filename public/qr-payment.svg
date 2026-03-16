@@ -1,0 +1,66 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- QR Code Pattern -->
+  <rect width="200" height="200" fill="white"/>
+  
+  <!-- Corner squares -->
+  <rect x="10" y="10" width="60" height="60" fill="black"/>
+  <rect x="20" y="20" width="40" height="40" fill="white"/>
+  <rect x="30" y="30" width="20" height="20" fill="black"/>
+  
+  <rect x="130" y="10" width="60" height="60" fill="black"/>
+  <rect x="140" y="20" width="40" height="40" fill="white"/>
+  <rect x="150" y="30" width="20" height="20" fill="black"/>
+  
+  <rect x="10" y="130" width="60" height="60" fill="black"/>
+  <rect x="20" y="140" width="40" height="40" fill="white"/>
+  <rect x="30" y="150" width="20" height="20" fill="black"/>
+  
+  <!-- Data pattern -->
+  <rect x="90" y="10" width="10" height="10" fill="black"/>
+  <rect x="110" y="10" width="10" height="10" fill="black"/>
+  <rect x="90" y="30" width="10" height="10" fill="black"/>
+  <rect x="110" y="30" width="10" height="10" fill="black"/>
+  <rect x="90" y="50" width="10" height="10" fill="black"/>
+  <rect x="110" y="50" width="10" height="10" fill="black"/>
+  
+  <rect x="10" y="90" width="10" height="10" fill="black"/>
+  <rect x="30" y="90" width="10" height="10" fill="black"/>
+  <rect x="50" y="90" width="10" height="10" fill="black"/>
+  <rect x="10" y="110" width="10" height="10" fill="black"/>
+  <rect x="30" y="110" width="10" height="10" fill="black"/>
+  <rect x="50" y="110" width="10" height="10" fill="black"/>
+  
+  <rect x="130" y="90" width="10" height="10" fill="black"/>
+  <rect x="150" y="90" width="10" height="10" fill="black"/>
+  <rect x="170" y="90" width="10" height="10" fill="black"/>
+  <rect x="130" y="110" width="10" height="10" fill="black"/>
+  <rect x="150" y="110" width="10" height="10" fill="black"/>
+  <rect x="170" y="110" width="10" height="10" fill="black"/>
+  
+  <!-- More data pattern -->
+  <rect x="90" y="130" width="10" height="10" fill="black"/>
+  <rect x="110" y="130" width="10" height="10" fill="black"/>
+  <rect x="130" y="130" width="10" height="10" fill="black"/>
+  <rect x="150" y="130" width="10" height="10" fill="black"/>
+  <rect x="170" y="130" width="10" height="10" fill="black"/>
+  
+  <rect x="90" y="150" width="10" height="10" fill="black"/>
+  <rect x="110" y="150" width="10" height="10" fill="black"/>
+  <rect x="130" y="150" width="10" height="10" fill="black"/>
+  <rect x="150" y="150" width="10" height="10" fill="black"/>
+  <rect x="170" y="150" width="10" height="10" fill="black"/>
+  
+  <rect x="90" y="170" width="10" height="10" fill="black"/>
+  <rect x="110" y="170" width="10" height="10" fill="black"/>
+  <rect x="130" y="170" width="10" height="10" fill="black"/>
+  <rect x="150" y="170" width="10" height="10" fill="black"/>
+  <rect x="170" y="170" width="10" height="10" fill="black"/>
+  
+  <!-- Center alignment pattern -->
+  <rect x="90" y="90" width="30" height="30" fill="black"/>
+  <rect x="95" y="95" width="20" height="20" fill="white"/>
+  <rect x="100" y="100" width="10" height="10" fill="black"/>
+  
+  <!-- Text overlay -->
+  <text x="100" y="195" text-anchor="middle" font-family="Arial" font-size="8" fill="black">PAYMENT QR</text>
+</svg>

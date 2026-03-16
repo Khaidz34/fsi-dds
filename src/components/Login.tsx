@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChefHat, ChevronRight, Eye, EyeOff, Globe, Palette } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { authAPI } from '../services/api';
 
 interface LoginProps {
   theme: 'fusion' | 'corporate';
@@ -254,17 +255,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
     setError('');
     
     try {
-      const response = await fetch('http://localhost:3000/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, newPassword: password })
-      });
-
-      if (!response.ok) {
-        throw new Error(currentLang === 'vi' ? 'Không tìm thấy tài khoản' :
-                       currentLang === 'en' ? 'Account not found' :
-                       'アカウントが見つかりません');
-      }
+      await authAPI.resetPassword(username, password);
 
       setSuccess(currentLang === 'vi' ? 'Đặt lại mật khẩu thành công!' :
                 currentLang === 'en' ? 'Password reset successful!' :

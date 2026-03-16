@@ -1183,9 +1183,9 @@ export default function App() {
                   <MobileSidebarItem 
                     icon={<Calendar size={18} />} 
                     label={t.paymentCalendar} 
-                    active={activeTab === 'payment'} 
+                    active={activeTab === 'payment-calendar'} 
                     onClick={() => {
-                      setActiveTab('payment');
+                      setActiveTab('payment-calendar');
                       setIsMobileMenuOpen(false);
                       refetchOrders();
                     }} 
@@ -1636,9 +1636,13 @@ export default function App() {
                     <div className="absolute bottom-0 right-0 w-full h-1/2 seigaiha-pattern opacity-5" />
                     <div className="bg-white p-6 rounded-3xl mb-6 shadow-2xl relative z-10 silk-texture">
                       <img 
-                        src="/QR.png" 
+                        src="QR.png" 
                         alt="Payment QR Code" 
                         className="w-48 h-48 object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "qr-simple.svg";
+                        }}
                       />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-3 relative z-10">{t.paymentQR}</h3>

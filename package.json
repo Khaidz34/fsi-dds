@@ -10,9 +10,11 @@
     "dev:backend": "cd backend && npm run dev:sqlite",
     "dev:full": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "build": "vite build",
+    "build:prod": "NODE_ENV=production vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "deploy:render": "npm run build:prod"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
