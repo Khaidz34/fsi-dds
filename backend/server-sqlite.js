@@ -734,6 +734,74 @@ app.post('/api/orders', authMiddleware, (req, res) => {
     });
 });
 
+// Update order
+app.put('/api/orders/:id', authMiddleware, (req, res) => {
+  const orderId = req.params.id;
+  const { dish1Id, dish2Id, notes, rating } = req.body;
+  
+  if (!dish1Id) {
+    return res.status(400).json({ error: 'Món chính là bắt buộc' });
+  }
+  
+  // Check if user owns this order (non-admin users can only edit their own orders)
+  let checkQuery = 'SELECT * FROM orders WHERE id = ?';
+  let checkParams = [orderId];
+  
+  if (req.user.role !== 'admin') {
+    checkQuery += ' AND (user_id = ? OR ordered_by = ?)';
+    checkParams.push(req.user.id, req.user.id);
+  }
+  
+  db.get(checkQuery, checkParams, (err, order) => {
+    if (err) return res.status(500).json({ error: 'Lỗi database' });
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Không tìm thấy đơn hàng hoặc bạn không có quyền chỉnh sửa' });
+    }
+    
+    // Update the order
+    const updateQuery = `
+      UPDATE orders 
+      SET dish1_id = ?, dish2_id = ?, notes = ?, rating = ?
+      WHERE id = ?
+    `;
+    
+    db.run(updateQuery, [dish1Id, dish2Id || null, notes || null, rating || null, orderId], function(err) {
+      if (err) return res.status(500).json({ error: 'Lỗi cập nhật đơn hàng' });
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+      }
+      
+      // Return updated order with dish names
+      const selectQuery = `
+        SELECT 
+          o.*,
+          d1.name as dish1_name,
+          d2.name as dish2_name,
+          u1.fullname as orderer_name,
+          u2.fullname as receiver_name
+        FROM orders o
+        LEFT JOIN dishes d1 ON o.dish1_id = d1.id
+        LEFT JOIN dishes d2 ON o.dish2_id = d2.id
+        LEFT JOIN users u1 ON o.ordered_by = u1.id
+        LEFT JOIN users u2 ON o.ordered_for = u2.id
+        WHERE o.id = ?
+      `;
+      
+      db.get(selectQuery, [orderId], (err, updatedOrder) => {
+        if (err) return res.status(500).json({ error: 'Lỗi lấy thông tin đơn hàng' });
+        
+        res.json({
+          success: true,
+          message: 'Đã cập nhật đơn hàng thành công',
+          order: updatedOrder
+        });
+      });
+    });
+  });
+});
+
 app.delete('/api/orders/:id', authMiddleware, (req, res) => {
   const orderId = req.params.id;
   

@@ -33,6 +33,7 @@ import {
   Coffee,
   IceCream,
   Trash2,
+  Edit,
   Pizza,
   Soup,
   Fish,
@@ -570,7 +571,7 @@ export default function App() {
   };
   
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
-  const { orders, createOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
+  const { orders, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users } = useUsers();
   const { userPayments, paymentHistory, markAsPaid } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
@@ -626,6 +627,13 @@ export default function App() {
   
   // Game state
   const [showFusionSliceGame, setShowFusionSliceGame] = useState(false);
+
+  // Edit order state
+  const [showEditOrderModal, setShowEditOrderModal] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editDish1, setEditDish1] = useState<number>(0);
+  const [editDish2, setEditDish2] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState('');
 
   const t = TRANSLATIONS[currentLang];
 
@@ -2301,6 +2309,26 @@ export default function App() {
                             
                             {/* Actions */}
                             <div className="flex items-center justify-center md:justify-end gap-2">
+                              {/* Edit button - for order owner or admin */}
+                              {(user?.role === 'admin' || order.user_id === user?.id || order.ordered_by === user?.id) && (
+                                <motion.button 
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => {
+                                    setEditingOrder(order);
+                                    setEditDish1(order.dish1?.id || 0);
+                                    setEditDish2(order.dish2?.id || 0);
+                                    setEditNotes(order.notes || '');
+                                    setShowEditOrderModal(true);
+                                  }}
+                                  className="p-2 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-all"
+                                  title="Chỉnh sửa đơn hàng"
+                                >
+                                  <Edit size={16} />
+                                </motion.button>
+                              )}
+                              
+                              {/* Delete button - admin only */}
                               {user?.role === 'admin' && (
                                 <motion.button 
                                   whileHover={{ scale: 1.05 }}
@@ -3248,6 +3276,128 @@ export default function App() {
       <AnimatePresence>
         {showFusionSliceGame && (
           <FusionSliceGame onClose={() => setShowFusionSliceGame(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Edit Order Modal */}
+      <AnimatePresence>
+        {showEditOrderModal && editingOrder && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowEditOrderModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-bold text-[#1C1917] mb-6">Chỉnh sửa đơn hàng</h3>
+              
+              <div className="space-y-6">
+                {/* Current order info */}
+                <div className="bg-gray-50 rounded-2xl p-4">
+                  <p className="text-sm text-gray-600 mb-2">Đơn hàng hiện tại:</p>
+                  <p className="font-semibold">{editingOrder.receiver?.fullname}</p>
+                  <p className="text-sm text-gray-600">
+                    {editingOrder.dish1?.name} {editingOrder.dish2?.name ? `+ ${editingOrder.dish2.name}` : ''}
+                  </p>
+                </div>
+
+                {/* Dish 1 Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Món chính *
+                  </label>
+                  <select
+                    value={editDish1}
+                    onChange={(e) => setEditDish1(Number(e.target.value))}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent"
+                  >
+                    <option value={0}>Chọn món chính</option>
+                    {menu?.dishes?.map((dish) => (
+                      <option key={dish.id} value={dish.id}>
+                        {dish.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dish 2 Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Món phụ (tùy chọn)
+                  </label>
+                  <select
+                    value={editDish2}
+                    onChange={(e) => setEditDish2(Number(e.target.value))}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent"
+                  >
+                    <option value={0}>Không chọn món phụ</option>
+                    {menu?.dishes?.map((dish) => (
+                      <option key={dish.id} value={dish.id}>
+                        {dish.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ghi chú
+                  </label>
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Ghi chú đặc biệt..."
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowEditOrderModal(false)}
+                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!editDish1) {
+                        alert('Vui lòng chọn món chính');
+                        return;
+                      }
+
+                      try {
+                        await updateOrder(editingOrder.id, {
+                          dish1Id: editDish1,
+                          dish2Id: editDish2 || undefined,
+                          notes: editNotes || undefined
+                        });
+                        
+                        setShowEditOrderModal(false);
+                        await refetchOrders();
+                        alert('Đã cập nhật đơn hàng thành công!');
+                      } catch (error) {
+                        console.error('Lỗi khi cập nhật đơn hàng:', error);
+                        alert('Lỗi khi cập nhật đơn hàng. Vui lòng thử lại.');
+                      }
+                    }}
+                    className="flex-1 px-6 py-3 bg-[#DA251D] text-white rounded-xl hover:bg-[#DA251D]/90 transition-colors"
+                  >
+                    Cập nhật
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

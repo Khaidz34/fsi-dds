@@ -54,6 +54,26 @@ export const useOrders = (language?: string) => {
     }
   };
 
+  const updateOrder = async (id: number, orderData: {
+    dish1Id: number;
+    dish2Id?: number;
+    notes?: string;
+    rating?: number;
+  }) => {
+    try {
+      const response = await ordersAPI.update(id, orderData);
+      // Update the order in local state
+      setOrders(prev => prev.map(order => 
+        order.id === id 
+          ? { ...order, ...response.order }
+          : order
+      ));
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  };
+
   const deleteOrder = async (id: number) => {
     try {
       await ordersAPI.delete(id);
@@ -75,6 +95,7 @@ export const useOrders = (language?: string) => {
     error,
     refetch: fetchOrders,
     createOrder,
+    updateOrder,
     deleteOrder
   };
 };

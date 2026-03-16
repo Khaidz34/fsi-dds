@@ -148,6 +148,16 @@ export const ordersAPI = {
     body: JSON.stringify(orderData)
   }),
 
+  update: (id: number, orderData: {
+    dish1Id: number;
+    dish2Id?: number;
+    notes?: string;
+    rating?: number;
+  }) => apiCall<{ success: boolean; message: string; order: any }>(`/orders/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(orderData)
+  }),
+
   delete: (id: number) =>
     apiCall<{ success: boolean }>(`/orders/${id}`, {
       method: 'DELETE'
