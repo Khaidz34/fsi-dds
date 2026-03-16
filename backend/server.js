@@ -187,6 +187,68 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, fullname } = req.body;
+
+    if (!username || !password || !fullname) {
+      return res.status(400).json({ error: 'Tất cả các trường là bắt buộc' });
+    }
+
+    // Check if user exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Tên đăng nhập đã tồn tại' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          username,
+          password: hashedPassword,
+          fullname,
+          role: 'user'
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Registration error:', error);
+      return res.status(500).json({ error: 'Lỗi tạo tài khoản' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: newUser.id, username: newUser.username, role: newUser.role },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '24h' }
+    );
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    res.status(201).json({
+      user: userWithoutPassword,
+      token
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 app.get('/api/auth/me', authenticateToken, (req, res) => {
   const { password: _, ...userWithoutPassword } = req.user;
   res.json(userWithoutPassword);
