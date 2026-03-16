@@ -12,13 +12,24 @@ const PORT = process.env.PORT || 5000;
 // ─── SQLite Database ─────────────────────────────────────────
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'gourmetgrid.db');
 
+console.log('🗄️  Database Configuration:');
+console.log('   Path:', dbPath);
+console.log('   NODE_ENV:', process.env.NODE_ENV);
+console.log('   Platform:', process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Other');
+
 // Ensure database directory exists
 const dbDir = path.dirname(dbPath);
 const fs = require('fs');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
   console.log('📁 Created database directory:', dbDir);
+} else {
+  console.log('📁 Database directory exists:', dbDir);
 }
+
+// Check if database file already exists
+const dbExists = fs.existsSync(dbPath);
+console.log('🗄️  Database file exists:', dbExists);
 
 const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) {
@@ -28,6 +39,23 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
     process.exit(1);
   } else {
     console.log('✅ Đã kết nối SQLite database:', dbPath);
+    
+    // Check if this is existing database with data
+    db.get('SELECT COUNT(*) as count FROM sqlite_master WHERE type="table"', (err, row) => {
+      if (err) {
+        console.log('📊 New database - will initialize tables');
+      } else {
+        console.log(`📊 Database has ${row.count} tables`);
+        if (row.count > 0) {
+          // Check user count
+          db.get('SELECT COUNT(*) as count FROM users', (err, userRow) => {
+            if (!err && userRow) {
+              console.log(`👥 Database has ${userRow.count} existing users`);
+            }
+          });
+        }
+      }
+    });
     
     // Production optimizations
     db.run('PRAGMA journal_mode = WAL;'); // Better concurrency

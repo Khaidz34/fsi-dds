@@ -5,20 +5,16 @@ services:
     plan: free
     region: singapore
     buildCommand: cd backend && npm install --production
-    startCommand: cd backend && npm run start:sqlite
+    startCommand: cd backend && npm run start:supabase
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: DATABASE_PATH
-        value: /opt/render/project/src/data/gourmetgrid.db
-      - key: BACKUP_ENABLED
-        value: true
+      - key: SUPABASE_URL
+        value: YOUR_SUPABASE_URL_HERE
+      - key: SUPABASE_ANON_KEY
+        value: YOUR_SUPABASE_ANON_KEY_HERE
       - key: PORT
         value: 10000
-    disk:
-      name: fsi-dds-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
