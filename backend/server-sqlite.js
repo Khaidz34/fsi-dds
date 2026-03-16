@@ -11,9 +11,21 @@ const PORT = process.env.PORT || 5000;
 
 // ─── SQLite Database ─────────────────────────────────────────
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'gourmetgrid.db');
-const db = new sqlite3.Database(dbPath, (err) => {
+
+// Ensure database directory exists
+const dbDir = path.dirname(dbPath);
+const fs = require('fs');
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+  console.log('📁 Created database directory:', dbDir);
+}
+
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) {
     console.error('❌ Lỗi kết nối SQLite:', err.message);
+    console.error('📍 Database path:', dbPath);
+    console.error('📁 Directory exists:', fs.existsSync(dbDir));
+    process.exit(1);
   } else {
     console.log('✅ Đã kết nối SQLite database:', dbPath);
     
