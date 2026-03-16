@@ -268,3 +268,277 @@ initDatabase().then(() => {
   console.error('❌ Failed to start server:', err);
   process.exit(1);
 });
+
+// ─── Menu Routes ─────────────────────────────────────────────
+app.get('/api/menu/today', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: menu, error: menuError } = await supabase
+      .from('menus')
+      .select(`
+        id,
+        date,
+        image_url,
+        dishes (
+          id,
+          name,
+          name_vi,
+          name_en,
+          name_ja,
+          sort_order
+        )
+      `)
+      .eq('date', today)
+      .single();
+
+    if (menuError && menuError.code !== 'PGRST116') {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    if (!menu) {
+      return res.json({ dishes: [] });
+    }
+
+    // Sort dishes by sort_order
+    if (menu.dishes) {
+      menu.dishes.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    }
+
+    res.json(menu);
+  } catch (error) {
+    console.error('Menu error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
+  try {
+    const { dishes, imageUrl } = req.body;
+    
+    if (!dishes || !Array.isArray(dishes) || dishes.length === 0) {
+      return res.status(400).json({ error: 'Danh sách món ăn là bắt buộc' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Create menu
+    const { data: menu, error: menuError } = await supabase
+      .from('menus')
+      .insert([{ date: today, image_url: imageUrl }])
+      .select()
+      .single();
+
+    if (menuError) {
+      return res.status(500).json({ error: 'Lỗi tạo menu' });
+    }
+
+    // Create dishes
+    const dishData = dishes.map((dish, index) => ({
+      menu_id: menu.id,
+      name: dish.vi,
+      name_vi: dish.vi,
+      name_en: dish.en || dish.vi,
+      name_ja: dish.ja || dish.vi,
+      sort_order: index
+    }));
+
+    const { error: dishError } = await supabase
+      .from('dishes')
+      .insert(dishData);
+
+    if (dishError) {
+      return res.status(500).json({ error: 'Lỗi tạo món ăn' });
+    }
+
+    res.json({ success: true, menu });
+  } catch (error) {
+    console.error('Menu creation error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── Orders Routes ───────────────────────────────────────────
+app.get('/api/orders/today', async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        dish1:dish1_id (id, name, name_vi, name_en, name_ja),
+        dish2:dish2_id (id, name, name_vi, name_en, name_ja),
+        orderer:ordered_by (id, fullname),
+        receiver:ordered_for (id, fullname)
+      `)
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(orders || []);
+  } catch (error) {
+    console.error('Orders error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+app.post('/api/orders', authenticateToken, async (req, res) => {
+  try {
+    const { dish1Id, dish2Id, orderedFor, notes, rating } = req.body;
+    
+    if (!dish1Id || !orderedFor) {
+      return res.status(400).json({ error: 'Món chính và người nhận là bắt buộc' });
+    }
+
+    const orderData = {
+      user_id: req.user.id,
+      ordered_by: req.user.id,
+      ordered_for: orderedFor,
+      dish1_id: dish1Id,
+      dish2_id: dish2Id || null,
+      notes: notes || null,
+      rating: rating || null,
+      price: 40000
+    };
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .insert([orderData])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
+    }
+
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('Order creation error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+app.put('/api/orders/:id', authenticateToken, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { dish1Id, dish2Id, notes, rating } = req.body;
+    
+    if (!dish1Id) {
+      return res.status(400).json({ error: 'Món chính là bắt buộc' });
+    }
+
+    // Check if user owns this order
+    const { data: order, error: checkError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (checkError || !order) {
+      return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+    }
+
+    if (req.user.role !== 'admin' && order.user_id !== req.user.id && order.ordered_by !== req.user.id) {
+      return res.status(403).json({ error: 'Không có quyền chỉnh sửa đơn hàng này' });
+    }
+
+    // Update order
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from('orders')
+      .update({
+        dish1_id: dish1Id,
+        dish2_id: dish2Id || null,
+        notes: notes || null,
+        rating: rating || null
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ error: 'Lỗi cập nhật đơn hàng' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Đã cập nhật đơn hàng thành công',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Order update error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Check if user owns this order (admin can delete any)
+    if (req.user.role !== 'admin') {
+      const { data: order, error: checkError } = await supabase
+        .from('orders')
+        .select('user_id, ordered_by')
+        .eq('id', orderId)
+        .single();
+
+      if (checkError || !order) {
+        return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
+      }
+
+      if (order.user_id !== req.user.id && order.ordered_by !== req.user.id) {
+        return res.status(403).json({ error: 'Không có quyền xóa đơn hàng này' });
+      }
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi xóa đơn hàng' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Order deletion error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── Users Routes ────────────────────────────────────────────
+app.get('/api/users/list', authenticateToken, async (req, res) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, fullname')
+      .order('fullname');
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(users || []);
+  } catch (error) {
+    console.error('Users list error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── Server Start ────────────────────────────────────────────
+initDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+    console.log(`🗄️  Database: Supabase PostgreSQL`);
+    console.log(`🔗 Dashboard: https://supabase.com/dashboard`);
+  });
+}).catch(err => {
+  console.error('❌ Failed to start server:', err);
+  process.exit(1);
+});
