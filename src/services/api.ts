@@ -9,9 +9,9 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // Development fallback - Backend runs on port 5000
+  // Development fallback - Backend runs on port 10000
   if (import.meta.env.DEV) {
-    return 'http://localhost:5000';
+    return 'http://localhost:10000';
   }
   
   // Production fallback - same origin

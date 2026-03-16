@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "dev:frontend": "vite",
-    "dev:backend": "cd backend && npm run dev:sqlite",
+    "dev:backend": "cd backend && npm run dev",
     "dev:full": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "build": "vite build",
     "build:prod": "NODE_ENV=production vite build",
@@ -20,7 +20,6 @@
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
-    "better-sqlite3": "^12.4.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
