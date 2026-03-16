@@ -1607,8 +1607,8 @@ export default function App() {
                         <span className="text-xs text-[#1C1917]/40 font-bold uppercase tracking-widest">Suất cơm</span>
                       </div>
                     </div>
-                    <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full min-h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                         <BarChart data={weeklyData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E1D1" vertical={false} />
                           <XAxis 
@@ -2492,37 +2492,167 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Admin Order Section */}
+                {/* Admin Order Section - Giống như phần menu user */}
                 {user?.role === 'admin' && menu && menu.dishes && menu.dishes.length > 0 && (
                   <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-4 lg:p-10 shadow-sm">
                     <h3 className="text-2xl font-display font-bold tracking-tight mb-6">🍽️ Đặt cơm cho bản thân</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {menu.dishes.map((dish, index) => (
-                        <motion.div
-                          key={`admin-order-${dish.id}`}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="bg-gradient-to-br from-[#F5E6D3] to-[#E5D5C8] rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105"
+                    
+                    {/* Menu dishes grid - giống như user menu */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      <AnimatePresence mode="wait">
+                        {menu.dishes.map((dish, index) => (
+                          <motion.div 
+                            key={`admin-order-${dish.id}`}
+                            layout
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ 
+                              opacity: 1, 
+                              y: 0, 
+                              scale: 1,
+                              transition: {
+                                delay: index * 0.05,
+                                duration: 0.3,
+                                ease: "easeOut"
+                              }
+                            }}
+                            exit={{ 
+                              opacity: 0, 
+                              y: -10, 
+                              scale: 0.95,
+                              transition: { duration: 0.2 }
+                            }}
+                            whileHover={{ 
+                              scale: selectedDishes.length < 2 || selectedDishes.includes(dish.id) ? 1.02 : 1.01,
+                              transition: { duration: 0.2 }
+                            }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`lacquer-card p-6 flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
+                              selectedDishes.includes(dish.id) 
+                                ? 'border-[#DA251D] ring-2 ring-[#DA251D]/20 bg-[#DA251D]/5' 
+                                : selectedDishes.length >= 2 
+                                  ? 'opacity-50 border-gray-200' 
+                                  : 'hover:border-[#DA251D]/40 hover:shadow-lg'
+                            }`}
+                            onClick={() => handleSelectDish(dish.id)}
+                          >
+                            {selectedDishes.includes(dish.id) && (
+                              <motion.div 
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="absolute top-4 right-4 z-10"
+                              >
+                                <div className="bg-[#DA251D] text-white p-1 rounded-full shadow-lg">
+                                  <CheckCircle2 size={16} />
+                                </div>
+                              </motion.div>
+                            )}
+                            
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between mb-4">
+                                <motion.h4 
+                                  key={`${dish.id}-admin-name`}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 + 0.1 }}
+                                  className={`text-lg font-display font-bold transition-colors duration-300 ${
+                                    selectedDishes.includes(dish.id) 
+                                      ? 'text-[#DA251D]' 
+                                      : selectedDishes.length >= 2 
+                                        ? 'text-gray-400' 
+                                        : 'text-[#1C1917] group-hover:text-[#DA251D]'
+                                  }`}
+                                >
+                                  {dish.name}
+                                </motion.h4>
+                              </div>
+                              
+                              {/* Selection indicator */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {selectedDishes.includes(dish.id) && (
+                                    <motion.span 
+                                      initial={{ opacity: 0, scale: 0.8 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      className="text-xs bg-[#DA251D] text-white px-2 py-1 rounded-full font-bold"
+                                    >
+                                      Món {selectedDishes.indexOf(dish.id) + 1}
+                                    </motion.span>
+                                  )}
+                                </div>
+                                
+                                {!selectedDishes.includes(dish.id) && selectedDishes.length < 2 && (
+                                  <motion.div 
+                                    whileHover={{ scale: 1.1 }}
+                                    className="w-6 h-6 border-2 border-[#DA251D]/30 rounded-full group-hover:border-[#DA251D] transition-colors"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Admin Order Bar - khi đã chọn món */}
+                    {selectedDishes.length > 0 && (
+                      <motion.div 
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 20, opacity: 0 }}
+                        className="bg-gradient-to-r from-[#DA251D]/10 to-[#DA251D]/5 border-2 border-[#DA251D]/20 rounded-2xl p-6"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-lg font-bold text-[#1C1917] flex items-center gap-2">
+                            <ShoppingBag size={20} className="text-[#DA251D]" />
+                            Đơn hàng của bạn ({selectedDishes.length}/2)
+                          </h4>
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-bold text-[#DA251D]">40,000đ</span>
+                            <button 
+                              onClick={() => setSelectedDishes([])}
+                              className="text-red-500 hover:text-red-700 font-medium p-1"
+                              title="Xóa tất cả"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Selected dishes list */}
+                        <div className="flex flex-wrap gap-3 mb-4">
+                          {selectedDishes.map((dishId, index) => {
+                            const dish = menu?.dishes?.find(d => d.id === dishId);
+                            return (
+                              <div key={dishId} className="flex items-center gap-2 bg-white rounded-xl px-4 py-2 border border-[#F5E6D3] shadow-sm">
+                                <div className="w-6 h-6 bg-[#DA251D] text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                  {index + 1}
+                                </div>
+                                <span className="font-medium text-[#1C1917]">{dish?.name}</span>
+                                <button 
+                                  onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dishId))}
+                                  className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors"
+                                  title="Xóa món này"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {/* Order button */}
+                        <button 
                           onClick={() => {
-                            // Set selected dishes for admin order
-                            setSelectedDishes([dish.id]);
                             setOrderForUserId(user?.id || null);
                             setShowOrderSummary(true);
                           }}
+                          className="w-full bg-[#DA251D] hover:bg-[#DA251D]/90 text-white py-3 rounded-xl font-bold text-base transition-all shadow-lg flex items-center justify-center gap-2"
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-bold text-lg text-[#1C1917] mb-2">{dish.name}</h4>
-                              <p className="text-sm text-[#1C1917]/60">Click để đặt món này</p>
-                            </div>
-                            <div className="w-12 h-12 bg-[#DA251D] rounded-full flex items-center justify-center">
-                              <Utensils className="text-white" size={20} />
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
+                          <CheckCircle2 size={20} />
+                          Đặt cơm cho bản thân
+                        </button>
+                      </motion.div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -2568,8 +2698,8 @@ export default function App() {
                   {/* Weekly Orders Chart */}
                   <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-8 shadow-sm">
                     <h3 className="text-xl font-display font-bold tracking-tight mb-6">Đơn hàng theo tuần</h3>
-                    <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full min-h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                         <BarChart data={weeklyData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E1D1" vertical={false} />
                           <XAxis 

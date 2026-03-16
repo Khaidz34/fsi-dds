@@ -891,7 +891,17 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
 // Feedback Routes
 app.post('/api/feedback', authenticateToken, async (req, res) => {
   try {
+    console.log('=== FEEDBACK POST REQUEST ===');
+    console.log('User:', req.user ? { id: req.user.id, username: req.user.username, role: req.user.role } : 'No user');
+    console.log('Request body:', req.body);
+    
     const { subject, message, rating, comment } = req.body;
+    
+    // Validate required fields
+    if (!message && !comment) {
+      console.log('❌ Missing message/comment');
+      return res.status(400).json({ error: 'Nội dung góp ý là bắt buộc' });
+    }
     
     // Support both old format (rating/comment) and new format (subject/message)
     const feedbackData = {
@@ -902,6 +912,8 @@ app.post('/api/feedback', authenticateToken, async (req, res) => {
       status: 'pending'
     };
 
+    console.log('Feedback data to insert:', feedbackData);
+
     const { data: feedback, error } = await supabase
       .from('feedback')
       .insert([feedbackData])
@@ -909,13 +921,15 @@ app.post('/api/feedback', authenticateToken, async (req, res) => {
       .single();
 
     if (error) {
-      return res.status(500).json({ error: 'Lỗi gửi phản hồi' });
+      console.error('❌ Supabase error:', error);
+      return res.status(500).json({ error: 'Lỗi gửi phản hồi: ' + error.message });
     }
 
+    console.log('✅ Feedback created successfully:', feedback);
     res.json({ success: true, feedback });
   } catch (error) {
-    console.error('Feedback error:', error);
-    res.status(500).json({ error: 'Lỗi server' });
+    console.error('❌ Feedback error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + error.message });
   }
 });
 
