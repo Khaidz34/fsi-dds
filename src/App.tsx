@@ -133,8 +133,6 @@ const TRANSLATIONS = {
     dish2: 'Món 2',
     noSecondDish: 'Không có',
     noNotes: 'Không có',
-    // Confirm dialogs
-    confirmDeleteOrder: 'Bạn có chắc muốn xóa đơn hàng của',
     // User labels
     myself: '(Bản thân)',
     // Units
@@ -266,8 +264,6 @@ const TRANSLATIONS = {
     dish2: 'Dish 2',
     noSecondDish: 'None',
     noNotes: 'No notes',
-    // Confirm dialogs
-    confirmDeleteOrder: 'Are you sure you want to delete the order of',
     // User labels
     myself: '(Myself)',
     // Units
@@ -399,8 +395,6 @@ const TRANSLATIONS = {
     dish2: '料理2',
     noSecondDish: 'なし',
     noNotes: 'メモなし',
-    // Confirm dialogs
-    confirmDeleteOrder: '注文を削除してもよろしいですか',
     // User labels
     myself: '(自分)',
     // Units
@@ -2308,7 +2302,7 @@ export default function App() {
                             
                             {/* Actions */}
                             <div className="flex items-center justify-center md:justify-end gap-2">
-                              {(user?.role === 'admin' || order.user_id === user?.id) && (
+                              {user?.role === 'admin' && (
                                 <motion.button 
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
