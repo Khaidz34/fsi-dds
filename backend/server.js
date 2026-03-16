@@ -297,25 +297,108 @@ app.get('/api/menu/today', async (req, res) => {
   }
 });
 
-app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
+// Create simple menu (single language)
+app.post('/api/menu', authenticateToken, async (req, res) => {
   try {
+    console.log('=== CREATE MENU REQUEST ===');
+    console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
+    console.log('Request body:', req.body);
+    
     const { dishes, imageUrl } = req.body;
     
     if (!dishes || !Array.isArray(dishes) || dishes.length === 0) {
+      console.log('❌ Invalid dishes array');
       return res.status(400).json({ error: 'Danh sách món ăn là bắt buộc' });
     }
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Create menu
+    // Delete existing menu for today
+    const { error: deleteError } = await supabase
+      .from('menus')
+      .delete()
+      .eq('date', today);
+
+    if (deleteError) {
+      console.error('❌ Error deleting old menu:', deleteError);
+    }
+
+    // Create new menu
     const { data: menu, error: menuError } = await supabase
       .from('menus')
-      .insert([{ date: today, image_url: imageUrl }])
+      .insert([{ date: today, image_url: imageUrl || null }])
       .select()
       .single();
 
     if (menuError) {
-      return res.status(500).json({ error: 'Lỗi tạo menu' });
+      console.error('❌ Error creating menu:', menuError);
+      return res.status(500).json({ error: 'Lỗi tạo menu: ' + menuError.message });
+    }
+
+    // Create dishes
+    const dishData = dishes.map((dishName, index) => ({
+      menu_id: menu.id,
+      name: dishName.trim(),
+      name_vi: dishName.trim(),
+      name_en: dishName.trim(),
+      name_ja: dishName.trim(),
+      sort_order: index
+    }));
+
+    console.log('Dish data to insert:', dishData);
+
+    const { error: dishError } = await supabase
+      .from('dishes')
+      .insert(dishData);
+
+    if (dishError) {
+      console.error('❌ Error creating dishes:', dishError);
+      return res.status(500).json({ error: 'Lỗi tạo món ăn: ' + dishError.message });
+    }
+
+    console.log('✅ Menu created successfully:', menu);
+    res.json({ success: true, menu });
+  } catch (error) {
+    console.error('❌ Menu creation error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + error.message });
+  }
+});
+
+app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== CREATE MULTILINGUAL MENU REQUEST ===');
+    console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
+    console.log('Request body:', req.body);
+    
+    const { dishes, imageUrl } = req.body;
+    
+    if (!dishes || !Array.isArray(dishes) || dishes.length === 0) {
+      console.log('❌ Invalid dishes array');
+      return res.status(400).json({ error: 'Danh sách món ăn là bắt buộc' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Delete existing menu for today
+    const { error: deleteError } = await supabase
+      .from('menus')
+      .delete()
+      .eq('date', today);
+
+    if (deleteError) {
+      console.error('❌ Error deleting old menu:', deleteError);
+    }
+
+    // Create menu
+    const { data: menu, error: menuError } = await supabase
+      .from('menus')
+      .insert([{ date: today, image_url: imageUrl || null }])
+      .select()
+      .single();
+
+    if (menuError) {
+      console.error('❌ Error creating multilingual menu:', menuError);
+      return res.status(500).json({ error: 'Lỗi tạo menu: ' + menuError.message });
     }
 
     // Create dishes
@@ -328,9 +411,24 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
       sort_order: index
     }));
 
+    console.log('Multilingual dish data to insert:', dishData);
+
     const { error: dishError } = await supabase
       .from('dishes')
       .insert(dishData);
+
+    if (dishError) {
+      console.error('❌ Error creating multilingual dishes:', dishError);
+      return res.status(500).json({ error: 'Lỗi tạo món ăn: ' + dishError.message });
+    }
+
+    console.log('✅ Multilingual menu created successfully:', menu);
+    res.json({ success: true, menu });
+  } catch (error) {
+    console.error('❌ Multilingual menu creation error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + error.message });
+  }
+});
 
     if (dishError) {
       return res.status(500).json({ error: 'Lỗi tạo món ăn' });
