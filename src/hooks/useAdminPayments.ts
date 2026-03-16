@@ -72,7 +72,7 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
     }
-  }, [user, currentMonth]);
+  }, [user?.role, currentMonth]);
 
   return {
     userPayments,

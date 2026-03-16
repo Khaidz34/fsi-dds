@@ -48,10 +48,10 @@ export const useUsers = () => {
   };
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.id) {
       fetchUsers();
     }
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   return {
     users,

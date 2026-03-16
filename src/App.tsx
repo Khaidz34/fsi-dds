@@ -2279,7 +2279,7 @@ export default function App() {
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.date}</p>
                               <p className="text-sm font-bold text-[#1C1917]">
-                                {order.date ? new Date(order.date + 'T00:00:00').toLocaleDateString('vi-VN') : 'N/A'}
+                                {order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : 'N/A'}
                               </p>
                             </div>
                             
@@ -2493,7 +2493,7 @@ export default function App() {
                 </div>
 
                 {/* Admin Order Section */}
-                {menu && menu.dishes && menu.dishes.length > 0 && (
+                {user?.role === 'admin' && menu && menu.dishes && menu.dishes.length > 0 && (
                   <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-4 lg:p-10 shadow-sm">
                     <h3 className="text-2xl font-display font-bold tracking-tight mb-6">🍽️ Đặt cơm cho bản thân</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2506,9 +2506,9 @@ export default function App() {
                           className="bg-gradient-to-br from-[#F5E6D3] to-[#E5D5C8] rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105"
                           onClick={() => {
                             // Set selected dishes for admin order
-                            setSelectedDish1(dish.id);
-                            setSelectedCustomer(user?.id || 0);
-                            setShowOrderModal(true);
+                            setSelectedDishes([dish.id]);
+                            setOrderForUserId(user?.id || null);
+                            setShowOrderSummary(true);
                           }}
                         >
                           <div className="flex items-center justify-between">

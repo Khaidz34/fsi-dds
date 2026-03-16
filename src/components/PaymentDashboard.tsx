@@ -46,7 +46,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     const ordersByDate: { [key: string]: number } = {};
     
     orders.forEach(order => {
-      const date = order.date;
+      const date = order.created_at ? order.created_at.split('T')[0] : null;
       if (date && date.startsWith(currentMonth)) {
         ordersByDate[date] = (ordersByDate[date] || 0) + 1;
       }

@@ -555,27 +555,69 @@ app.get('/api/payments/today', authenticateToken, async (req, res) => {
 app.get('/api/payments', authenticateToken, async (req, res) => {
   try {
     const { month } = req.query;
-    let query = supabase
-      .from('payments')
-      .select(`
-        *,
-        user:user_id (id, fullname)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (month) {
-      const startDate = `${month}-01`;
-      const endDate = `${month}-31`;
-      query = query.gte('created_at', startDate).lte('created_at', endDate);
+    
+    if (req.user.role === 'admin') {
+      // Admin gets aggregated stats for all users
+      const currentMonth = month || new Date().toISOString().slice(0, 7);
+      const startDate = `${currentMonth}-01`;
+      const endDate = `${currentMonth}-31`;
+      
+      // Get all users
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, fullname, username');
+      
+      if (usersError) {
+        return res.status(500).json({ error: 'Lỗi lấy danh sách users' });
+      }
+      
+      const userStats = [];
+      
+      for (const user of users || []) {
+        // Get user's orders for the month
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('price')
+          .eq('user_id', user.id)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate);
+        
+        // Get user's payments for the month
+        const { data: payments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('amount')
+          .eq('user_id', user.id)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate);
+        
+        if (!ordersError && !paymentsError) {
+          const ordersCount = orders?.length || 0;
+          const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+          const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+          const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+          
+          userStats.push({
+            userId: user.id,
+            fullname: user.fullname,
+            username: user.username,
+            month: currentMonth,
+            ordersCount,
+            ordersTotal,
+            paidCount: payments?.length || 0,
+            paidTotal,
+            remainingCount: remainingTotal > 0 ? 1 : 0,
+            remainingTotal,
+            overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
+          });
+        }
+      }
+      
+      res.json(userStats);
+    } else {
+      // Regular user gets their own payment data
+      const data = await paymentsAPI.getMy(month);
+      res.json([data]); // Wrap in array for consistency
     }
-
-    const { data: payments, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ error: 'Lỗi database' });
-    }
-
-    res.json(payments || []);
   } catch (error) {
     console.error('Payments error:', error);
     res.status(500).json({ error: 'Lỗi server' });
@@ -699,6 +741,44 @@ app.post('/api/payments', authenticateToken, async (req, res) => {
   }
 });
 
+// Mark payment as paid (admin only)
+app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const { userId, month, amount } = req.body;
+    
+    if (!userId || !month || !amount) {
+      return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
+    }
+
+    const paymentData = {
+      user_id: userId,
+      amount: amount,
+      method: 'admin_marked',
+      notes: `Marked as paid by admin for ${month}`,
+      status: 'completed'
+    };
+
+    const { data: payment, error } = await supabase
+      .from('payments')
+      .insert([paymentData])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi đánh dấu thanh toán' });
+    }
+
+    res.json({ success: true, payment });
+  } catch (error) {
+    console.error('Mark paid error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // Admin Routes
 app.get('/api/admin/stats', authenticateToken, async (req, res) => {
   try {
@@ -811,16 +891,15 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
 // Feedback Routes
 app.post('/api/feedback', authenticateToken, async (req, res) => {
   try {
-    const { rating, comment } = req.body;
+    const { subject, message, rating, comment } = req.body;
     
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: 'Đánh giá phải từ 1-5 sao' });
-    }
-
+    // Support both old format (rating/comment) and new format (subject/message)
     const feedbackData = {
       user_id: req.user.id,
-      rating: rating,
-      comment: comment || null
+      subject: subject || null,
+      message: message || comment || null,
+      rating: rating || null,
+      status: 'pending'
     };
 
     const { data: feedback, error } = await supabase
@@ -851,7 +930,7 @@ app.get('/api/feedback', authenticateToken, async (req, res) => {
       .from('feedback')
       .select(`
         *,
-        user:user_id (id, fullname)
+        user:user_id (id, fullname, username)
       `)
       .order('created_at', { ascending: false });
 
@@ -859,9 +938,131 @@ app.get('/api/feedback', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
-    res.json(feedback || []);
+    // Format response to match frontend expectations
+    const formattedFeedback = feedback?.map(f => ({
+      id: f.id,
+      subject: f.subject,
+      message: f.message || f.comment,
+      status: f.status || 'pending',
+      created_at: f.created_at,
+      fullname: f.user?.fullname || 'Unknown',
+      username: f.user?.username || 'unknown'
+    })) || [];
+
+    res.json(formattedFeedback);
   } catch (error) {
     console.error('Feedback list error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Update feedback status (admin only)
+app.patch('/api/feedback/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const feedbackId = req.params.id;
+    const { status } = req.body;
+
+    if (!['pending', 'reviewed', 'resolved'].includes(status)) {
+      return res.status(400).json({ error: 'Trạng thái không hợp lệ' });
+    }
+
+    const { error } = await supabase
+      .from('feedback')
+      .update({ status })
+      .eq('id', feedbackId);
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi cập nhật trạng thái' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update feedback status error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Delete dish (admin only)
+app.delete('/api/dishes/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const dishId = req.params.id;
+    
+    const { error } = await supabase
+      .from('dishes')
+      .delete()
+      .eq('id', dishId);
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi xóa món ăn' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete dish error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Admin cleanup markdown
+app.post('/api/admin/cleanup-markdown', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    // Get all dishes with markdown formatting
+    const { data: dishes, error: fetchError } = await supabase
+      .from('dishes')
+      .select('id, name, name_vi, name_en, name_ja');
+
+    if (fetchError) {
+      return res.status(500).json({ error: 'Lỗi lấy dữ liệu món ăn' });
+    }
+
+    let updatedCount = 0;
+
+    // Clean up each dish
+    for (const dish of dishes || []) {
+      const cleanName = dish.name?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
+      const cleanNameVi = dish.name_vi?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
+      const cleanNameEn = dish.name_en?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
+      const cleanNameJa = dish.name_ja?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
+
+      // Only update if there were changes
+      if (cleanName !== dish.name || cleanNameVi !== dish.name_vi || 
+          cleanNameEn !== dish.name_en || cleanNameJa !== dish.name_ja) {
+        
+        const { error: updateError } = await supabase
+          .from('dishes')
+          .update({
+            name: cleanName || dish.name,
+            name_vi: cleanNameVi || dish.name_vi,
+            name_en: cleanNameEn || dish.name_en,
+            name_ja: cleanNameJa || dish.name_ja
+          })
+          .eq('id', dish.id);
+
+        if (!updateError) {
+          updatedCount++;
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Đã làm sạch ${updatedCount} món ăn`,
+      updatedCount
+    });
+  } catch (error) {
+    console.error('Cleanup markdown error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
 });

@@ -39,7 +39,7 @@ export const useDashboardStats = () => {
     if (user?.role === 'admin') {
       fetchStats();
     }
-  }, [user]);
+  }, [user?.role]);
 
   return {
     stats,

@@ -64,7 +64,7 @@ export const useFeedback = () => {
     if (user?.role === 'admin') {
       fetchFeedbacks();
     }
-  }, [user]);
+  }, [user?.role]);
 
   return {
     feedbacks,

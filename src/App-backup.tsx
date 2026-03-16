@@ -1891,7 +1891,7 @@ export default function App() {
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.date}</p>
                               <p className="text-sm font-bold text-[#1C1917]">
-                                {order.date ? new Date(order.date + 'T00:00:00').toLocaleDateString('vi-VN') : 'N/A'}
+                                {order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : 'N/A'}
                               </p>
                             </div>
                             

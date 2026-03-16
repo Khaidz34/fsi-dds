@@ -78,10 +78,10 @@ export const usePayments = (month?: string) => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchPaymentStats();
     }
-  }, [user, month]);
+  }, [user?.id, month]);
 
   return {
     paymentStats,

@@ -8,7 +8,6 @@ export interface Order {
   ordered_for: number;
   user_id: number;
   price: number;
-  date: string;
   notes?: string;
   rating?: number;
   created_at: string;
@@ -84,10 +83,10 @@ export const useOrders = (language?: string) => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchOrders();
     }
-  }, [user, language]);
+  }, [user?.id, language]);
 
   return {
     orders,

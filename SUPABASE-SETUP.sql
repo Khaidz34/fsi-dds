@@ -65,8 +65,11 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS feedback (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  subject TEXT,
+  message TEXT,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
   comment TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

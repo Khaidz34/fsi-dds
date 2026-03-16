@@ -568,7 +568,7 @@ export default function App() {
                               )}
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-medium text-gray-900">{order.date}</p>
+                              <p className="text-sm font-medium text-gray-900">{order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : 'N/A'}</p>
                               <p className="text-sm text-green-600 font-medium">{order.price?.toLocaleString()}đ</p>
                             </div>
                           </div>
