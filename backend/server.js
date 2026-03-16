@@ -744,13 +744,19 @@ app.post('/api/payments', authenticateToken, async (req, res) => {
 // Mark payment as paid (admin only)
 app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
   try {
+    console.log('=== MARK PAID REQUEST ===');
+    console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
+    console.log('Request body:', req.body);
+    
     if (req.user.role !== 'admin') {
+      console.log('❌ Not admin');
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
 
     const { userId, month, amount } = req.body;
     
     if (!userId || !month || !amount) {
+      console.log('❌ Missing required fields:', { userId, month, amount });
       return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
     }
 
@@ -762,6 +768,8 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       status: 'completed'
     };
 
+    console.log('Payment data to insert:', paymentData);
+
     const { data: payment, error } = await supabase
       .from('payments')
       .insert([paymentData])
@@ -769,13 +777,15 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       .single();
 
     if (error) {
-      return res.status(500).json({ error: 'Lỗi đánh dấu thanh toán' });
+      console.error('❌ Supabase error:', error);
+      return res.status(500).json({ error: 'Lỗi đánh dấu thanh toán: ' + error.message });
     }
 
+    console.log('✅ Payment marked successfully:', payment);
     res.json({ success: true, payment });
   } catch (error) {
-    console.error('Mark paid error:', error);
-    res.status(500).json({ error: 'Lỗi server' });
+    console.error('❌ Mark paid error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + error.message });
   }
 });
 

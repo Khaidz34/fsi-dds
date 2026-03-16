@@ -80,6 +80,13 @@ export const usePayments = (month?: string) => {
   useEffect(() => {
     if (user?.id) {
       fetchPaymentStats();
+      
+      // Auto refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchPaymentStats();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [user?.id, month]);
 

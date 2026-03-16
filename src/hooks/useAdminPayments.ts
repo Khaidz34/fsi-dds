@@ -57,13 +57,17 @@ export const useAdminPayments = (month?: string) => {
 
   const markAsPaid = async (userId: number, amount: number) => {
     try {
+      setIsLoading(true);
       await paymentsAPI.markPaid(userId, currentMonth, amount);
       // Refresh data after marking as paid
       await fetchUserPayments();
       await fetchPaymentHistory();
       return true;
     } catch (err) {
+      console.error('Mark as paid error:', err);
       throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -71,6 +75,14 @@ export const useAdminPayments = (month?: string) => {
     if (user?.role === 'admin') {
       fetchUserPayments();
       fetchPaymentHistory();
+      
+      // Auto refresh every 30 seconds for admin
+      const interval = setInterval(() => {
+        fetchUserPayments();
+        fetchPaymentHistory();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [user?.role, currentMonth]);
 

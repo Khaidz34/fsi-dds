@@ -85,6 +85,13 @@ export const useOrders = (language?: string) => {
   useEffect(() => {
     if (user?.id) {
       fetchOrders();
+      
+      // Auto refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchOrders();
+      }, 30000);
+      
+      return () => clearInterval(interval);
     }
   }, [user?.id, language]);
 
