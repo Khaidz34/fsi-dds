@@ -197,27 +197,44 @@ function createSampleData() {
         db.run(`ALTER TABLE dishes ADD COLUMN name_ja TEXT`, (err) => {
           // Ignore error if column already exists
           
-          // Tạo admin user mặc định
-          const adminPassword = bcrypt.hashSync('password', 10);
+          // Tạo default users
+          const adminPassword = bcrypt.hashSync('admin123', 10);
+          const userPassword = bcrypt.hashSync('user123', 10);
           
-          db.run(`INSERT OR IGNORE INTO users (username, password, fullname, role) VALUES (?, ?, ?, ?)`,
-            ['admin', adminPassword, 'Administrator', 'admin'], (err) => {
-              if (err) console.error('Error creating admin:', err);
-              console.log('✅ Admin user ready');
-              console.log('✅ Multilingual columns added');
-              
-              // Clean up markdown formatting from all dish names
-              console.log('🧹 Cleaning up markdown formatting...');
-              
-              const cleanupQueries = [
-                `UPDATE dishes SET name_vi = REPLACE(name_vi, '**', '') WHERE name_vi LIKE '%**%'`,
-                `UPDATE dishes SET name_en = REPLACE(name_en, '**', '') WHERE name_en LIKE '%**%'`,
-                `UPDATE dishes SET name_ja = REPLACE(name_ja, '**', '') WHERE name_ja LIKE '%**%'`,
-                `UPDATE dishes SET name = REPLACE(name, '**', '') WHERE name LIKE '%**%'`
-              ];
-              
-              let cleanupCompleted = 0;
-              cleanupQueries.forEach((query, index) => {
+          const defaultUsers = [
+            ['admin', adminPassword, 'Administrator', 'admin'],
+            ['toan', userPassword, 'Nguyễn Tiến Toàn', 'user'],
+            ['user1', userPassword, 'Nhân viên 1', 'user'],
+            ['user2', userPassword, 'Nhân viên 2', 'user']
+          ];
+          
+          let usersCreated = 0;
+          defaultUsers.forEach(([username, password, fullname, role]) => {
+            db.run(`INSERT OR IGNORE INTO users (username, password, fullname, role) VALUES (?, ?, ?, ?)`,
+              [username, password, fullname, role], (err) => {
+                if (err) console.error(`Error creating user ${username}:`, err);
+                usersCreated++;
+                
+                if (usersCreated === defaultUsers.length) {
+                  console.log('✅ Default users ready:');
+                  console.log('   - admin/admin123 (Administrator)');
+                  console.log('   - toan/user123 (Nguyễn Tiến Toàn)');
+                  console.log('   - user1/user123 (Nhân viên 1)');
+                  console.log('   - user2/user123 (Nhân viên 2)');
+                  console.log('✅ Multilingual columns added');
+                  
+                  // Clean up markdown formatting from all dish names
+                  console.log('🧹 Cleaning up markdown formatting...');
+                  
+                  const cleanupQueries = [
+                    `UPDATE dishes SET name_vi = REPLACE(name_vi, '**', '') WHERE name_vi LIKE '%**%'`,
+                    `UPDATE dishes SET name_en = REPLACE(name_en, '**', '') WHERE name_en LIKE '%**%'`,
+                    `UPDATE dishes SET name_ja = REPLACE(name_ja, '**', '') WHERE name_ja LIKE '%**%'`,
+                    `UPDATE dishes SET name = REPLACE(name, '**', '') WHERE name LIKE '%**%'`
+                  ];
+                  
+                  let cleanupCompleted = 0;
+                  cleanupQueries.forEach((query, index) => {
                 db.run(query, function(err) {
                   if (err) {
                     console.error(`❌ Cleanup error for query ${index + 1}:`, err);
@@ -1290,6 +1307,105 @@ app.get('/api/test/payments', authMiddleware, (req, res) => {
     res.json(result);
   });
 });
+
+// ─── Debug Endpoints (Development Only) ──────────────────────
+if (process.env.NODE_ENV !== 'production') {
+  // View all tables data
+  app.get('/debug/tables', authenticateToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    const queries = {
+      users: 'SELECT id, username, fullname, role, created_at FROM users',
+      menus: 'SELECT * FROM menus ORDER BY date DESC LIMIT 10',
+      dishes: 'SELECT * FROM dishes ORDER BY id DESC LIMIT 20',
+      orders: 'SELECT * FROM orders ORDER BY created_at DESC LIMIT 20',
+      payments: 'SELECT * FROM payments ORDER BY created_at DESC LIMIT 20',
+      feedback: 'SELECT * FROM feedback ORDER BY created_at DESC LIMIT 10'
+    };
+
+    const results = {};
+    let completed = 0;
+    const total = Object.keys(queries).length;
+
+    Object.entries(queries).forEach(([table, query]) => {
+      db.all(query, (err, rows) => {
+        if (err) {
+          results[table] = { error: err.message };
+        } else {
+          results[table] = rows;
+        }
+        
+        completed++;
+        if (completed === total) {
+          res.json(results);
+        }
+      });
+    });
+  });
+
+  // View specific table
+  app.get('/debug/table/:tableName', authenticateToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    const { tableName } = req.params;
+    const allowedTables = ['users', 'menus', 'dishes', 'orders', 'payments', 'feedback'];
+    
+    if (!allowedTables.includes(tableName)) {
+      return res.status(400).json({ error: 'Invalid table name' });
+    }
+
+    let query = `SELECT * FROM ${tableName} ORDER BY `;
+    query += tableName === 'users' ? 'id DESC' : 'created_at DESC';
+    query += ' LIMIT 50';
+
+    db.all(query, (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ table: tableName, data: rows, count: rows.length });
+      }
+    });
+  });
+
+  // Database stats
+  app.get('/debug/stats', authenticateToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    const statsQueries = {
+      users: 'SELECT COUNT(*) as count FROM users',
+      menus: 'SELECT COUNT(*) as count FROM menus',
+      dishes: 'SELECT COUNT(*) as count FROM dishes',
+      orders: 'SELECT COUNT(*) as count FROM orders',
+      payments: 'SELECT COUNT(*) as count FROM payments',
+      feedback: 'SELECT COUNT(*) as count FROM feedback'
+    };
+
+    const stats = {};
+    let completed = 0;
+    const total = Object.keys(statsQueries).length;
+
+    Object.entries(statsQueries).forEach(([table, query]) => {
+      db.get(query, (err, row) => {
+        if (err) {
+          stats[table] = { error: err.message };
+        } else {
+          stats[table] = row.count;
+        }
+        
+        completed++;
+        if (completed === total) {
+          res.json(stats);
+        }
+      });
+    });
+  });
+}
 
 // ─── Server Start ────────────────────────────────────────────
 initDatabase().then(() => {

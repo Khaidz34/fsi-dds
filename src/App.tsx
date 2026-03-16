@@ -1845,7 +1845,6 @@ export default function App() {
                             className="mb-4"
                           >
                             <p className="text-white/80 text-sm max-w-md mx-auto leading-relaxed">
-                              Trải nghiệm game chém trái cây với hương vị Việt-Nhật độc đáo. 
                               Thử thách kỹ năng blade master của bạn!
                             </p>
                           </motion.div>
@@ -2464,6 +2463,40 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                {/* Admin Order Section */}
+                {menu && menu.dishes && menu.dishes.length > 0 && (
+                  <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-4 lg:p-10 shadow-sm">
+                    <h3 className="text-2xl font-display font-bold tracking-tight mb-6">🍽️ Đặt cơm cho bản thân</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {menu.dishes.map((dish, index) => (
+                        <motion.div
+                          key={`admin-order-${dish.id}`}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-gradient-to-br from-[#F5E6D3] to-[#E5D5C8] rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105"
+                          onClick={() => {
+                            // Set selected dishes for admin order
+                            setSelectedDish1(dish.id);
+                            setSelectedCustomer(user?.id || 0);
+                            setShowOrderModal(true);
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-bold text-lg text-[#1C1917] mb-2">{dish.name}</h4>
+                              <p className="text-sm text-[#1C1917]/60">Click để đặt món này</p>
+                            </div>
+                            <div className="w-12 h-12 bg-[#DA251D] rounded-full flex items-center justify-center">
+                              <Utensils className="text-white" size={20} />
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
