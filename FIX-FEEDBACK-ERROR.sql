@@ -1,65 +1,49 @@
 -- =====================================================
--- Fix Feedback Table Error
+-- Fix Feedback Table Error - UPDATED VERSION
 -- Chạy script này trong Supabase SQL Editor để sửa lỗi feedback
 -- =====================================================
 
--- Kiểm tra cấu trúc table hiện tại
-SELECT column_name, data_type, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'feedback' 
-ORDER BY ordinal_position;
+-- Xóa table cũ nếu có vấn đề và tạo lại
+DROP TABLE IF EXISTS feedback CASCADE;
 
--- Thêm các columns thiếu nếu chưa có
-ALTER TABLE feedback 
-ADD COLUMN IF NOT EXISTS subject TEXT,
-ADD COLUMN IF NOT EXISTS message TEXT,
-ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved'));
+-- Tạo lại feedback table với schema đúng
+CREATE TABLE feedback (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  subject TEXT,
+  message TEXT NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Cập nhật constraint cho status nếu cần
-DO $$ 
-BEGIN
-    -- Drop constraint cũ nếu có
-    IF EXISTS (SELECT 1 FROM information_schema.table_constraints 
-               WHERE constraint_name = 'feedback_status_check' 
-               AND table_name = 'feedback') THEN
-        ALTER TABLE feedback DROP CONSTRAINT feedback_status_check;
-    END IF;
-    
-    -- Thêm constraint mới
-    ALTER TABLE feedback ADD CONSTRAINT feedback_status_check 
-    CHECK (status IN ('pending', 'reviewed', 'resolved'));
-EXCEPTION
-    WHEN OTHERS THEN
-        -- Ignore error if constraint already exists
-        NULL;
-END $$;
-
--- Cập nhật dữ liệu cũ
-UPDATE feedback 
-SET status = 'pending' 
-WHERE status IS NULL;
-
--- Make rating optional (remove NOT NULL constraint if exists)
-ALTER TABLE feedback ALTER COLUMN rating DROP NOT NULL;
-
--- Kiểm tra lại cấu trúc sau khi sửa
-SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns 
-WHERE table_name = 'feedback' 
-ORDER BY ordinal_position;
+-- Tạo index cho performance
+CREATE INDEX IF NOT EXISTS idx_feedback_user_id ON feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
+CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at);
 
 -- Test insert để đảm bảo hoạt động
 DO $$
 BEGIN
-    -- Test insert with new format
+    -- Test insert with new format (without rating)
     INSERT INTO feedback (user_id, subject, message, status) 
     VALUES (1, 'Test Subject', 'Test Message', 'pending');
     
-    -- Delete test record
-    DELETE FROM feedback WHERE subject = 'Test Subject' AND message = 'Test Message';
+    -- Test insert with rating
+    INSERT INTO feedback (user_id, subject, message, rating, status) 
+    VALUES (1, 'Test Subject 2', 'Test Message 2', 5, 'pending');
     
-    RAISE NOTICE '✅ Feedback table is working correctly!';
+    -- Delete test records
+    DELETE FROM feedback WHERE subject LIKE 'Test Subject%';
+    
+    RAISE NOTICE '✅ Feedback table created and tested successfully!';
 EXCEPTION
     WHEN OTHERS THEN
         RAISE NOTICE '❌ Error: %', SQLERRM;
 END $$;
+
+-- Kiểm tra cấu trúc table
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns 
+WHERE table_name = 'feedback' 
+ORDER BY ordinal_position;

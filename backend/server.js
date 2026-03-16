@@ -892,23 +892,22 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
 app.post('/api/feedback', authenticateToken, async (req, res) => {
   try {
     console.log('=== FEEDBACK POST REQUEST ===');
-    console.log('User:', req.user ? { id: req.user.id, username: req.user.username, role: req.user.role } : 'No user');
+    console.log('User:', req.user ? { id: req.user.id, username: req.user.username } : 'No user');
     console.log('Request body:', req.body);
     
-    const { subject, message, rating, comment } = req.body;
+    const { subject, message } = req.body;
     
     // Validate required fields
-    if (!message && !comment) {
-      console.log('❌ Missing message/comment');
+    if (!message || !message.trim()) {
+      console.log('❌ Missing message');
       return res.status(400).json({ error: 'Nội dung góp ý là bắt buộc' });
     }
     
-    // Support both old format (rating/comment) and new format (subject/message)
+    // Simple feedback data - NO RATING COLUMN
     const feedbackData = {
       user_id: req.user.id,
-      subject: subject || null,
-      message: message || comment || null,
-      rating: rating || null,
+      subject: subject?.trim() || null,
+      message: message.trim(),
       status: 'pending'
     };
 
