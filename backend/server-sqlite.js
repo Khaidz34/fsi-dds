@@ -282,7 +282,9 @@ function createSampleData() {
               if (cleanupQueries.length === 0) {
                 resolve();
               }
-            });
+                }
+              });
+          });
         });
       });
     });
