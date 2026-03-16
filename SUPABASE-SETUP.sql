@@ -54,8 +54,10 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS payments (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  month TEXT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
+  method TEXT DEFAULT 'cash' CHECK (method IN ('cash', 'transfer', 'card')),
+  notes TEXT,
+  status TEXT DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -63,9 +65,8 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS feedback (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  subject TEXT,
-  message TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'closed')),
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -1,149 +1,127 @@
-# Hướng dẫn Deploy miễn phí lên Render.com
+# 🚀 Hướng dẫn Deploy FSI-DDS lên Render.com
 
-## Phương án 1: Render.com (Khuyến nghị - Hoàn toàn miễn phí)
+## 📋 Tổng quan
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Node.js + Express
+- **Database**: Supabase PostgreSQL (miễn phí)
+- **Hosting**: Render.com (miễn phí)
 
-### Ưu điểm:
-- ✅ Hoàn toàn miễn phí (750 giờ/tháng)
-- ✅ Hỗ trợ SQLite với persistent disk
-- ✅ Auto-deploy từ GitHub
-- ✅ SSL certificate miễn phí
-- ✅ Đủ cho 100+ người dùng
+## 🎯 Bước 1: Setup Supabase Database
 
-### Bước 1: Chuẩn bị GitHub Repository
+### 1.1 Tạo Supabase Project
+1. Vào https://supabase.com
+2. Đăng ký/đăng nhập
+3. Click **New Project**
+4. Chọn organization và nhập:
+   - **Name**: fsi-dds
+   - **Database Password**: [tạo password mạnh]
+   - **Region**: Southeast Asia (Singapore)
+5. Click **Create new project**
 
-1. **Push code lên GitHub:**
-```bash
-git add .
-git commit -m "Prepare for Render deployment"
-git push origin main
+### 1.2 Tạo Database Schema
+1. Trong Supabase Dashboard → **SQL Editor**
+2. Copy toàn bộ nội dung file `SUPABASE-SETUP.sql`
+3. Paste vào editor và click **Run**
+4. Kiểm tra **Table Editor** để đảm bảo các bảng đã được tạo
+
+### 1.3 Lấy API Keys
+1. Vào **Settings** → **API**
+2. Copy 2 keys:
+   - **Project URL**: `https://xxx.supabase.co`
+   - **anon public key**: `eyJ...` (key dài)
+
+## 🎯 Bước 2: Deploy Backend lên Render
+
+### 2.1 Tạo Render Account
+1. Vào https://render.com
+2. Đăng ký với GitHub account
+
+### 2.2 Connect GitHub Repository
+1. Push code lên GitHub repository
+2. Trong Render Dashboard → **New** → **Web Service**
+3. Connect GitHub repository
+
+### 2.3 Configure Backend Service
+- **Name**: `fsi-dds-backend`
+- **Environment**: `Node`
+- **Build Command**: `cd backend && npm install --production`
+- **Start Command**: `cd backend && npm start`
+- **Plan**: `Free`
+
+### 2.4 Set Environment Variables
+Trong **Environment** tab, thêm:
+```
+NODE_ENV=production
+JWT_SECRET=[auto-generated]
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+PORT=10000
 ```
 
-### Bước 2: Deploy Backend trên Render
+### 2.5 Deploy
+1. Click **Create Web Service**
+2. Đợi build và deploy hoàn thành
+3. Lấy URL backend: `https://fsi-dds-backend.onrender.com`
 
-1. **Truy cập:** https://render.com và đăng ký/đăng nhập
-2. **Tạo Web Service:**
-   - Click "New" → "Web Service"
-   - Connect GitHub repository của bạn
-   - Chọn repository chứa project
+## 🎯 Bước 3: Deploy Frontend
 
-3. **Cấu hình Backend:**
-   - **Name:** `fsi-dds-backend`
-   - **Region:** Singapore (gần Việt Nam nhất)
-   - **Branch:** `main`
-   - **Runtime:** Node
-   - **Build Command:** `cd backend && npm install --production`
-   - **Start Command:** `cd backend && npm run start:sqlite`
-   - **Plan:** Free
+### 3.1 Update API URL
+Trong file `src/services/api.ts`, cập nhật:
+```typescript
+const API_BASE_URL = 'https://fsi-dds-backend.onrender.com';
+```
 
-4. **Environment Variables:**
-   ```
-   NODE_ENV=production
-   JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-   DATABASE_PATH=/opt/render/project/src/data/dining.db
-   BACKUP_ENABLED=true
-   PORT=10000
-   ```
+### 3.2 Build Frontend
+```bash
+npm run build
+```
 
-5. **Persistent Disk:**
-   - Trong Advanced settings
-   - Add Disk: Name `fsi-dds-data`, Mount Path `/opt/render/project/src/data`, Size 1GB
+### 3.3 Deploy Frontend lên Render
+1. **New** → **Static Site**
+2. Connect same GitHub repository
+3. Configure:
+   - **Name**: `fsi-dds-frontend`
+   - **Build Command**: `npm run build`
+   - **Publish Directory**: `dist`
+   - **Plan**: `Free`
 
-6. **Deploy:** Click "Create Web Service"
+## 🎯 Bước 4: Test Application
 
-### Bước 3: Deploy Frontend trên Render
+### 4.1 Test Backend
+- Health check: `https://fsi-dds-backend.onrender.com/health`
+- Should return: `{"status":"ok","database":"connected"}`
 
-1. **Tạo Static Site:**
-   - Click "New" → "Static Site"
-   - Chọn cùng repository
+### 4.2 Test Frontend
+- Vào: `https://fsi-dds-frontend.onrender.com`
+- Login với: `admin/admin123`
 
-2. **Cấu hình Frontend:**
-   - **Name:** `fsi-dds-frontend`
-   - **Branch:** `main`
-   - **Build Command:** `npm install && npm run build`
-   - **Publish Directory:** `dist`
+## 🔧 Troubleshooting
 
-3. **Environment Variables:**
-   ```
-   VITE_API_URL=https://fsi-dds-backend.onrender.com
-   ```
-   (Thay `fsi-dds-backend` bằng tên service backend của bạn)
+### Backend không start
+1. Check logs trong Render Dashboard
+2. Đảm bảo environment variables đúng
+3. Test Supabase connection: `npm run test:supabase`
 
-4. **Deploy:** Click "Create Static Site"
+### Database connection failed
+1. Kiểm tra Supabase project có active không
+2. Verify SUPABASE_URL và SUPABASE_ANON_KEY
+3. Chạy lại `SUPABASE-SETUP.sql`
 
-### Bước 4: Cấu hình Custom Domain (Tùy chọn)
+### Frontend không connect được backend
+1. Kiểm tra API_BASE_URL trong `src/services/api.ts`
+2. Check CORS settings trong backend
+3. Verify backend health endpoint
 
-1. **Mua domain miễn phí:** Freenom.com hoặc dùng subdomain
-2. **Trong Render Dashboard:**
-   - Vào Settings của từng service
-   - Add Custom Domain
-   - Cấu hình DNS records
+## 💰 Chi phí
+- **Supabase**: Miễn phí (500MB database, 50MB file storage)
+- **Render**: Miễn phí (750 hours/month, sleep after 15 min inactive)
+- **Total**: $0/month
 
-### Bước 5: Kiểm tra và Test
+## 🚀 URLs sau khi deploy
+- **Frontend**: `https://fsi-dds-frontend.onrender.com`
+- **Backend**: `https://fsi-dds-backend.onrender.com`
+- **Database**: Supabase Dashboard
 
-1. **Backend URL:** `https://your-backend-name.onrender.com`
-2. **Frontend URL:** `https://your-frontend-name.onrender.com`
-3. **Test API:** `https://your-backend-name.onrender.com/api/menu/today`
-
----
-
-## Phương án 2: Vercel + Railway (Backup)
-
-### Vercel cho Frontend (Miễn phí)
-1. Truy cập vercel.com
-2. Import GitHub repository
-3. Set Environment Variables:
-   ```
-   VITE_API_URL=https://your-app.railway.app
-   ```
-
-### Railway cho Backend (Miễn phí $5 credit/tháng)
-1. Truy cập railway.app
-2. Deploy from GitHub
-3. Sử dụng file `railway.json` có sẵn
-
----
-
-## Phương án 3: Netlify + Render (Backup)
-
-### Netlify cho Frontend
-1. Drag & drop folder `dist` sau khi build
-2. Hoặc connect GitHub repository
-
-### Render cho Backend
-- Như hướng dẫn ở Phương án 1
-
----
-
-## Lưu ý quan trọng:
-
-### 1. Database Backup
-- Render free tier có thể restart service
-- Database sẽ được lưu trong persistent disk
-- Nên setup backup định kỳ
-
-### 2. Performance
-- Free tier có thể "sleep" sau 15 phút không hoạt động
-- Lần đầu truy cập có thể chậm (cold start)
-- Đủ cho 100 người dùng bình thường
-
-### 3. Monitoring
-- Render cung cấp logs miễn phí
-- Có thể monitor qua dashboard
-
-### 4. Scaling
-- Nếu cần nhiều tài nguyên hơn, có thể upgrade plan
-- Hoặc chuyển sang VPS như DigitalOcean
-
----
-
-## Troubleshooting
-
-### Lỗi thường gặp:
-1. **Build failed:** Kiểm tra dependencies trong package.json
-2. **Database error:** Kiểm tra DATABASE_PATH environment variable
-3. **CORS error:** Kiểm tra VITE_API_URL trong frontend
-4. **404 on refresh:** Cần cấu hình redirect rules cho SPA
-
-### Liên hệ hỗ trợ:
-- Render Support: help@render.com
-- Community: render.com/community
+## 📱 Default Users
+- **Admin**: `admin/admin123`
+- **User**: `toan/user123`, `user1/user123`, `user2/user123`

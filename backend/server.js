@@ -4,29 +4,32 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
-const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
-// ─── Supabase Client ─────────────────────────────────────────
+console.log('=== FSI-DDS Server Starting ===');
+console.log('Process ID:', process.pid);
+console.log('Node Version:', process.version);
+console.log('Target Port:', PORT);
+console.log('Environment:', process.env.NODE_ENV || 'development');
+
+// Supabase Client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Missing Supabase credentials');
-  console.error('   SUPABASE_URL:', supabaseUrl ? '✅' : '❌');
-  console.error('   SUPABASE_ANON_KEY:', supabaseKey ? '✅' : '❌');
+  console.error('ERROR: Missing Supabase credentials');
+  console.error('SUPABASE_URL:', supabaseUrl ? 'OK' : 'MISSING');
+  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'OK' : 'MISSING');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase Key:', supabaseKey ? 'Configured' : 'Missing');
 
-console.log('🚀 Supabase Configuration:');
-console.log('   URL:', supabaseUrl);
-console.log('   Key:', supabaseKey ? '✅ Configured' : '❌ Missing');
-
-// ─── Middleware ──────────────────────────────────────────────
+// Middleware
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true);
@@ -58,7 +61,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// ─── Authentication Middleware ───────────────────────────────
+// Authentication Middleware
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -70,7 +73,6 @@ const authenticateToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     
-    // Get user from Supabase
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -88,146 +90,31 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// ─── Database Schema Setup ───────────────────────────────────
+// Database initialization
 async function initDatabase() {
-  console.log('🗄️  Initializing Supabase tables...');
+  console.log('Initializing Supabase tables...');
   
   try {
-    // Check if tables exist by trying to select from users table
     const { data, error } = await supabase
       .from('users')
       .select('count', { count: 'exact', head: true });
     
     if (!error) {
-      console.log('✅ Tables already exist');
-      console.log(`👥 Found ${data} users`);
+      console.log('Tables already exist');
+      console.log('Found', data || 0, 'users');
       return;
     }
     
-    console.log('📊 Tables need to be created via Supabase Dashboard');
-    console.log('🔗 Go to: https://supabase.com/dashboard/project/' + supabaseUrl.split('//')[1].split('.')[0]);
-    console.log('📝 Run the SQL commands from SUPABASE-SETUP.sql');
+    console.log('Tables need to be created via Supabase Dashboard');
+    console.log('Go to: https://supabase.com/dashboard/project/' + supabaseUrl.split('//')[1].split('.')[0]);
+    console.log('Run the SQL commands from SUPABASE-SETUP.sql');
     
   } catch (err) {
-    console.error('❌ Database initialization error:', err);
+    console.error('Database initialization error:', err);
   }
 }
 
-// ─── Auth Routes ─────────────────────────────────────────────
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username và password là bắt buộc' });
-    }
-
-    // Get user from Supabase
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ error: 'Tài khoản không tồn tại' });
-    }
-
-    // Check password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Mật khẩu không đúng' });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
-    );
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-
-    res.json({
-      user: userWithoutPassword,
-      token
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Lỗi server' });
-  }
-});
-
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, password, fullname } = req.body;
-
-    if (!username || !password || !fullname) {
-      return res.status(400).json({ error: 'Tất cả các trường là bắt buộc' });
-    }
-
-    // Check if user exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'Tên đăng nhập đã tồn tại' });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert([
-        {
-          username,
-          password: hashedPassword,
-          fullname,
-          role: 'user'
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Registration error:', error);
-      return res.status(500).json({ error: 'Lỗi tạo tài khoản' });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: newUser.id, username: newUser.username, role: newUser.role },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
-    );
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = newUser;
-
-    res.status(201).json({
-      user: userWithoutPassword,
-      token
-    });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Lỗi server' });
-  }
-});
-
-app.get('/api/auth/me', authenticateToken, (req, res) => {
-  const { password: _, ...userWithoutPassword } = req.user;
-  res.json(userWithoutPassword);
-});
-
-// ─── Health Check ────────────────────────────────────────────
+// Health Check
 app.get('/health', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -257,24 +144,60 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// ─── Server Start ────────────────────────────────────────────
-initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-    console.log(`🗄️  Database: Supabase PostgreSQL`);
-    console.log(`🔗 Dashboard: https://supabase.com/dashboard`);
-  });
-}).catch(err => {
-  console.error('❌ Failed to start server:', err);
-  process.exit(1);
+// Auth Routes
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username và password là bắt buộc' });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'Tài khoản không tồn tại' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Mật khẩu không đúng' });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: user.role },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '24h' }
+    );
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    res.json({
+      user: userWithoutPassword,
+      token
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
 });
 
-// ─── Menu Routes ─────────────────────────────────────────────
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+  const { password: _, ...userWithoutPassword } = req.user;
+  res.json(userWithoutPassword);
+});
+
+// Basic API routes
 app.get('/api/menu/today', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     
-    const { data: menu, error: menuError } = await supabase
+    const { data: menu, error } = await supabase
       .from('menus')
       .select(`
         id,
@@ -292,7 +215,7 @@ app.get('/api/menu/today', async (req, res) => {
       .eq('date', today)
       .single();
 
-    if (menuError && menuError.code !== 'PGRST116') {
+    if (error && error.code !== 'PGRST116') {
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
@@ -358,7 +281,6 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
   }
 });
 
-// ─── Orders Routes ───────────────────────────────────────────
 app.get('/api/orders/today', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
@@ -479,21 +401,9 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
   try {
     const orderId = req.params.id;
     
-    // Check if user owns this order (admin can delete any)
+    // Only admin can delete orders
     if (req.user.role !== 'admin') {
-      const { data: order, error: checkError } = await supabase
-        .from('orders')
-        .select('user_id, ordered_by')
-        .eq('id', orderId)
-        .single();
-
-      if (checkError || !order) {
-        return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
-      }
-
-      if (order.user_id !== req.user.id && order.ordered_by !== req.user.id) {
-        return res.status(403).json({ error: 'Không có quyền xóa đơn hàng này' });
-      }
+      return res.status(403).json({ error: 'Chỉ admin mới có thể xóa đơn hàng' });
     }
 
     const { error } = await supabase
@@ -512,7 +422,6 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ─── Users Routes ────────────────────────────────────────────
 app.get('/api/users/list', authenticateToken, async (req, res) => {
   try {
     const { data: users, error } = await supabase
@@ -531,14 +440,204 @@ app.get('/api/users/list', authenticateToken, async (req, res) => {
   }
 });
 
-// ─── Server Start ────────────────────────────────────────────
-initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-    console.log(`🗄️  Database: Supabase PostgreSQL`);
-    console.log(`🔗 Dashboard: https://supabase.com/dashboard`);
-  });
-}).catch(err => {
-  console.error('❌ Failed to start server:', err);
-  process.exit(1);
+// Payments Routes
+app.get('/api/payments/today', authenticateToken, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        user:user_id (id, fullname)
+      `)
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(payments || []);
+  } catch (error) {
+    console.error('Payments error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
 });
+
+app.post('/api/payments', authenticateToken, async (req, res) => {
+  try {
+    const { amount, method, notes } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Số tiền không hợp lệ' });
+    }
+
+    const paymentData = {
+      user_id: req.user.id,
+      amount: amount,
+      method: method || 'cash',
+      notes: notes || null,
+      status: 'completed'
+    };
+
+    const { data: payment, error } = await supabase
+      .from('payments')
+      .insert([paymentData])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi tạo thanh toán' });
+    }
+
+    res.json({ success: true, payment });
+  } catch (error) {
+    console.error('Payment creation error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Admin Routes
+app.get('/api/admin/stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get today's orders count
+    const { count: ordersCount, error: ordersError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59');
+
+    // Get today's revenue
+    const { data: orders, error: revenueError } = await supabase
+      .from('orders')
+      .select('price')
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59');
+
+    // Get today's payments
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select('amount')
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59');
+
+    if (ordersError || revenueError || paymentsError) {
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    const revenue = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+    const totalPayments = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+
+    res.json({
+      ordersCount: ordersCount || 0,
+      revenue,
+      totalPayments,
+      balance: totalPayments - revenue
+    });
+  } catch (error) {
+    console.error('Admin stats error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Feedback Routes
+app.post('/api/feedback', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Đánh giá phải từ 1-5 sao' });
+    }
+
+    const feedbackData = {
+      user_id: req.user.id,
+      rating: rating,
+      comment: comment || null
+    };
+
+    const { data: feedback, error } = await supabase
+      .from('feedback')
+      .insert([feedbackData])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi gửi phản hồi' });
+    }
+
+    res.json({ success: true, feedback });
+  } catch (error) {
+    console.error('Feedback error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Graceful shutdown
+let server;
+
+function cleanup() {
+  console.log('Cleaning up...');
+  if (server) {
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+    
+    setTimeout(() => {
+      console.log('Force exit after timeout');
+      process.exit(1);
+    }, 5000);
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  cleanup();
+});
+
+// Start server
+async function startServer() {
+  try {
+    await initDatabase();
+    
+    server = app.listen(PORT, '0.0.0.0', () => {
+      console.log('=== SERVER STARTED ===');
+      console.log('URL: http://localhost:' + PORT);
+      console.log('Database: Supabase PostgreSQL');
+      console.log('Status: Ready');
+    });
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error('ERROR: Port', PORT, 'is already in use');
+        console.error('This usually means another instance is running');
+        console.error('Render will automatically retry...');
+        
+        setTimeout(() => {
+          process.exit(1);
+        }, 2000);
+      } else {
+        console.error('Server error:', err);
+        cleanup();
+      }
+    });
+    
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+}
+
+startServer();

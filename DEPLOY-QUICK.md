@@ -1,104 +1,34 @@
-# 🚀 Deploy Nhanh - Hoàn toàn Miễn phí
+# ⚡ Deploy Nhanh FSI-DDS
 
-## Render.com - 5 phút setup
+## 🚀 3 Bước Deploy Nhanh
 
-### 1. Push code lên GitHub
-```bash
-git add .
-git commit -m "Ready for deployment"
-git push origin main
-```
+### Bước 1: Supabase Database (2 phút)
+1. Vào https://supabase.com → **New Project**
+2. **SQL Editor** → Copy/paste `SUPABASE-SETUP.sql` → **Run**
+3. **Settings** → **API** → Copy URL và anon key
 
-### 2. Deploy Backend (2 phút)
-1. Vào https://render.com → Đăng ký/Đăng nhập
-2. **New** → **Web Service** → Chọn GitHub repo
-3. **Settings:**
-   - Name: `fsi-dds-backend`
+### Bước 2: Render Backend (3 phút)
+1. https://render.com → **New Web Service** → Connect GitHub
+2. **Settings**:
    - Build: `cd backend && npm install --production`
-   - Start: `cd backend && npm run start:sqlite`
-   - Plan: **Free**
-
-4. **Environment Variables:**
+   - Start: `cd backend && npm start`
+3. **Environment**:
    ```
-   NODE_ENV=production
-   JWT_SECRET=make-this-very-long-and-random-secret-key-123456789
-   DATABASE_PATH=/opt/render/project/src/data/dining.db
-   PORT=10000
+   SUPABASE_URL=https://xxx.supabase.co
+   SUPABASE_ANON_KEY=eyJ...
    ```
 
-5. **Advanced** → **Add Disk:**
-   - Name: `data`
-   - Mount: `/opt/render/project/src/data`
-   - Size: 1GB
-
-6. **Create Web Service**
-
-### 3. Deploy Frontend (2 phút)
-1. **New** → **Static Site** → Chọn cùng GitHub repo
-2. **Settings:**
-   - Name: `fsi-dds-frontend`
-   - Build: `npm install && npm run build`
+### Bước 3: Render Frontend (2 phút)
+1. **New Static Site** → Same GitHub repo
+2. **Settings**:
+   - Build: `npm run build`
    - Publish: `dist`
 
-3. **Environment Variables:**
-   ```
-   VITE_API_URL=https://fsi-dds-backend.onrender.com
-   ```
-   *(Thay `fsi-dds-backend` bằng tên backend service của bạn)*
+## ✅ Done!
+- Frontend: `https://your-app.onrender.com`
+- Login: `admin/admin123`
 
-4. **Create Static Site**
-
-### 4. Xong! 🎉
-- **Frontend:** `https://your-frontend-name.onrender.com`
-- **Backend:** `https://your-backend-name.onrender.com`
-
----
-
-## ⚡ Lưu ý quan trọng:
-
-### Free Tier Limits:
-- ✅ 750 giờ/tháng (đủ chạy 24/7)
-- ✅ 1GB persistent storage
-- ✅ SSL certificate miễn phí
-- ✅ Đủ cho 100+ người dùng đồng thời
-
-### Performance:
-- Lần đầu truy cập có thể chậm 10-15s (cold start)
-- Sau đó chạy bình thường
-- Service "ngủ" sau 15 phút không hoạt động
-
-### Backup:
-- Database được lưu trong persistent disk
-- Tự động backup khi deploy
-- Có thể download database từ Render dashboard
-
----
-
-## 🔧 Troubleshooting:
-
-**Build failed?**
-- Kiểm tra logs trong Render dashboard
-- Đảm bảo `package.json` có đúng dependencies
-
-**CORS error?**
-- Kiểm tra `VITE_API_URL` trong frontend environment
-- Đảm bảo backend URL đúng
-
-**Database error?**
-- Kiểm tra `DATABASE_PATH` environment variable
-- Đảm bảo persistent disk được mount đúng
-
-**404 khi refresh page?**
-- Render tự động handle SPA routing
-- Nếu vẫn lỗi, check build output
-
----
-
-## 💡 Tips:
-
-1. **Custom Domain:** Có thể add domain miễn phí từ Freenom
-2. **Monitoring:** Xem logs realtime trong Render dashboard  
-3. **Scaling:** Nếu cần nhiều tài nguyên, upgrade plan chỉ $7/tháng
-4. **Backup:** Download database định kỳ từ dashboard
-
-**Cần hỗ trợ?** Render có support chat 24/7 miễn phí!
+## 🆘 Nếu lỗi
+1. Check Render logs
+2. Verify Supabase keys
+3. Đọc `DEPLOY-GUIDE.md` chi tiết

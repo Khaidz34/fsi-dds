@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     buildCommand: cd backend && npm install --production
-    startCommand: cd backend && npm run start:supabase
+    startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -13,7 +13,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: SUPABASE_URL
-        value: YOUR_SUPABASE_URL_HERE
+        value: https://abeaqpjfngcwjlcaypzh.supabase.co
       - key: SUPABASE_ANON_KEY
         value: YOUR_SUPABASE_ANON_KEY_HERE
       - key: PORT
