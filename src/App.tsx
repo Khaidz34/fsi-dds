@@ -2305,13 +2305,13 @@ export default function App() {
                             {/* Món 1 */}
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.dish1}</p>
-                              <p className="text-sm font-bold text-[#1C1917] line-clamp-2">{order.dish1?.name || 'N/A'}</p>
+                              <p className="text-sm font-bold text-[#1C1917] line-clamp-2">{getDishName(order.dish1, currentLang) || 'N/A'}</p>
                             </div>
                             
                             {/* Món 2 */}
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.dish2}</p>
-                              <p className="text-sm font-bold text-[#1C1917] line-clamp-2">{order.dish2?.name || t.noSecondDish}</p>
+                              <p className="text-sm font-bold text-[#1C1917] line-clamp-2">{getDishName(order.dish2, currentLang) || t.noSecondDish}</p>
                             </div>
                             
                             {/* Ghi chú */}
@@ -2347,7 +2347,7 @@ export default function App() {
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={async () => {
-                                    if (confirm(`${t.confirmDeleteOrder} ${order.receiver?.fullname || 'N/A'}?\n\n${t.dish1}: ${order.dish1?.name || 'N/A'}\n${t.dish2}: ${order.dish2?.name || t.noSecondDish}`)) {
+                                    if (confirm(`${t.confirmDeleteOrder} ${order.receiver?.fullname || 'N/A'}?\n\n${t.dish1}: ${getDishName(order.dish1, currentLang) || 'N/A'}\n${t.dish2}: ${getDishName(order.dish2, currentLang) || t.noSecondDish}`)) {
                                       try {
                                         await deleteOrder(order.id);
                                         // Refresh orders list to ensure UI is updated
@@ -3498,7 +3498,7 @@ export default function App() {
                     <option value={0}>Chọn món chính</option>
                     {menu?.dishes?.map((dish) => (
                       <option key={dish.id} value={dish.id}>
-                        {dish.name}
+                        {getDishName(dish, currentLang)}
                       </option>
                     ))}
                   </select>
@@ -3517,7 +3517,7 @@ export default function App() {
                     <option value={0}>Không chọn món phụ</option>
                     {menu?.dishes?.map((dish) => (
                       <option key={dish.id} value={dish.id}>
-                        {dish.name}
+                        {getDishName(dish, currentLang)}
                       </option>
                     ))}
                   </select>
