@@ -63,19 +63,13 @@ export const useFeedback = () => {
     if (user?.role === 'admin') {
       fetchFeedbacks();
       
-      // Auto-refresh every 2 seconds as fallback
-      const interval = setInterval(() => {
-        fetchFeedbacks();
-      }, 2000);
-      
       // Setup Supabase Realtime subscription for feedback
       const channel = subscribeToTable('feedback', () => {
-        console.log('Feedback update detected via Realtime');
+        console.log('💬 Feedback update detected via Realtime');
         fetchFeedbacks();
       }, 'feedback_changes');
 
       return () => {
-        clearInterval(interval);
         unsubscribeFromTable(channel);
       };
     }

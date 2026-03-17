@@ -80,26 +80,19 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
       
-      // Auto-refresh every 2 seconds as fallback
-      const interval = setInterval(() => {
-        fetchUserPayments();
-        fetchPaymentHistory();
-      }, 2000);
-      
       // Setup Supabase Realtime subscriptions
       const paymentsChannel = subscribeToTable('payments', () => {
-        console.log('Payment update detected via Realtime');
+        console.log('💰 Payment update detected via Realtime');
         fetchUserPayments();
         fetchPaymentHistory();
       }, 'admin_payments');
       
       const ordersChannel = subscribeToTable('orders', () => {
-        console.log('Order update detected via Realtime');
+        console.log('📦 Order update detected via Realtime');
         fetchUserPayments();
       }, 'admin_orders');
 
       return () => {
-        clearInterval(interval);
         unsubscribeFromTable(paymentsChannel);
         unsubscribeFromTable(ordersChannel);
       };

@@ -52,19 +52,13 @@ export const useUsers = () => {
     if (currentUser?.id) {
       fetchUsers();
       
-      // Auto-refresh every 2 seconds as fallback
-      const interval = setInterval(() => {
-        fetchUsers();
-      }, 2000);
-      
       // Setup Supabase Realtime subscription for users
       const channel = subscribeToTable('users', () => {
-        console.log('Users update detected via Realtime');
+        console.log('👥 Users update detected via Realtime');
         fetchUsers();
       }, 'users_changes');
 
       return () => {
-        clearInterval(interval);
         unsubscribeFromTable(channel);
       };
     }

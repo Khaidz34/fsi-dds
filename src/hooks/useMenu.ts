@@ -60,19 +60,13 @@ export const useMenu = (language?: Language) => {
   useEffect(() => {
     fetchMenu(language);
     
-    // Auto-refresh every 2 seconds as fallback
-    const interval = setInterval(() => {
-      fetchMenu(language);
-    }, 2000);
-    
     // Setup Supabase Realtime subscription for menu changes
     const channel = subscribeToTable('menus', () => {
-      console.log('Menu update detected via Realtime');
+      console.log('🍽️ Menu update detected via Realtime');
       fetchMenu(language);
     }, 'menu_changes');
 
     return () => {
-      clearInterval(interval);
       unsubscribeFromTable(channel);
     };
   }, [language]);
