@@ -1,38 +1,21 @@
 -- =====================================================
--- Fix Payments Table Schema
+-- Fix Payments Table Schema - SIMPLIFIED VERSION
 -- Run this in Supabase SQL Editor
 -- =====================================================
 
--- Check if method column exists, if not add it
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'payments' AND column_name = 'method'
-  ) THEN
-    ALTER TABLE payments ADD COLUMN method TEXT DEFAULT 'cash';
-    RAISE NOTICE '✅ Added method column to payments table';
-  ELSE
-    RAISE NOTICE 'ℹ️ Method column already exists';
-  END IF;
-END $$;
+-- Drop and recreate payments table with minimal columns
+DROP TABLE IF EXISTS payments CASCADE;
 
--- Check if month column exists, if not add it
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'payments' AND column_name = 'month'
-  ) THEN
-    ALTER TABLE payments ADD COLUMN month TEXT;
-    RAISE NOTICE '✅ Added month column to payments table';
-  ELSE
-    RAISE NOTICE 'ℹ️ Month column already exists';
-  END IF;
-END $$;
+CREATE TABLE payments (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  amount DECIMAL(10,2) NOT NULL,
+  status TEXT DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Create index on month if it doesn't exist
-CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(month);
+-- Create index on user_id for performance
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
 
 -- Verify the schema
 SELECT 
@@ -44,4 +27,9 @@ FROM information_schema.columns
 WHERE table_name = 'payments'
 ORDER BY ordinal_position;
 
-RAISE NOTICE '✅ Payments table schema fixed!';
+-- Success message
+DO $$ 
+BEGIN
+  RAISE NOTICE '✅ Payments table recreated with minimal schema!';
+  RAISE NOTICE 'Columns: id, user_id, amount, status, created_at';
+END $$;
