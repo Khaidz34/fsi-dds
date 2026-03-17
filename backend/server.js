@@ -778,13 +778,14 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
           const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
           const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
           const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+          const unpaidOrdersCount = Math.ceil(remainingTotal / 40000); // Each order is 40,000đ
           
           userStats.push({
             userId: user.id,
             fullname: user.fullname,
             username: user.username,
             month: currentMonth,
-            ordersCount,
+            ordersCount: unpaidOrdersCount, // Show unpaid orders count instead of total
             ordersTotal,
             paidCount: payments?.length || 0,
             paidTotal,
@@ -879,10 +880,11 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
     const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+    const unpaidOrdersCount = Math.ceil(remainingTotal / 40000); // Each order is 40,000đ
     
     const stats = {
       month: currentMonth,
-      ordersCount,
+      ordersCount: unpaidOrdersCount, // Show unpaid orders count instead of total
       ordersTotal,
       paidCount: payments?.length || 0,
       paidTotal,
