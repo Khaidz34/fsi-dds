@@ -23,7 +23,6 @@ export const useDashboardStats = () => {
       setStats(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải thống kê');
-      // Fallback to empty data instead of mock data
       setStats({
         ordersToday: 0,
         totalUsers: 0,
@@ -38,13 +37,6 @@ export const useDashboardStats = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchStats();
-      
-      // Auto refresh every 5 seconds
-      const interval = setInterval(() => {
-        fetchStats();
-      }, 5000);
-      
-      return () => clearInterval(interval);
     }
   }, [user?.role]);
 

@@ -55,7 +55,6 @@ export const useAdminPayments = (month?: string) => {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Lỗi khi tải lịch sử thanh toán';
       console.error('Fetch payment history error:', errorMsg);
-      // Don't set error state for history, just log it
     }
   };
 
@@ -79,14 +78,6 @@ export const useAdminPayments = (month?: string) => {
     if (user?.role === 'admin') {
       fetchUserPayments();
       fetchPaymentHistory();
-      
-      // Auto refresh every 5 seconds
-      const interval = setInterval(() => {
-        fetchUserPayments();
-        fetchPaymentHistory();
-      }, 5000);
-      
-      return () => clearInterval(interval);
     }
   }, [user?.role, currentMonth]);
 

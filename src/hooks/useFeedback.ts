@@ -37,7 +37,6 @@ export const useFeedback = () => {
   const createFeedback = async (subject?: string, message?: string) => {
     try {
       const result = await feedbackAPI.create(subject, message);
-      // Refresh feedbacks if admin
       if (user?.role === 'admin') {
         await fetchFeedbacks();
       }
@@ -51,7 +50,6 @@ export const useFeedback = () => {
   const updateFeedbackStatus = async (id: number, status: string) => {
     try {
       await feedbackAPI.updateStatus(id, status);
-      // Update local state
       setFeedbacks(prev => prev.map(f => 
         f.id === id ? { ...f, status: status as any } : f
       ));
@@ -63,13 +61,6 @@ export const useFeedback = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchFeedbacks();
-      
-      // Auto refresh every 5 seconds
-      const interval = setInterval(() => {
-        fetchFeedbacks();
-      }, 5000);
-      
-      return () => clearInterval(interval);
     }
   }, [user?.role]);
 

@@ -49,7 +49,7 @@ export const useMenu = (language?: Language) => {
   const createMultilingualMenu = async (dishes: Array<{vi: string, en?: string, ja?: string}>, imageUrl?: string) => {
     try {
       const newMenu = await menuAPI.createMultilingual(dishes, imageUrl);
-      await fetchMenu(language); // Refresh with current language
+      await fetchMenu(language);
       return newMenu;
     } catch (err) {
       throw err;
@@ -58,13 +58,6 @@ export const useMenu = (language?: Language) => {
 
   useEffect(() => {
     fetchMenu(language);
-    
-    // Auto refresh every 5 seconds
-    const interval = setInterval(() => {
-      fetchMenu(language);
-    }, 5000);
-    
-    return () => clearInterval(interval);
   }, [language]);
 
   return {

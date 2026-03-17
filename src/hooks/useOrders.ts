@@ -45,6 +45,8 @@ export const useOrders = (language?: string) => {
   }) => {
     try {
       const response = await ordersAPI.create(orderData);
+      // Refetch after creating
+      await fetchOrders();
       return response;
     } catch (err) {
       throw err;
@@ -82,13 +84,6 @@ export const useOrders = (language?: string) => {
   useEffect(() => {
     if (user?.id) {
       fetchOrders();
-      
-      // Auto refresh every 5 seconds
-      const interval = setInterval(() => {
-        fetchOrders();
-      }, 5000);
-      
-      return () => clearInterval(interval);
     }
   }, [user?.id, language]);
 

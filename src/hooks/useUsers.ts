@@ -50,13 +50,6 @@ export const useUsers = () => {
   useEffect(() => {
     if (currentUser?.id) {
       fetchUsers();
-      
-      // Auto refresh every 5 seconds
-      const interval = setInterval(() => {
-        fetchUsers();
-      }, 5000);
-      
-      return () => clearInterval(interval);
     }
   }, [currentUser?.id]);
 

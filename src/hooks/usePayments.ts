@@ -10,7 +10,7 @@ export interface PaymentStats {
   paidTotal: number;
   remainingCount: number;
   remainingTotal: number;
-  overpaidTotal?: number; // Số tiền thanh toán thừa
+  overpaidTotal?: number;
   paidAt?: string;
 }
 
@@ -26,9 +26,7 @@ export const usePayments = (month?: string) => {
       setError(null);
       
       if (user?.role === 'admin') {
-        // Admin xem tất cả payments
         const data = await paymentsAPI.getAll(month);
-        // Tính tổng stats từ tất cả users
         const totalStats = data.reduce((acc, curr) => ({
           month: month || new Date().toISOString().slice(0, 7),
           ordersCount: acc.ordersCount + curr.ordersCount,
@@ -49,20 +47,17 @@ export const usePayments = (month?: string) => {
           overpaidTotal: 0
         });
         
-        // Ensure remaining total is never negative
         totalStats.remainingTotal = Math.max(0, totalStats.remainingTotal);
         totalStats.remainingCount = Math.max(0, totalStats.remainingCount);
         
         setPaymentStats(totalStats);
       } else {
-        // User xem payment của mình
         const data = await paymentsAPI.getMy(month);
         setPaymentStats(data);
       }
     } catch (err) {
       console.error('Payment stats error:', err);
       setError(err instanceof Error ? err.message : 'Lỗi khi tải thông tin thanh toán');
-      // Set empty stats instead of mock data
       setPaymentStats({
         month: month || new Date().toISOString().slice(0, 7),
         ordersCount: 0,
@@ -80,13 +75,6 @@ export const usePayments = (month?: string) => {
   useEffect(() => {
     if (user?.id) {
       fetchPaymentStats();
-      
-      // Auto refresh every 5 seconds
-      const interval = setInterval(() => {
-        fetchPaymentStats();
-      }, 5000);
-      
-      return () => clearInterval(interval);
     }
   }, [user?.id, month]);
 
