@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,11 +13,6 @@ export interface PaymentStats {
   overpaidTotal?: number; // Số tiền thanh toán thừa
   paidAt?: string;
 }
-
-// Initialize Supabase client for realtime
-const supabaseUrl = 'https://abeaqpjfngcwjlcaypzh.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZWFxcGpmbmdjd2psY2F5cHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI2NzI5NzcsImV4cCI6MjA0ODI0ODk3N30.Aw0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const usePayments = (month?: string) => {
   const { user } = useAuth();
@@ -86,39 +80,13 @@ export const usePayments = (month?: string) => {
   useEffect(() => {
     if (user?.id) {
       fetchPaymentStats();
-
-      // Subscribe to realtime changes on payments and orders tables
-      const channel = supabase
-        .channel('payments-stats-realtime')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'payments'
-          },
-          (payload) => {
-            console.log('📡 Realtime payment stats update:', payload);
-            fetchPaymentStats();
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders'
-          },
-          (payload) => {
-            console.log('📡 Realtime order stats update:', payload);
-            fetchPaymentStats();
-          }
-        )
-        .subscribe();
       
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // Auto refresh every 2 seconds for fast updates
+      const interval = setInterval(() => {
+        fetchPaymentStats();
+      }, 2000);
+      
+      return () => clearInterval(interval);
     }
   }, [user?.id, month]);
 
