@@ -51,10 +51,10 @@ export const useUsers = () => {
     if (currentUser?.id) {
       fetchUsers();
       
-      // Auto refresh every 2 seconds for fast updates
+      // Auto refresh every 5 seconds
       const interval = setInterval(() => {
         fetchUsers();
-      }, 2000);
+      }, 5000);
       
       return () => clearInterval(interval);
     }

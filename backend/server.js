@@ -550,23 +550,6 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
     }
 
-    // Automatically create a payment record for the order
-    const paymentData = {
-      user_id: orderedFor, // Payment is for the person eating
-      amount: 40000,
-      status: 'pending'
-    };
-
-    const { error: paymentError } = await supabase
-      .from('payments')
-      .insert([paymentData]);
-
-    if (paymentError) {
-      console.error('Payment creation error:', paymentError);
-      // Don't fail the order creation if payment creation fails
-      // Just log it
-    }
-
     res.json({ success: true, order });
   } catch (error) {
     console.error('Order creation error:', error);

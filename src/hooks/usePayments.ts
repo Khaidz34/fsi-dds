@@ -81,10 +81,10 @@ export const usePayments = (month?: string) => {
     if (user?.id) {
       fetchPaymentStats();
       
-      // Auto refresh every 2 seconds for fast updates
+      // Auto refresh every 5 seconds
       const interval = setInterval(() => {
         fetchPaymentStats();
-      }, 2000);
+      }, 5000);
       
       return () => clearInterval(interval);
     }
