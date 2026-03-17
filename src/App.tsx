@@ -980,22 +980,25 @@ export default function App() {
       return;
     }
 
-    // Create export format: Number. Name Dish1+Dish2 (Notes)
+    // Create export format: Number. Name Dish1Name(1)+Dish2Name(2) (Notes)
     const exportLines: string[] = [];
 
     orders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
-      // Get dish positions (sort_order) and add 1 to get menu number
+      // Get dish names in Vietnamese with sort_order+1
+      const dish1Name = getDishName(order.dish1, 'vi') || 'N/A';
       const dish1Position = (order.dish1?.sort_order || 0) + 1;
+      
+      const dish2Name = order.dish2 ? getDishName(order.dish2, 'vi') : null;
       const dish2Position = order.dish2 ? (order.dish2.sort_order || 0) + 1 : 0;
       
-      // Build dish text: 1+2 or just 1
+      // Build dish text: Nem nướng(1)+Chân giò(2) or just Nem nướng(1)
       let dishText = '';
-      if (dish2Position > 0) {
-        dishText = `${dish1Position}+${dish2Position}`;
+      if (dish2Name) {
+        dishText = `${dish1Name}(${dish1Position})+${dish2Name}(${dish2Position})`;
       } else {
-        dishText = `${dish1Position}`;
+        dishText = `${dish1Name}(${dish1Position})`;
       }
 
       let line = `${index + 1}.\t${userName} ${dishText}`;
