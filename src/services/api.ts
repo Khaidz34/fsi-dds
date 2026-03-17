@@ -108,7 +108,14 @@ export const menuAPI = {
     id?: number;
     date: string;
     imageUrl: string;
-    dishes: Array<{ id: number; name: string; order_index: number }>;
+    dishes: Array<{ 
+      id: number; 
+      name: string;
+      name_vi: string;
+      name_en: string;
+      name_ja: string;
+      sort_order: number;
+    }>;
   }>(`/menu/today${lang ? `?lang=${lang}` : ''}`),
 
   create: (dishes: string[], imageUrl?: string) =>

@@ -11,7 +11,10 @@ const supabase = createClient(
 export interface MenuDish {
   id: number;
   name: string;
-  order_index: number;
+  name_vi: string;
+  name_en: string;
+  name_ja: string;
+  sort_order: number;
 }
 
 export interface TodayMenu {

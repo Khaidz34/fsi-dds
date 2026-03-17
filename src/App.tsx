@@ -463,7 +463,20 @@ const TRANSLATIONS = {
   }
 };
 
-
+// Helper function to get dish name by language
+const getDishName = (dish: any, lang: Language): string => {
+  if (!dish) return '';
+  
+  switch (lang) {
+    case 'en':
+      return dish.name_en || dish.name || '';
+    case 'ja':
+      return dish.name_ja || dish.name || '';
+    case 'vi':
+    default:
+      return dish.name_vi || dish.name || '';
+  }
+};
 
 const FallingPetals = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
   const items = useMemo(() => Array.from({ length: 20 }).map((_, i) => ({
@@ -1740,7 +1753,7 @@ export default function App() {
                                   transition={{ delay: idx * 0.05 + 0.1 }}
                                   className="font-bold text-sm"
                                 >
-                                  {dish.name}
+                                  {getDishName(dish, currentLang)}
                                 </motion.p>
                               </div>
                               <ChevronRight size={16} className="text-[#2D241E]/20" />
@@ -1972,7 +1985,7 @@ export default function App() {
                                       : 'text-[#1C1917] group-hover:text-[#DA251D]'
                                 }`}
                               >
-                                {dish.name}
+                                {getDishName(dish, currentLang)}
                               </motion.h4>
                             </div>
                             
@@ -2461,7 +2474,7 @@ export default function App() {
                                 transition={{ delay: index * 0.08 + 0.2 }}
                                 className="font-bold text-lg mb-3"
                               >
-                                {dish.name}
+                                {getDishName(dish, currentLang)}
                               </motion.p>
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex gap-2">
@@ -2596,7 +2609,7 @@ export default function App() {
                                         : 'text-[#1C1917] group-hover:text-[#DA251D]'
                                   }`}
                                 >
-                                  {dish.name}
+                                  {getDishName(dish, currentLang)}
                                 </motion.h4>
                               </div>
                               
@@ -3468,7 +3481,7 @@ export default function App() {
                   <p className="text-sm text-gray-600 mb-2">Đơn hàng hiện tại:</p>
                   <p className="font-semibold">{editingOrder.receiver?.fullname}</p>
                   <p className="text-sm text-gray-600">
-                    {editingOrder.dish1?.name} {editingOrder.dish2?.name ? `+ ${editingOrder.dish2.name}` : ''}
+                    {getDishName(editingOrder.dish1, currentLang)} {editingOrder.dish2?.name ? `+ ${getDishName(editingOrder.dish2, currentLang)}` : ''}
                   </p>
                 </div>
 
