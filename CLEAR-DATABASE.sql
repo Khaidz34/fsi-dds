@@ -1,24 +1,13 @@
 -- Clear all data from database
 -- Run this in Supabase SQL Editor
 
--- Disable foreign key constraints temporarily
-ALTER TABLE orders DISABLE TRIGGER ALL;
-ALTER TABLE payments DISABLE TRIGGER ALL;
-ALTER TABLE feedback DISABLE TRIGGER ALL;
-ALTER TABLE menus DISABLE TRIGGER ALL;
-
--- Delete all data
+-- Delete all data (respecting foreign key constraints)
+-- Delete in correct order to avoid constraint violations
 DELETE FROM orders;
 DELETE FROM payments;
 DELETE FROM feedback;
 DELETE FROM menus;
 DELETE FROM dishes;
-
--- Re-enable triggers
-ALTER TABLE orders ENABLE TRIGGER ALL;
-ALTER TABLE payments ENABLE TRIGGER ALL;
-ALTER TABLE feedback ENABLE TRIGGER ALL;
-ALTER TABLE menus ENABLE TRIGGER ALL;
 
 -- Reset sequences (auto-increment)
 ALTER SEQUENCE orders_id_seq RESTART WITH 1;
