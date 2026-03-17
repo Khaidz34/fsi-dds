@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { menuAPI } from '../services/api';
 import { Language } from '../types';
 
@@ -17,6 +18,11 @@ export interface TodayMenu {
   imageUrl: string;
   dishes: MenuDish[];
 }
+
+// Initialize Supabase client for realtime
+const supabaseUrl = 'https://abeaqpjfngcwjlcaypzh.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZWFxcGpmbmdjd2psY2F5cHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI2NzI5NzcsImV4cCI6MjA0ODI0ODk3N30.Aw0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const useMenu = (language?: Language) => {
   const [menu, setMenu] = useState<TodayMenu | null>(null);
@@ -58,13 +64,39 @@ export const useMenu = (language?: Language) => {
 
   useEffect(() => {
     fetchMenu(language);
+
+    // Subscribe to realtime changes on menus and dishes tables
+    const channel = supabase
+      .channel('menu-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'menus'
+        },
+        (payload) => {
+          console.log('📡 Realtime menu update:', payload);
+          fetchMenu(language);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dishes'
+        },
+        (payload) => {
+          console.log('📡 Realtime dishes update:', payload);
+          fetchMenu(language);
+        }
+      )
+      .subscribe();
     
-    // Auto refresh every 5 seconds for faster updates
-    const interval = setInterval(() => {
-      fetchMenu(language);
-    }, 5000);
-    
-    return () => clearInterval(interval);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [language]);
 
   return {

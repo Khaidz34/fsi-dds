@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { ordersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,6 +17,11 @@ export interface Order {
   orderer?: { id: number; fullname: string };
   receiver?: { id: number; fullname: string };
 }
+
+// Initialize Supabase client for realtime
+const supabaseUrl = 'https://abeaqpjfngcwjlcaypzh.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZWFxcGpmbmdjd2psY2F5cHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI2NzI5NzcsImV4cCI6MjA0ODI0ODk3N30.Aw0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0Yd0';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const useOrders = (language?: string) => {
   const { user } = useAuth();
@@ -45,8 +51,6 @@ export const useOrders = (language?: string) => {
   }) => {
     try {
       const response = await ordersAPI.create(orderData);
-      // Don't add incomplete order to state, let the parent component refetch
-      // setOrders(prev => [newOrder, ...prev]);
       return response;
     } catch (err) {
       throw err;
@@ -61,7 +65,6 @@ export const useOrders = (language?: string) => {
   }) => {
     try {
       const response = await ordersAPI.update(id, orderData);
-      // Update the order in local state
       setOrders(prev => prev.map(order => 
         order.id === id 
           ? { ...order, ...response.order }
@@ -84,14 +87,30 @@ export const useOrders = (language?: string) => {
 
   useEffect(() => {
     if (user?.id) {
+      // Initial fetch
       fetchOrders();
-      
-      // Auto refresh every 5 seconds for faster updates
-      const interval = setInterval(() => {
-        fetchOrders();
-      }, 5000);
-      
-      return () => clearInterval(interval);
+
+      // Subscribe to realtime changes on orders table
+      const channel = supabase
+        .channel('orders-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders'
+          },
+          (payload) => {
+            console.log('📡 Realtime order update:', payload);
+            // Refetch orders when any change occurs
+            fetchOrders();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user?.id, language]);
 
