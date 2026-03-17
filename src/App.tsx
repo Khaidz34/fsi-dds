@@ -2832,42 +2832,65 @@ export default function App() {
                   <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.payments}</h3>
                   
                   {userPayments.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {userPayments
                         .filter(payment => payment.remainingTotal > 0)
-                        .map((payment) => (
-                        <div key={payment.userId} className="flex items-center justify-between p-6 bg-[#F5F2E9]/30 rounded-2xl border border-[#E5E1D1]">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#DA251D]">
-                              <UserIcon size={24} />
+                        .map((payment) => {
+                          const totalOrders = Math.ceil(payment.ordersTotal / 40000);
+                          return (
+                            <div key={payment.userId} className="bg-gradient-to-br from-[#FDF4E3] to-[#F5E6D3] rounded-3xl border-2 border-[#E5D4B8] p-6 shadow-lg hover:shadow-xl transition-shadow">
+                              {/* Header with user info */}
+                              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#E5D4B8]">
+                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#DA251D] shadow-md">
+                                  <UserIcon size={28} />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-bold text-lg text-[#1C1917]">{payment.fullname}</p>
+                                  <p className="text-xs text-[#1C1917]/50 font-semibold">@{payment.username}</p>
+                                </div>
+                              </div>
+
+                              {/* Stats Grid */}
+                              <div className="space-y-4 mb-6">
+                                {/* Paid Amount */}
+                                <div className="bg-white/60 rounded-2xl p-4">
+                                  <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Đã thanh toán</p>
+                                  <p className="text-2xl font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</p>
+                                </div>
+
+                                {/* Remaining Debt */}
+                                <div className="bg-white/60 rounded-2xl p-4">
+                                  <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Số nợ</p>
+                                  <p className="text-2xl font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</p>
+                                </div>
+
+                                {/* Total Orders */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="bg-white/60 rounded-2xl p-4">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Tổng suất</p>
+                                    <p className="text-xl font-black text-[#1C1917]">{totalOrders}</p>
+                                  </div>
+                                  <div className="bg-white/60 rounded-2xl p-4">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Chưa thanh</p>
+                                    <p className="text-xl font-black text-amber-600">{payment.ordersCount}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Payment Button */}
+                              <button
+                                onClick={() => {
+                                  setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
+                                  setShowPaymentConfirm(true);
+                                }}
+                                disabled={isProcessingPayment}
+                                className="w-full bg-[#DA251D] text-white py-3 rounded-2xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                              >
+                                {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+                              </button>
                             </div>
-                            <div>
-                              <p className="font-bold text-[#1C1917]">{payment.fullname}</p>
-                              <p className="text-xs text-[#1C1917]/40 font-bold uppercase tracking-widest">
-                                {payment.ordersCount} suất cơm
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</p>
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
-                                Chưa thanh toán
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
-                                setShowPaymentConfirm(true);
-                              }}
-                              disabled={isProcessingPayment}
-                              className="bg-[#DA251D] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isProcessingPayment ? 'Đang xử lý...' : 'Thanh toán'}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                          );
+                        })}
                     </div>
                   ) : (
                     <div className="text-center py-12">
@@ -2885,22 +2908,68 @@ export default function App() {
                   <h3 className="text-xl font-display font-bold tracking-tight mb-6">Lịch sử thanh toán</h3>
                   
                   {paymentHistory.length > 0 ? (
-                    <div className="space-y-3">
-                      {paymentHistory.map((history) => (
-                        <div key={history.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-[#E5E1D1]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                              <CheckCircle2 size={16} className="text-emerald-600" />
+                    <div className="space-y-8">
+                      {/* Group payment history by user */}
+                      {Object.entries(
+                        paymentHistory.reduce((acc, history) => {
+                          if (!acc[history.fullname]) {
+                            acc[history.fullname] = [];
+                          }
+                          acc[history.fullname].push(history);
+                          return acc;
+                        }, {} as Record<string, any>)
+                      ).map(([fullname, userHistory]: [string, any]) => (
+                        <div key={fullname} className="border-b-2 border-[#E5E1D1] pb-6 last:border-b-0">
+                          {/* User Header */}
+                          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#E5D4B8]">
+                            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                              <UserIcon size={20} className="text-emerald-600" />
                             </div>
                             <div>
-                              <p className="font-semibold text-sm text-[#1C1917]">{history.fullname}</p>
-                              <p className="text-xs text-[#1C1917]/60">
-                                {new Date(history.created_at).toLocaleDateString('vi-VN')} lúc {new Date(history.created_at).toLocaleTimeString('vi-VN')}
+                              <p className="font-bold text-[#1C1917]">{fullname}</p>
+                              <p className="text-xs text-[#1C1917]/50">
+                                {userHistory.length} lần thanh toán
                               </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-emerald-600">{history.amount.toLocaleString()}đ</p>
+
+                          {/* Payment Table */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b-2 border-[#E5D4B8]">
+                                  <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Ngày giờ</th>
+                                  <th className="text-right py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Số tiền</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {userHistory.map((history) => (
+                                  <tr key={history.id} className="border-b border-[#E5E1D1] hover:bg-[#FDF4E3]/50 transition-colors">
+                                    <td className="py-3 px-4">
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+                                        <span className="text-[#1C1917]">
+                                          {new Date(history.created_at).toLocaleDateString('vi-VN')} lúc {new Date(history.created_at).toLocaleTimeString('vi-VN')}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-4 text-right">
+                                      <p className="font-bold text-emerald-600">{history.amount.toLocaleString()}đ</p>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* User Total */}
+                          <div className="flex justify-end mt-3 pt-3 border-t border-[#E5D4B8]">
+                            <div className="text-right">
+                              <p className="text-xs text-[#1C1917]/60 font-semibold mb-1">Tổng thanh toán</p>
+                              <p className="text-lg font-black text-emerald-600">
+                                {userHistory.reduce((sum, h) => sum + h.amount, 0).toLocaleString()}đ
+                              </p>
+                            </div>
                           </div>
                         </div>
                       ))}
