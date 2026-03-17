@@ -39,26 +39,48 @@ const getHeaders = () => {
 // API call function - kết nối trực tiếp với backend
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/api${endpoint}`;
-  
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...getHeaders(),
-        ...options.headers
+  const maxRetries = 2;
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          ...getHeaders(),
+          ...options.headers
+        }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Network error' }));
+        throw new Error(error.error || `HTTP ${response.status}`);
       }
-    });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      return response.json();
+    } catch (error) {
+      lastError = error;
+      
+      // Don't retry on 4xx errors (client errors)
+      if (error instanceof Error && error.message.includes('HTTP 4')) {
+        throw error;
+      }
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff: 100ms, 200ms
+        await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)));
+      }
     }
-
-    return response.json();
-  } catch (error) {
-    console.error('API call failed:', error);
-    throw error;
   }
+
+  console.error('API call failed after retries:', lastError);
+  throw lastError;
 }
 
 // Auth API

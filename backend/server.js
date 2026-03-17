@@ -98,7 +98,7 @@ app.use(express.json());
 // Rate limiting middleware
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX = 100; // 100 requests per minute
+const RATE_LIMIT_MAX = 500; // 500 requests per minute (increased from 100)
 
 const rateLimitMiddleware = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
@@ -123,6 +123,10 @@ const rateLimitMiddleware = (req, res, next) => {
 
 app.use(rateLimitMiddleware);
 
+// Token validation cache
+const tokenCache = new Map();
+const TOKEN_CACHE_TTL = 5000; // 5 seconds
+
 // Authentication Middleware
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -135,6 +139,15 @@ const authenticateToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
     
+    // Check cache first
+    const cacheKey = `user_${decoded.userId}`;
+    const cached = tokenCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < TOKEN_CACHE_TTL) {
+      req.user = cached.user;
+      return next();
+    }
+    
+    // Query database if not cached
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -143,6 +156,19 @@ const authenticateToken = async (req, res, next) => {
 
     if (error || !user) {
       return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    // Cache the result
+    tokenCache.set(cacheKey, { user, timestamp: Date.now() });
+    
+    // Clean up old cache entries
+    if (tokenCache.size > 1000) {
+      const now = Date.now();
+      for (const [key, value] of tokenCache.entries()) {
+        if (now - value.timestamp > TOKEN_CACHE_TTL * 2) {
+          tokenCache.delete(key);
+        }
+      }
     }
 
     req.user = user;
@@ -1402,6 +1428,23 @@ async function startServer() {
         cleanup();
       }
     });
+
+    // Monitor database connections every 10 seconds
+    setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('count', { count: 'exact', head: true });
+        
+        if (!error) {
+          console.log(`[DB] Connection check OK - Active queries: ${data || 0}`);
+        } else {
+          console.warn('[DB] Connection check warning:', error.message);
+        }
+      } catch (err) {
+        console.error('[DB] Connection check failed:', err instanceof Error ? err.message : err);
+      }
+    }, 10000);
     
   } catch (err) {
     console.error('Failed to start server:', err);
