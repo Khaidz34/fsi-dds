@@ -11,7 +11,7 @@ import {
   Utensils
 } from 'lucide-react';
 import { usePayments } from '../hooks/usePayments';
-import { useOrders } from '../hooks/useOrders';
+import { useMonthlyOrders } from '../hooks/useMonthlyOrders';
 
 interface PaymentStats {
   month: string;
@@ -36,7 +36,7 @@ interface PaymentDashboardProps {
 const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const { paymentStats, isLoading } = usePayments(currentMonth);
-  const { orders } = useOrders();
+  const { orders } = useMonthlyOrders(currentMonth);
 
   // Tạo dữ liệu calendar từ orders thực tế
   const [monthlyOrders, setMonthlyOrders] = useState<DayOrder[]>([]);
