@@ -1,21 +1,13 @@
 import { useState, useEffect } from 'react';
 import { usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 
 export interface User {
   id: number;
   username: string;
   fullname: string;
   role: 'user' | 'admin';
-}
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseClient: any = null;
-if (supabaseUrl && supabaseKey) {
-  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useUsers = () => {
@@ -60,23 +52,18 @@ export const useUsers = () => {
     if (currentUser?.id) {
       fetchUsers();
       
+      // Auto-refresh every 5 seconds as fallback
+      const interval = setInterval(() => {
+        fetchUsers();
+      }, 5000);
+      
       // Setup Supabase Realtime subscription for users
-      if (supabaseClient) {
-        const subscription = supabaseClient
-          .channel('users_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
-            fetchUsers();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Users realtime subscription active');
-            }
-          });
+      const channel = subscribeToTable('users', fetchUsers, 'users_changes');
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
+      return () => {
+        clearInterval(interval);
+        unsubscribeFromTable(channel);
+      };
     }
   }, [currentUser?.id]);
 

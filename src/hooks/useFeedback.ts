@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { feedbackAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 
 export interface Feedback {
   id: number;
@@ -11,14 +11,6 @@ export interface Feedback {
   created_at: string;
   fullname: string;
   username: string;
-}
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseClient: any = null;
-if (supabaseUrl && supabaseKey) {
-  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useFeedback = () => {
@@ -71,23 +63,18 @@ export const useFeedback = () => {
     if (user?.role === 'admin') {
       fetchFeedbacks();
       
+      // Auto-refresh every 5 seconds as fallback
+      const interval = setInterval(() => {
+        fetchFeedbacks();
+      }, 5000);
+      
       // Setup Supabase Realtime subscription for feedback
-      if (supabaseClient) {
-        const subscription = supabaseClient
-          .channel('feedback_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback' }, () => {
-            fetchFeedbacks();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Feedback realtime subscription active');
-            }
-          });
+      const channel = subscribeToTable('feedback', fetchFeedbacks, 'feedback_changes');
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
+      return () => {
+        clearInterval(interval);
+        unsubscribeFromTable(channel);
+      };
     }
   }, [user?.role]);
 

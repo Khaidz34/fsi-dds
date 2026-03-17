@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 
 export interface UserPaymentInfo {
   userId: number;
@@ -20,14 +20,6 @@ export interface PaymentHistory {
   paid_at: string;
   fullname: string;
   username: string;
-}
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseClient: any = null;
-if (supabaseUrl && supabaseKey) {
-  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useAdminPayments = (month?: string) => {
@@ -88,36 +80,25 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
       
+      // Auto-refresh every 5 seconds as fallback
+      const interval = setInterval(() => {
+        fetchUserPayments();
+        fetchPaymentHistory();
+      }, 5000);
+      
       // Setup Supabase Realtime subscriptions
-      if (supabaseClient) {
-        const paymentsSubscription = supabaseClient
-          .channel('admin_payments_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
-            fetchUserPayments();
-            fetchPaymentHistory();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Admin payments realtime subscription active');
-            }
-          });
+      const paymentsChannel = subscribeToTable('payments', () => {
+        fetchUserPayments();
+        fetchPaymentHistory();
+      }, 'admin_payments');
+      
+      const ordersChannel = subscribeToTable('orders', fetchUserPayments, 'admin_orders');
 
-        const ordersSubscription = supabaseClient
-          .channel('admin_orders_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-            fetchUserPayments();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Admin orders realtime subscription active');
-            }
-          });
-
-        return () => {
-          paymentsSubscription.unsubscribe();
-          ordersSubscription.unsubscribe();
-        };
-      }
+      return () => {
+        clearInterval(interval);
+        unsubscribeFromTable(paymentsChannel);
+        unsubscribeFromTable(ordersChannel);
+      };
     }
   }, [user?.role, currentMonth]);
 

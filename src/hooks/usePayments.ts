@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 
 export interface PaymentStats {
   month: string;
@@ -13,14 +13,6 @@ export interface PaymentStats {
   remainingTotal: number;
   overpaidTotal?: number;
   paidAt?: string;
-}
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseClient: any = null;
-if (supabaseUrl && supabaseKey) {
-  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const usePayments = (month?: string) => {
@@ -85,26 +77,20 @@ export const usePayments = (month?: string) => {
     if (user?.id) {
       fetchPaymentStats();
       
+      // Auto-refresh every 5 seconds as fallback
+      const interval = setInterval(() => {
+        fetchPaymentStats();
+      }, 5000);
+      
       // Setup Supabase Realtime subscription for payments
-      if (supabaseClient) {
-        const subscription = supabaseClient
-          .channel('payments_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
-            // Refetch payments when any changes occur
-            fetchPaymentStats();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Payments realtime subscription active');
-            } else if (status === 'CHANNEL_ERROR') {
-              console.error('Payments subscription error');
-            }
-          });
+      const paymentsChannel = subscribeToTable('payments', fetchPaymentStats, 'user_payments');
+      const ordersChannel = subscribeToTable('orders', fetchPaymentStats, 'user_orders');
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
+      return () => {
+        clearInterval(interval);
+        unsubscribeFromTable(paymentsChannel);
+        unsubscribeFromTable(ordersChannel);
+      };
     }
   }, [user?.id, month]);
 

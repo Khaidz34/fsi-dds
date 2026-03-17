@@ -1,21 +1,13 @@
 import { useState, useEffect } from 'react';
 import { statsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 
 export interface DashboardStats {
   ordersToday: number;
   totalUsers: number;
   popularDishesCount: number;
   popularDishes: Array<{ name: string; orderCount: number }>;
-}
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseClient: any = null;
-if (supabaseUrl && supabaseKey) {
-  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useDashboardStats = () => {
@@ -47,23 +39,18 @@ export const useDashboardStats = () => {
     if (user?.role === 'admin') {
       fetchStats();
       
+      // Auto-refresh every 5 seconds as fallback
+      const interval = setInterval(() => {
+        fetchStats();
+      }, 5000);
+      
       // Setup Supabase Realtime subscription for stats
-      if (supabaseClient) {
-        const subscription = supabaseClient
-          .channel('stats_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-            fetchStats();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Dashboard stats realtime subscription active');
-            }
-          });
+      const channel = subscribeToTable('orders', fetchStats, 'stats_changes');
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
+      return () => {
+        clearInterval(interval);
+        unsubscribeFromTable(channel);
+      };
     }
   }, [user?.role]);
 

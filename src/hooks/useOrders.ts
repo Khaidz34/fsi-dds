@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ordersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 
 export interface Order {
   id: number;
@@ -16,14 +16,6 @@ export interface Order {
   dish2?: { id: number; name: string; sort_order: number };
   orderer?: { id: number; fullname: string };
   receiver?: { id: number; fullname: string };
-}
-
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseClient: any = null;
-if (supabaseUrl && supabaseKey) {
-  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useOrders = (language?: string) => {
@@ -96,26 +88,18 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
+      // Auto-refresh every 5 seconds as fallback
+      const interval = setInterval(() => {
+        fetchOrders();
+      }, 5000);
+      
       // Setup Supabase Realtime subscription for orders
-      if (supabaseClient) {
-        const subscription = supabaseClient
-          .channel('orders_changes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-            // Refetch orders when any changes occur
-            fetchOrders();
-          })
-          .subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Orders realtime subscription active');
-            } else if (status === 'CHANNEL_ERROR') {
-              console.error('Orders subscription error');
-            }
-          });
+      const channel = subscribeToTable('orders', fetchOrders, 'user_orders');
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
+      return () => {
+        clearInterval(interval);
+        unsubscribeFromTable(channel);
+      };
     }
   }, [user?.id, user?.role, language]);
 
