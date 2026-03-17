@@ -2459,20 +2459,54 @@ export default function App() {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.08 + 0.2 }}
-                                className="font-bold text-lg mb-1"
+                                className="font-bold text-lg mb-3"
                               >
                                 {dish.name}
                               </motion.p>
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-2">
                                 <div className="flex gap-2">
+                                  {/* Language buttons */}
                                   <button 
-                                    onClick={() => handleDeleteDish(dish.id)}
-                                    className="p-2 bg-white rounded-lg border border-[#F5E6D3] text-red-500 hover:text-red-700 hover:bg-red-50 transition-all duration-200 hover:scale-105"
-                                    title="Xóa món"
+                                    onClick={() => setCurrentLang('vi')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                      currentLang === 'vi' 
+                                        ? 'bg-[#DA251D] text-white' 
+                                        : 'bg-white border border-[#F5E6D3] text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                    title="Tiếng Việt"
                                   >
-                                    <Trash2 size={16} />
+                                    🇻🇳 VI
+                                  </button>
+                                  <button 
+                                    onClick={() => setCurrentLang('en')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                      currentLang === 'en' 
+                                        ? 'bg-[#DA251D] text-white' 
+                                        : 'bg-white border border-[#F5E6D3] text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                    title="English"
+                                  >
+                                    🇬🇧 EN
+                                  </button>
+                                  <button 
+                                    onClick={() => setCurrentLang('ja')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                      currentLang === 'ja' 
+                                        ? 'bg-[#DA251D] text-white' 
+                                        : 'bg-white border border-[#F5E6D3] text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                    title="日本語"
+                                  >
+                                    🇯🇵 JA
                                   </button>
                                 </div>
+                                <button 
+                                  onClick={() => handleDeleteDish(dish.id)}
+                                  className="p-2 bg-white rounded-lg border border-[#F5E6D3] text-red-500 hover:text-red-700 hover:bg-red-50 transition-all duration-200 hover:scale-105"
+                                  title="Xóa món"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </div>
                           </motion.div>
