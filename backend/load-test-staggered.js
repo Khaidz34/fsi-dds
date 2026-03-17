@@ -14,10 +14,11 @@ const NUM_USERS = 30;
 const ORDERS_PER_USER = 3;
 const STAGGER_DELAY = 50; // 50ms delay between requests
 
-// Test data
+// Test data with timestamp to avoid conflicts
+const timestamp = Date.now();
 const testUsers = Array.from({ length: NUM_USERS }, (_, i) => ({
   id: i + 1,
-  username: `testuser${i + 1}`,
+  username: `testuser${i + 1}_${timestamp}`,
   fullname: `Test User ${i + 1}`,
   token: null
 }));
