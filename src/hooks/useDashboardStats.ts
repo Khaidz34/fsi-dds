@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { statsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
 
 export interface DashboardStats {
   ordersToday: number;
@@ -50,27 +44,7 @@ export const useDashboardStats = () => {
         fetchStats();
       }, 5000);
       
-      // Subscribe to realtime changes on orders and dishes
-      const ordersChannel = supabase
-        .channel('dashboard-orders-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders'
-          },
-          (payload) => {
-            console.log('Dashboard order change detected:', payload);
-            fetchStats();
-          }
-        )
-        .subscribe();
-      
-      return () => {
-        clearInterval(interval);
-        supabase.removeChannel(ordersChannel);
-      };
+      return () => clearInterval(interval);
     }
   }, [user?.role]);
 
