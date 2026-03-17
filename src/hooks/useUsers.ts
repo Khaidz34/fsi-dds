@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { usersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export interface User {
   id: number;
@@ -50,6 +56,33 @@ export const useUsers = () => {
   useEffect(() => {
     if (currentUser?.id) {
       fetchUsers();
+      
+      // Auto refresh every 5 seconds for faster updates
+      const interval = setInterval(() => {
+        fetchUsers();
+      }, 5000);
+      
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel('users-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'users'
+          },
+          (payload) => {
+            console.log('Users change detected:', payload);
+            fetchUsers();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
     }
   }, [currentUser?.id]);
 

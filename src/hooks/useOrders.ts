@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { ordersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export interface Order {
   id: number;
@@ -86,12 +92,32 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
-      // Auto refresh every 30 seconds
+      // Auto refresh every 5 seconds for faster updates
       const interval = setInterval(() => {
         fetchOrders();
-      }, 30000);
+      }, 5000);
       
-      return () => clearInterval(interval);
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel('orders-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders'
+          },
+          (payload) => {
+            console.log('Order change detected:', payload);
+            fetchOrders(); // Refetch when any change occurs
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
     }
   }, [user?.id, language]);
 

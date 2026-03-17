@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { feedbackAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export interface Feedback {
   id: number;
@@ -63,6 +69,33 @@ export const useFeedback = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchFeedbacks();
+      
+      // Auto refresh every 5 seconds for faster updates
+      const interval = setInterval(() => {
+        fetchFeedbacks();
+      }, 5000);
+      
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel('feedback-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'feedback'
+          },
+          (payload) => {
+            console.log('Feedback change detected:', payload);
+            fetchFeedbacks();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
     }
   }, [user?.role]);
 

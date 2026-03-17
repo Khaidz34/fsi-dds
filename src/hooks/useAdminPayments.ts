@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export interface UserPaymentInfo {
   userId: number;
@@ -76,13 +82,34 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
       
-      // Auto refresh every 30 seconds for admin
+      // Auto refresh every 5 seconds for faster updates
       const interval = setInterval(() => {
         fetchUserPayments();
         fetchPaymentHistory();
-      }, 30000);
+      }, 5000);
       
-      return () => clearInterval(interval);
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel('admin-payments-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'payments'
+          },
+          (payload) => {
+            console.log('Admin payment change detected:', payload);
+            fetchUserPayments();
+            fetchPaymentHistory();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
     }
   }, [user?.role, currentMonth]);
 

@@ -8,6 +8,38 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// Simple in-memory cache for performance
+const cache = {
+  menus: { data: null, timestamp: 0, ttl: 5000 }, // 5 seconds
+  dishes: { data: null, timestamp: 0, ttl: 5000 },
+  users: { data: null, timestamp: 0, ttl: 5000 },
+  stats: { data: null, timestamp: 0, ttl: 5000 }
+};
+
+const getCache = (key) => {
+  const item = cache[key];
+  if (!item) return null;
+  if (Date.now() - item.timestamp > item.ttl) {
+    item.data = null;
+    return null;
+  }
+  return item.data;
+};
+
+const setCache = (key, data) => {
+  if (cache[key]) {
+    cache[key].data = data;
+    cache[key].timestamp = Date.now();
+  }
+};
+
+const clearCache = (key) => {
+  if (cache[key]) {
+    cache[key].data = null;
+    cache[key].timestamp = 0;
+  }
+};
+
 console.log('=== FSI-DDS Server Starting ===');
 console.log('Process ID:', process.pid);
 console.log('Node Version:', process.version);
@@ -257,6 +289,13 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 // Basic API routes
 app.get('/api/menu/today', async (req, res) => {
   try {
+    // Check cache first
+    const cachedMenu = getCache('menus');
+    if (cachedMenu) {
+      console.log('✅ Returning cached menu');
+      return res.json(cachedMenu);
+    }
+    
     const today = new Date().toISOString().split('T')[0];
     
     const { data: menu, error } = await supabase
@@ -289,6 +328,9 @@ app.get('/api/menu/today', async (req, res) => {
     if (menu.dishes) {
       menu.dishes.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     }
+
+    // Cache the result
+    setCache('menus', menu);
 
     res.json(menu);
   } catch (error) {
@@ -423,6 +465,11 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
     }
 
     console.log('✅ Multilingual menu created successfully:', menu);
+    
+    // Clear cache when menu is created
+    clearCache('menus');
+    clearCache('dishes');
+    
     res.json({ success: true, menu });
   } catch (error) {
     console.error('❌ Multilingual menu creation error:', error);

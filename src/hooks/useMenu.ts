@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { menuAPI } from '../services/api';
 import { Language } from '../types';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export interface MenuDish {
   id: number;
@@ -55,6 +61,50 @@ export const useMenu = (language?: Language) => {
 
   useEffect(() => {
     fetchMenu(language);
+    
+    // Auto refresh every 5 seconds for faster updates
+    const interval = setInterval(() => {
+      fetchMenu(language);
+    }, 5000);
+    
+    // Subscribe to realtime changes on menus and dishes
+    const menusChannel = supabase
+      .channel('menu-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'menus'
+        },
+        (payload) => {
+          console.log('Menu change detected:', payload);
+          fetchMenu(language);
+        }
+      )
+      .subscribe();
+    
+    const dishesChannel = supabase
+      .channel('dishes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dishes'
+        },
+        (payload) => {
+          console.log('Dishes change detected:', payload);
+          fetchMenu(language);
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(menusChannel);
+      supabase.removeChannel(dishesChannel);
+    };
   }, [language]);
 
   return {
