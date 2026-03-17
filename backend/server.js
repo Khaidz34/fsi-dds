@@ -485,8 +485,8 @@ app.get('/api/orders/today', async (req, res) => {
       .from('orders')
       .select(`
         *,
-        dish1:dish1_id (id, name, name_vi, name_en, name_ja),
-        dish2:dish2_id (id, name, name_vi, name_en, name_ja),
+        dish1:dish1_id (id, name, name_vi, name_en, name_ja, sort_order),
+        dish2:dish2_id (id, name, name_vi, name_en, name_ja, sort_order),
         orderer:ordered_by (id, fullname),
         receiver:ordered_for (id, fullname)
       `)
