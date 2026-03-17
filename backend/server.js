@@ -806,7 +806,6 @@ app.post('/api/payments', authenticateToken, async (req, res) => {
     const paymentData = {
       user_id: req.user.id,
       amount: amount,
-      notes: notes || null,
       status: 'completed'
     };
 
@@ -849,7 +848,6 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     const paymentData = {
       user_id: userId,
       amount: amount,
-      notes: `Marked as paid by admin for ${month}`,
       status: 'completed'
     };
 
