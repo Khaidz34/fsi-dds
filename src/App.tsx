@@ -979,34 +979,29 @@ export default function App() {
       return;
     }
 
-    if (!menu?.dishes || menu.dishes.length === 0) {
-      alert('Không có menu để tham chiếu');
-      return;
-    }
-
-    // Create export format with order number and dish names
+    // Create export format: Number. Name Dish1+Dish2 (Notes)
     const exportLines: string[] = [];
 
     orders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
-      // Get dish names in Vietnamese
-      const dish1Name = getDishName(order.dish1, 'vi') || 'N/A';
-      const dish2Name = order.dish2 ? getDishName(order.dish2, 'vi') : null;
+      // Get dish positions (sort_order)
+      const dish1Position = order.dish1?.sort_order || 0;
+      const dish2Position = order.dish2?.sort_order || 0;
       
-      // Build dish text with order number (index + 1)
+      // Build dish text: 1+2 or just 1
       let dishText = '';
-      if (dish2Name) {
-        dishText = `${index + 1}. ${dish1Name} + ${dish2Name}`;
+      if (dish2Position > 0) {
+        dishText = `${dish1Position}+${dish2Position}`;
       } else {
-        dishText = `${index + 1}. ${dish1Name}`;
+        dishText = `${dish1Position}`;
       }
 
-      let line = `${index + 1}. ${userName} (${dishText})`;
+      let line = `${index + 1}.\t${userName} ${dishText}`;
       
-      // Add notes if available (always in Vietnamese)
+      // Add notes if available (Vietnamese labels)
       if (order.notes && order.notes.trim()) {
-        line += ` - ${order.notes}`;
+        line += ` (${order.notes})`;
       }
       
       exportLines.push(line);
