@@ -2911,11 +2911,12 @@ export default function App() {
                     <div className="space-y-8">
                       {/* Group payment history by user */}
                       {Object.entries(
-                        paymentHistory.reduce((acc, history) => {
-                          if (!acc[history.fullname]) {
-                            acc[history.fullname] = [];
+                        paymentHistory.reduce((acc, history: any) => {
+                          const fullname = history.user?.fullname || history.fullname || 'Unknown';
+                          if (!acc[fullname]) {
+                            acc[fullname] = [];
                           }
-                          acc[history.fullname].push(history);
+                          acc[fullname].push(history);
                           return acc;
                         }, {} as Record<string, any>)
                       ).map(([fullname, userHistory]: [string, any]) => (
@@ -2943,7 +2944,7 @@ export default function App() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {userHistory.map((history) => (
+                                {userHistory.map((history: any) => (
                                   <tr key={history.id} className="border-b border-[#E5E1D1] hover:bg-[#FDF4E3]/50 transition-colors">
                                     <td className="py-3 px-4">
                                       <div className="flex items-center gap-2">
@@ -2967,7 +2968,7 @@ export default function App() {
                             <div className="text-right">
                               <p className="text-xs text-[#1C1917]/60 font-semibold mb-1">Tổng thanh toán</p>
                               <p className="text-lg font-black text-emerald-600">
-                                {userHistory.reduce((sum, h) => sum + h.amount, 0).toLocaleString()}đ
+                                {userHistory.reduce((sum: number, h: any) => sum + h.amount, 0).toLocaleString()}đ
                               </p>
                             </div>
                           </div>
