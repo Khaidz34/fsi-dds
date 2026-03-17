@@ -39,13 +39,16 @@ export const useDashboardStats = () => {
     if (user?.role === 'admin') {
       fetchStats();
       
-      // Auto-refresh every 5 seconds as fallback
+      // Auto-refresh every 2 seconds as fallback
       const interval = setInterval(() => {
         fetchStats();
-      }, 5000);
+      }, 2000);
       
       // Setup Supabase Realtime subscription for stats
-      const channel = subscribeToTable('orders', fetchStats, 'stats_changes');
+      const channel = subscribeToTable('orders', () => {
+        console.log('Stats update detected via Realtime');
+        fetchStats();
+      }, 'stats_changes');
 
       return () => {
         clearInterval(interval);

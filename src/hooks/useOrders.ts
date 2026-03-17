@@ -88,13 +88,16 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
-      // Auto-refresh every 5 seconds as fallback
+      // Auto-refresh every 2 seconds as fallback
       const interval = setInterval(() => {
         fetchOrders();
-      }, 5000);
+      }, 2000);
       
       // Setup Supabase Realtime subscription for orders
-      const channel = subscribeToTable('orders', fetchOrders, 'user_orders');
+      const channel = subscribeToTable('orders', () => {
+        console.log('Order update detected via Realtime');
+        fetchOrders();
+      }, 'user_orders');
 
       return () => {
         clearInterval(interval);
