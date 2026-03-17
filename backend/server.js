@@ -98,7 +98,7 @@ app.use(express.json());
 // Rate limiting middleware
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX = 500; // 500 requests per minute (increased from 100)
+const RATE_LIMIT_MAX = 1000; // 1000 requests per minute (increased from 500)
 
 const rateLimitMiddleware = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
