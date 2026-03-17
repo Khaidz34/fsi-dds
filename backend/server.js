@@ -495,7 +495,14 @@ app.get('/api/orders/today', async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Orders query error:', error);
       return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    // Debug log
+    if (orders && orders.length > 0) {
+      console.log('First order dish1:', orders[0].dish1);
+      console.log('First order dish2:', orders[0].dish2);
     }
 
     res.json(orders || []);
