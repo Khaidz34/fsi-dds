@@ -648,6 +648,11 @@ export default function App() {
   const [editDish2, setEditDish2] = useState<number>(0);
   const [editNotes, setEditNotes] = useState('');
 
+  // Payment confirmation state
+  const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number } | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   const t = TRANSLATIONS[currentLang];
 
   // Smooth language switching
@@ -2828,7 +2833,9 @@ export default function App() {
                   
                   {userPayments.length > 0 ? (
                     <div className="space-y-4">
-                      {userPayments.map((payment) => (
+                      {userPayments
+                        .filter(payment => payment.remainingTotal > 0)
+                        .map((payment) => (
                         <div key={payment.userId} className="flex items-center justify-between p-6 bg-[#F5F2E9]/30 rounded-2xl border border-[#E5E1D1]">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#DA251D]">
@@ -2844,20 +2851,20 @@ export default function App() {
                           <div className="flex items-center gap-4">
                             <div className="text-right">
                               <p className="font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</p>
-                              <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                                payment.remainingTotal === 0 ? 'text-emerald-600' : 'text-amber-600'
-                              }`}>
-                                {payment.remainingTotal === 0 ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                                Chưa thanh toán
                               </span>
                             </div>
-                            {payment.remainingTotal > 0 && (
-                              <button
-                                onClick={() => markAsPaid(payment.userId, payment.remainingTotal)}
-                                className="bg-[#DA251D] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#DA251D]/90 transition-colors"
-                              >
-                                Thanh toán
-                              </button>
-                            )}
+                            <button
+                              onClick={() => {
+                                setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
+                                setShowPaymentConfirm(true);
+                              }}
+                              disabled={isProcessingPayment}
+                              className="bg-[#DA251D] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isProcessingPayment ? 'Đang xử lý...' : 'Thanh toán'}
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -3596,6 +3603,75 @@ export default function App() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Confirmation Modal */}
+      <AnimatePresence>
+        {showPaymentConfirm && pendingPayment && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPaymentConfirm(false)}
+              className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#E5E1D1] silk-texture"
+            >
+              <div className="p-8">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-[#DA251D]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <DollarSign size={32} className="text-[#DA251D]" />
+                  </div>
+                  <h3 className="text-2xl font-display font-bold tracking-tight mb-2">Xác nhận thanh toán</h3>
+                  <p className="text-sm text-[#1C1917]/60">Vui lòng xác nhận thông tin thanh toán</p>
+                </div>
+
+                <div className="bg-[#F5F2E9] rounded-2xl p-6 mb-8 border border-[#E5E1D1]">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-[#1C1917]/60">Số tiền thanh toán:</span>
+                      <span className="text-2xl font-black text-[#DA251D]">{pendingPayment.amount.toLocaleString()}đ</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowPaymentConfirm(false)}
+                    disabled={isProcessingPayment}
+                    className="flex-1 px-6 py-3 border border-[#E5E1D1] text-[#1C1917] rounded-2xl font-bold hover:bg-[#F5F2E9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setIsProcessingPayment(true);
+                      try {
+                        await markAsPaid(pendingPayment.userId, pendingPayment.amount);
+                        setShowPaymentConfirm(false);
+                        setPendingPayment(null);
+                      } catch (error) {
+                        console.error('Payment error:', error);
+                        alert('Lỗi khi thanh toán. Vui lòng thử lại.');
+                      } finally {
+                        setIsProcessingPayment(false);
+                      }
+                    }}
+                    disabled={isProcessingPayment}
+                    className="flex-1 px-6 py-3 bg-[#DA251D] text-white rounded-2xl font-bold hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
