@@ -984,39 +984,32 @@ export default function App() {
       return;
     }
 
-    // Group orders by user and create export format
+    // Create export format with order number and dish names
     const exportLines: string[] = [];
-    let counter = 1;
 
-    orders.forEach((order) => {
+    orders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
       // Get dish names in Vietnamese
       const dish1Name = getDishName(order.dish1, 'vi') || 'N/A';
       const dish2Name = order.dish2 ? getDishName(order.dish2, 'vi') : null;
       
-      // Get sort_order (position in menu)
-      const dish1Position = order.dish1?.sort_order || 0;
-      const dish2Position = order.dish2?.sort_order || 0;
-      
+      // Build dish text with order number (index + 1)
       let dishText = '';
-      if (dish2Position > 0) {
-        dishText = `${dish1Position}. ${dish1Name} + ${dish2Position}. ${dish2Name}`;
-      } else if (dish1Position > 0) {
-        dishText = `${dish1Position}. ${dish1Name}`;
+      if (dish2Name) {
+        dishText = `${index + 1}. ${dish1Name} + ${dish2Name}`;
       } else {
-        dishText = `${dish1Name}`;
+        dishText = `${index + 1}. ${dish1Name}`;
       }
 
-      let line = `${counter}. ${userName} (${dishText})`;
+      let line = `${index + 1}. ${userName} (${dishText})`;
       
-      // Add notes if available
+      // Add notes if available (always in Vietnamese)
       if (order.notes && order.notes.trim()) {
         line += ` - ${order.notes}`;
       }
       
       exportLines.push(line);
-      counter++;
     });
 
     const exportText = exportLines.join('\n');
