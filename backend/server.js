@@ -72,6 +72,8 @@ app.use(cors({
       'http://localhost:5175',
       'http://localhost:3001',
       'http://127.0.0.1:5500',
+      'https://fsi-dds-fontend.onrender.com',
+      'https://fsi-dds.onrender.com',
       /^http:\/\/localhost:\d+$/,
       /^http:\/\/127\.0\.0\.1:\d+$/,
       /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
@@ -516,6 +518,37 @@ app.get('/api/orders/today', async (req, res) => {
     res.json(orders || []);
   } catch (error) {
     console.error('Orders error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get user's own orders
+app.get('/api/orders/my', authenticateToken, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        dish1:dish1_id (id, name, name_vi, name_en, name_ja, sort_order),
+        dish2:dish2_id (id, name, name_vi, name_en, name_ja, sort_order),
+        orderer:ordered_by (id, fullname),
+        receiver:ordered_for (id, fullname)
+      `)
+      .eq('user_id', req.user.id)
+      .gte('created_at', today)
+      .lt('created_at', today + 'T23:59:59')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('User orders query error:', error);
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    res.json(orders || []);
+  } catch (error) {
+    console.error('User orders error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
 });

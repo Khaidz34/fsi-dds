@@ -27,7 +27,9 @@ export const useOrders = (language?: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await ordersAPI.getToday(language);
+      // Admin sees all orders, regular users see only their own
+      const endpoint = user?.role === 'admin' ? 'getToday' : 'getMy';
+      const data = await ordersAPI[endpoint](language);
       setOrders(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải đơn hàng');
@@ -85,7 +87,7 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
     }
-  }, [user?.id, language]);
+  }, [user?.id, user?.role, language]);
 
   return {
     orders,
