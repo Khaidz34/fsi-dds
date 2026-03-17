@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
 
 export interface UserPaymentInfo {
   userId: number;
@@ -19,6 +20,14 @@ export interface PaymentHistory {
   paid_at: string;
   fullname: string;
   username: string;
+}
+
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+
+let supabaseClient: any = null;
+if (supabaseUrl && supabaseKey) {
+  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useAdminPayments = (month?: string) => {
@@ -78,6 +87,37 @@ export const useAdminPayments = (month?: string) => {
     if (user?.role === 'admin') {
       fetchUserPayments();
       fetchPaymentHistory();
+      
+      // Setup Supabase Realtime subscriptions
+      if (supabaseClient) {
+        const paymentsSubscription = supabaseClient
+          .channel('admin_payments_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+            fetchUserPayments();
+            fetchPaymentHistory();
+          })
+          .subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Admin payments realtime subscription active');
+            }
+          });
+
+        const ordersSubscription = supabaseClient
+          .channel('admin_orders_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+            fetchUserPayments();
+          })
+          .subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Admin orders realtime subscription active');
+            }
+          });
+
+        return () => {
+          paymentsSubscription.unsubscribe();
+          ordersSubscription.unsubscribe();
+        };
+      }
     }
   }, [user?.role, currentMonth]);
 

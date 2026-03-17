@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { feedbackAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
 
 export interface Feedback {
   id: number;
@@ -10,6 +11,14 @@ export interface Feedback {
   created_at: string;
   fullname: string;
   username: string;
+}
+
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+
+let supabaseClient: any = null;
+if (supabaseUrl && supabaseKey) {
+  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useFeedback = () => {
@@ -61,6 +70,24 @@ export const useFeedback = () => {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchFeedbacks();
+      
+      // Setup Supabase Realtime subscription for feedback
+      if (supabaseClient) {
+        const subscription = supabaseClient
+          .channel('feedback_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback' }, () => {
+            fetchFeedbacks();
+          })
+          .subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Feedback realtime subscription active');
+            }
+          });
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      }
     }
   }, [user?.role]);
 

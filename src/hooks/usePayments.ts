@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { createClient } from '@supabase/supabase-js';
 
 export interface PaymentStats {
   month: string;
@@ -12,6 +13,14 @@ export interface PaymentStats {
   remainingTotal: number;
   overpaidTotal?: number;
   paidAt?: string;
+}
+
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+
+let supabaseClient: any = null;
+if (supabaseUrl && supabaseKey) {
+  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const usePayments = (month?: string) => {
@@ -75,6 +84,27 @@ export const usePayments = (month?: string) => {
   useEffect(() => {
     if (user?.id) {
       fetchPaymentStats();
+      
+      // Setup Supabase Realtime subscription for payments
+      if (supabaseClient) {
+        const subscription = supabaseClient
+          .channel('payments_changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+            // Refetch payments when any changes occur
+            fetchPaymentStats();
+          })
+          .subscribe((status: string) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Payments realtime subscription active');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Payments subscription error');
+            }
+          });
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      }
     }
   }, [user?.id, month]);
 

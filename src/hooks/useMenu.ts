@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { menuAPI } from '../services/api';
 import { Language } from '../types';
+import { createClient } from '@supabase/supabase-js';
 
 export interface MenuDish {
   id: number;
@@ -16,6 +17,14 @@ export interface TodayMenu {
   date: string;
   imageUrl: string;
   dishes: MenuDish[];
+}
+
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+
+let supabaseClient: any = null;
+if (supabaseUrl && supabaseKey) {
+  supabaseClient = createClient(supabaseUrl, supabaseKey);
 }
 
 export const useMenu = (language?: Language) => {
@@ -58,6 +67,27 @@ export const useMenu = (language?: Language) => {
 
   useEffect(() => {
     fetchMenu(language);
+    
+    // Setup Supabase Realtime subscription for menu changes
+    if (supabaseClient) {
+      const subscription = supabaseClient
+        .channel('menu_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'menus' }, () => {
+          // Refetch menu when any changes occur
+          fetchMenu(language);
+        })
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Menu realtime subscription active');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Menu subscription error, falling back to polling');
+          }
+        });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, [language]);
 
   return {
