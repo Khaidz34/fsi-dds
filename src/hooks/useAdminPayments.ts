@@ -40,7 +40,9 @@ export const useAdminPayments = (month?: string) => {
         setUserPayments(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi tải thông tin thanh toán');
+      const errorMsg = err instanceof Error ? err.message : 'Lỗi khi tải thông tin thanh toán';
+      console.error('Fetch user payments error:', errorMsg);
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +53,9 @@ export const useAdminPayments = (month?: string) => {
       const data = await paymentsAPI.getHistory(currentMonth);
       setPaymentHistory(data);
     } catch (err) {
-      console.error('Error fetching payment history:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Lỗi khi tải lịch sử thanh toán';
+      console.error('Fetch payment history error:', errorMsg);
+      // Don't set error state for history, just log it
     }
   };
 

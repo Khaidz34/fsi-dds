@@ -546,7 +546,25 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       .single();
 
     if (error) {
+      console.error('Order creation error:', error);
       return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
+    }
+
+    // Automatically create a payment record for the order
+    const paymentData = {
+      user_id: orderedFor, // Payment is for the person eating
+      amount: 40000,
+      status: 'pending'
+    };
+
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert([paymentData]);
+
+    if (paymentError) {
+      console.error('Payment creation error:', paymentError);
+      // Don't fail the order creation if payment creation fails
+      // Just log it
     }
 
     res.json({ success: true, order });
@@ -777,6 +795,12 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
 app.get('/api/payments/history', authenticateToken, async (req, res) => {
   try {
     const { month } = req.query;
+    
+    // Only admin can view all payment history
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+    
     let query = supabase
       .from('payments')
       .select(`
@@ -794,6 +818,7 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
     const { data: payments, error } = await query;
 
     if (error) {
+      console.error('Payment history query error:', error);
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
