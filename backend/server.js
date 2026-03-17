@@ -430,17 +430,6 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
   }
 });
 
-    if (dishError) {
-      return res.status(500).json({ error: 'Lỗi tạo món ăn' });
-    }
-
-    res.json({ success: true, menu });
-  } catch (error) {
-    console.error('Menu creation error:', error);
-    res.status(500).json({ error: 'Lỗi server' });
-  }
-});
-
 app.get('/api/orders/today', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
