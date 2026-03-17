@@ -2820,7 +2820,7 @@ export default function App() {
                             <div>
                               <p className="font-semibold text-sm text-[#1C1917]">{history.fullname}</p>
                               <p className="text-xs text-[#1C1917]/60">
-                                {new Date(history.paid_at).toLocaleDateString('vi-VN')} lúc {new Date(history.paid_at).toLocaleTimeString('vi-VN')}
+                                {new Date(history.created_at).toLocaleDateString('vi-VN')} lúc {new Date(history.created_at).toLocaleTimeString('vi-VN')}
                               </p>
                             </div>
                           </div>
