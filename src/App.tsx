@@ -987,16 +987,13 @@ export default function App() {
       const userName = order.receiver?.fullname || 'N/A';
       
       // Debug: log sort_order values
-      console.log(`Order ${index + 1}:`, {
-        dish1: order.dish1?.name,
-        dish1_sort_order: order.dish1?.sort_order,
-        dish2: order.dish2?.name,
-        dish2_sort_order: order.dish2?.sort_order
-      });
+      const dish1SortOrder = order.dish1?.sort_order;
+      const dish2SortOrder = order.dish2?.sort_order;
+      console.log(`Order ${index + 1}: dish1_sort_order=${dish1SortOrder}, dish2_sort_order=${dish2SortOrder}`);
       
       // Get dish positions (sort_order) and add 1 to get menu number
-      const dish1Position = (order.dish1?.sort_order ?? 0) + 1;
-      const dish2Position = order.dish2 ? ((order.dish2?.sort_order ?? 0) + 1) : 0;
+      const dish1Position = (dish1SortOrder ?? 0) + 1;
+      const dish2Position = dish2SortOrder !== undefined ? (dish2SortOrder + 1) : 0;
       
       // Build dish text: 1+2 or just 1
       let dishText = '';
