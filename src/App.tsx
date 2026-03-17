@@ -991,24 +991,28 @@ export default function App() {
     orders.forEach((order) => {
       const userName = order.receiver?.fullname || 'N/A';
       
-      // Use sort_order from the order dishes, which represents the position in menu
+      // Get dish names in Vietnamese
+      const dish1Name = getDishName(order.dish1, 'vi') || 'N/A';
+      const dish2Name = order.dish2 ? getDishName(order.dish2, 'vi') : null;
+      
+      // Get sort_order (position in menu)
       const dish1Position = order.dish1?.sort_order || 0;
       const dish2Position = order.dish2?.sort_order || 0;
       
       let dishText = '';
       if (dish2Position > 0) {
-        dishText = `${dish1Position}+${dish2Position}`;
+        dishText = `${dish1Position}. ${dish1Name} + ${dish2Position}. ${dish2Name}`;
       } else if (dish1Position > 0) {
-        dishText = `${dish1Position}`;
+        dishText = `${dish1Position}. ${dish1Name}`;
       } else {
-        dishText = 'N/A';
+        dishText = `${dish1Name}`;
       }
 
-      let line = `${counter}.\t${userName} ${dishText}`;
+      let line = `${counter}. ${userName} (${dishText})`;
       
       // Add notes if available
       if (order.notes && order.notes.trim()) {
-        line += ` (${order.notes})`;
+        line += ` - ${order.notes}`;
       }
       
       exportLines.push(line);
