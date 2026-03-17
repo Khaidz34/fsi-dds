@@ -774,16 +774,17 @@ export default function App() {
     
     setIsPlacingOrder(true);
     
-    // Tạo ghi chú từ các tùy chọn
+    // Tạo ghi chú từ các tùy chọn - luôn dùng tiếng Việt
+    const viTranslations = TRANSLATIONS.vi;
     const options = [];
-    if (extraRice) options.push(t.extraRice);
-    if (extraSoup) options.push(t.extraSoup);
-    if (chiliSauce) options.push(t.chiliSauce);
-    if (fishSauce) options.push(t.fishSauce);
-    if (chopsticks) options.push(t.chopsticks);
-    if (lessRice) options.push(t.lessRice);
+    if (extraRice) options.push(viTranslations.extraRice);
+    if (extraSoup) options.push(viTranslations.extraSoup);
+    if (chiliSauce) options.push(viTranslations.chiliSauce);
+    if (fishSauce) options.push(viTranslations.fishSauce);
+    if (chopsticks) options.push(viTranslations.chopsticks);
+    if (lessRice) options.push(viTranslations.lessRice);
     
-    const finalNotes = [...options, orderNotes.trim()].filter(Boolean).join(', ');
+    const finalNotes = [...options, orderNotes.trim()].filter(Boolean).join(' ');
     
     try {
       await createOrder({
@@ -985,19 +986,25 @@ export default function App() {
     orders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
-      // Get dish positions (sort_order)
-      const dish1Position = order.dish1?.sort_order || 0;
-      const dish2Position = order.dish2?.sort_order || 0;
+      // Get dish positions (sort_order) - if 0, use index+1
+      let dish1Position = order.dish1?.sort_order;
+      let dish2Position = order.dish2?.sort_order;
       
-      // Build dish text: 1+2 or just 1
+      // If sort_order is 0 or undefined, it means it wasn't set properly
+      // In that case, we'll just show the order without dish numbers
       let dishText = '';
-      if (dish2Position > 0) {
+      if (dish1Position && dish1Position > 0 && dish2Position && dish2Position > 0) {
         dishText = `${dish1Position}+${dish2Position}`;
-      } else {
+      } else if (dish1Position && dish1Position > 0) {
         dishText = `${dish1Position}`;
+      } else if (dish2Position && dish2Position > 0) {
+        dishText = `${dish2Position}`;
       }
 
-      let line = `${index + 1}.\t${userName} ${dishText}`;
+      let line = `${index + 1}.\t${userName}`;
+      if (dishText) {
+        line += ` ${dishText}`;
+      }
       
       // Add notes if available (Vietnamese labels)
       if (order.notes && order.notes.trim()) {
