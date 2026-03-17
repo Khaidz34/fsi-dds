@@ -986,25 +986,19 @@ export default function App() {
     orders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
-      // Get dish positions (sort_order) - if 0, use index+1
-      let dish1Position = order.dish1?.sort_order;
-      let dish2Position = order.dish2?.sort_order;
+      // Get dish positions (sort_order) and add 1 to get menu number
+      const dish1Position = (order.dish1?.sort_order || 0) + 1;
+      const dish2Position = order.dish2 ? (order.dish2.sort_order || 0) + 1 : 0;
       
-      // If sort_order is 0 or undefined, it means it wasn't set properly
-      // In that case, we'll just show the order without dish numbers
+      // Build dish text: 1+2 or just 1
       let dishText = '';
-      if (dish1Position && dish1Position > 0 && dish2Position && dish2Position > 0) {
+      if (dish2Position > 0) {
         dishText = `${dish1Position}+${dish2Position}`;
-      } else if (dish1Position && dish1Position > 0) {
+      } else {
         dishText = `${dish1Position}`;
-      } else if (dish2Position && dish2Position > 0) {
-        dishText = `${dish2Position}`;
       }
 
-      let line = `${index + 1}.\t${userName}`;
-      if (dishText) {
-        line += ` ${dishText}`;
-      }
+      let line = `${index + 1}.\t${userName} ${dishText}`;
       
       // Add notes if available (Vietnamese labels)
       if (order.notes && order.notes.trim()) {
