@@ -95,6 +95,34 @@ app.use(cors({
 
 app.use(express.json());
 
+// Rate limiting middleware
+const rateLimit = {};
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 100; // 100 requests per minute
+
+const rateLimitMiddleware = (req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!rateLimit[ip]) {
+    rateLimit[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+  }
+  
+  if (now > rateLimit[ip].resetTime) {
+    rateLimit[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+  }
+  
+  rateLimit[ip].count++;
+  
+  if (rateLimit[ip].count > RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+  
+  next();
+};
+
+app.use(rateLimitMiddleware);
+
 // Authentication Middleware
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
