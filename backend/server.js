@@ -499,10 +499,18 @@ app.get('/api/orders/today', async (req, res) => {
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
-    // Debug log
+    // Debug log - detailed
+    console.log('📋 Orders fetched:', orders?.length || 0);
     if (orders && orders.length > 0) {
-      console.log('First order dish1:', orders[0].dish1);
-      console.log('First order dish2:', orders[0].dish2);
+      orders.forEach((order, idx) => {
+        console.log(`Order ${idx + 1}:`, {
+          id: order.id,
+          receiver: order.receiver?.fullname,
+          dish1: order.dish1 ? { name: order.dish1.name, sort_order: order.dish1.sort_order } : null,
+          dish2: order.dish2 ? { name: order.dish2.name, sort_order: order.dish2.sort_order } : null,
+          notes: order.notes
+        });
+      });
     }
 
     res.json(orders || []);

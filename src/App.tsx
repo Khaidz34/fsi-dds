@@ -980,20 +980,37 @@ export default function App() {
       return;
     }
 
+    // Debug log
+    console.log('📋 Export menu - Orders data:');
+    orders.forEach((order, idx) => {
+      console.log(`Order ${idx + 1}:`, {
+        id: order.id,
+        receiver: order.receiver?.fullname,
+        dish1: order.dish1 ? { name: order.dish1.name, sort_order: order.dish1.sort_order } : null,
+        dish2: order.dish2 ? { name: order.dish2.name, sort_order: order.dish2.sort_order } : null,
+        notes: order.notes
+      });
+    });
+
+    // Mapping tiếng Nhật sang tiếng Việt
+    const jaToViMapping = {
+      'ご飯追加': 'Thêm cơm',
+      'スープ追加': 'Thêm canh',
+      'チリソース': 'Thêm tương ớt',
+      'ヌクマム': 'Thêm mắm',
+      '箸': 'Thêm thìa',
+      'ご飯少なめ': 'Ít cơm'
+    };
+
     // Create export format: Number. Name 1+2 (Notes)
     const exportLines: string[] = [];
 
     orders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
-      // Debug: log sort_order values
-      const dish1SortOrder = order.dish1?.sort_order;
-      const dish2SortOrder = order.dish2?.sort_order;
-      console.log(`Order ${index + 1}: dish1_sort_order=${dish1SortOrder}, dish2_sort_order=${dish2SortOrder}`);
-      
       // Get dish positions (sort_order) and add 1 to get menu number
-      const dish1Position = (dish1SortOrder ?? 0) + 1;
-      const dish2Position = dish2SortOrder !== undefined ? (dish2SortOrder + 1) : 0;
+      const dish1Position = (order.dish1?.sort_order ?? 0) + 1;
+      const dish2Position = order.dish2 ? ((order.dish2?.sort_order ?? 0) + 1) : 0;
       
       // Build dish text: 1+2 or just 1
       let dishText = '';
@@ -1005,15 +1022,21 @@ export default function App() {
 
       let line = `${index + 1}.\t${userName} ${dishText}`;
       
-      // Add notes if available (Vietnamese labels)
+      // Add notes if available - convert Japanese to Vietnamese if needed
       if (order.notes && order.notes.trim()) {
-        line += ` (${order.notes})`;
+        let notes = order.notes;
+        // Replace Japanese text with Vietnamese
+        Object.entries(jaToViMapping).forEach(([ja, vi]) => {
+          notes = notes.replace(new RegExp(ja, 'g'), vi);
+        });
+        line += ` (${notes})`;
       }
       
       exportLines.push(line);
     });
 
     const exportText = exportLines.join('\n');
+    console.log('📋 Export text:', exportText);
     setExportedMenu(exportText);
     setShowExportModal(true);
   };
