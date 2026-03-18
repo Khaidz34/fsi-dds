@@ -95,6 +95,10 @@ app.use(cors({
 
 app.use(express.json());
 
+// Serve static files from public directory (frontend build)
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Rate limiting middleware
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
@@ -1429,6 +1433,15 @@ app.get('/api/orders/weekly-stats', authenticateToken, async (req, res) => {
     console.error('Weekly stats error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
+});
+
+// Catch-all route to serve index.html for React Router (must be last)
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Graceful shutdown
