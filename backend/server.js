@@ -216,10 +216,16 @@ const authenticateToken = async (req, res, next) => {
 async function initDatabase() {
   console.log('Initializing Supabase tables...');
   
+  // Skip if Supabase not configured
+  if (!supabaseConfigured || !supabase) {
+    console.warn('⚠️  Supabase not configured, skipping database initialization');
+    return;
+  }
+  
   try {
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database initialization timeout')), 10000);
+      setTimeout(() => reject(new Error('Database initialization timeout')), 5000);
     });
     
     const dbPromise = supabase
@@ -229,7 +235,7 @@ async function initDatabase() {
     const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
     
     if (!error) {
-      console.log('Tables already exist');
+      console.log('✅ Tables already exist');
       console.log('Found', data || 0, 'users');
       return;
     }
