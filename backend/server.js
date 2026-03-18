@@ -50,16 +50,21 @@ console.log('Environment:', process.env.NODE_ENV || 'development');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('ERROR: Missing Supabase credentials');
-  console.error('SUPABASE_URL:', supabaseUrl ? 'OK' : 'MISSING');
-  console.error('SUPABASE_ANON_KEY:', supabaseKey ? 'OK' : 'MISSING');
-  process.exit(1);
-}
+let supabase = null;
+let supabaseConfigured = false;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Key:', supabaseKey ? 'Configured' : 'Missing');
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('⚠️  WARNING: Missing Supabase credentials');
+  console.warn('SUPABASE_URL:', supabaseUrl ? 'OK' : 'MISSING');
+  console.warn('SUPABASE_ANON_KEY:', supabaseKey ? 'OK' : 'MISSING');
+  console.warn('Server will run in degraded mode - API calls will return empty data');
+  console.warn('Please configure environment variables on Render Dashboard');
+} else {
+  supabase = createClient(supabaseUrl, supabaseKey);
+  supabaseConfigured = true;
+  console.log('✅ Supabase URL:', supabaseUrl);
+  console.log('✅ Supabase Key: Configured');
+}
 
 // Middleware
 app.use(cors({
@@ -386,6 +391,16 @@ app.get('/api/test', (req, res) => {
 // Basic API routes
 app.get('/api/menu/today', async (req, res) => {
   try {
+    // Check if Supabase is configured
+    if (!supabaseConfigured || !supabase) {
+      console.warn('⚠️  Supabase not configured, returning empty menu');
+      return res.json({ 
+        message: 'Database not configured. Please set SUPABASE_ANON_KEY on Render Dashboard.',
+        dishes: [],
+        date: new Date().toISOString().split('T')[0]
+      });
+    }
+
     // Check cache first
     const cachedMenu = getCache('menus');
     if (cachedMenu) {
