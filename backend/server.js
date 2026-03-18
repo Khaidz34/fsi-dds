@@ -1607,28 +1607,6 @@ async function startServer() {
     });
 
     // Monitor database connections every 10 seconds
-    setInterval(async () => {
-      try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('DB check timeout')), 5000);
-        });
-        
-        const dbPromise = supabase
-          .from('users')
-          .select('count', { count: 'exact', head: true });
-        
-        const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
-        
-        if (!error) {
-          console.log(`[DB] Connection check OK - Active queries: ${data || 0}`);
-        } else {
-          console.warn('[DB] Connection check warning:', error.message);
-        }
-      } catch (err) {
-        console.error('[DB] Connection check failed:', err instanceof Error ? err.message : err);
-      }
-    }, 10000);
     
   } catch (err) {
     console.error('Failed to start server:', err);
