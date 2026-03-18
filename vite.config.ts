@@ -13,11 +13,14 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    chunkSizeWarningLimit: 600, // Increase warning threshold
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Vendor chunks
+          // Vendor chunks - avoid circular dependencies
+          if (id.includes('node_modules/react-dom')) {
+            return 'react-dom-vendor';
+          }
           if (id.includes('node_modules/react')) {
             return 'react-vendor';
           }
