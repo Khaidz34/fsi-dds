@@ -183,9 +183,16 @@ async function initDatabase() {
   console.log('Initializing Supabase tables...');
   
   try {
-    const { data, error } = await supabase
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database initialization timeout')), 10000);
+    });
+    
+    const dbPromise = supabase
       .from('users')
       .select('count', { count: 'exact', head: true });
+    
+    const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
     
     if (!error) {
       console.log('Tables already exist');
@@ -198,7 +205,9 @@ async function initDatabase() {
     console.log('Run the SQL commands from SUPABASE-SETUP.sql');
     
   } catch (err) {
-    console.error('Database initialization error:', err);
+    console.error('Database initialization error:', err.message);
+    // Don't exit - continue with server startup
+    console.log('Continuing server startup despite database error...');
   }
 }
 
@@ -1432,9 +1441,16 @@ async function startServer() {
     // Monitor database connections every 10 seconds
     setInterval(async () => {
       try {
-        const { data, error } = await supabase
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('DB check timeout')), 5000);
+        });
+        
+        const dbPromise = supabase
           .from('users')
           .select('count', { count: 'exact', head: true });
+        
+        const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
         
         if (!error) {
           console.log(`[DB] Connection check OK - Active queries: ${data || 0}`);
