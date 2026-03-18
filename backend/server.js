@@ -369,6 +369,16 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
   res.json(userWithoutPassword);
 });
 
+// Test endpoint without database
+app.get('/api/test', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'API is working',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Basic API routes
 app.get('/api/menu/today', async (req, res) => {
   try {
@@ -381,7 +391,12 @@ app.get('/api/menu/today', async (req, res) => {
     
     const today = new Date().toISOString().split('T')[0];
     
-    const { data: menu, error } = await supabase
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 8000);
+    });
+    
+    const dbPromise = supabase
       .from('menus')
       .select(`
         id,
@@ -399,12 +414,22 @@ app.get('/api/menu/today', async (req, res) => {
       .eq('date', today)
       .single();
 
+    const { data: menu, error } = await Promise.race([dbPromise, timeoutPromise]);
+
     if (error && error.code !== 'PGRST116') {
-      return res.status(500).json({ error: 'Lỗi database' });
+      console.error('Menu database error:', error.message);
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        message: 'Please try again later',
+        dishes: [] 
+      });
     }
 
     if (!menu) {
-      return res.json({ dishes: [] });
+      return res.json({ 
+        message: 'No menu for today',
+        dishes: [] 
+      });
     }
 
     // Sort dishes by sort_order
@@ -417,8 +442,12 @@ app.get('/api/menu/today', async (req, res) => {
 
     res.json(menu);
   } catch (error) {
-    console.error('Menu error:', error);
-    res.status(500).json({ error: 'Lỗi server' });
+    console.error('Menu error:', error.message);
+    res.status(500).json({ 
+      error: 'Menu service temporarily unavailable',
+      message: error.message,
+      dishes: [] 
+    });
   }
 });
 
