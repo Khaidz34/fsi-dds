@@ -77,21 +77,25 @@ export const usePayments = (month?: string) => {
     if (user?.id) {
       fetchPaymentStats();
       
-      // Setup Supabase Realtime subscription for payments
-      const paymentsChannel = subscribeToTable('payments', () => {
-        console.log('💰 Payment update detected via Realtime');
-        fetchPaymentStats();
-      }, 'user_payments');
-      
-      const ordersChannel = subscribeToTable('orders', () => {
-        console.log('📦 Order update detected via Realtime');
-        fetchPaymentStats();
-      }, 'user_orders');
+      // Only setup Realtime subscriptions for admin users
+      if (user?.role === 'admin') {
+        // Setup Supabase Realtime subscription for payments
+        const paymentsChannel = subscribeToTable('payments', () => {
+          console.log('💰 Payment update detected via Realtime');
+          fetchPaymentStats();
+        }, 'admin_payments');
+        
+        const ordersChannel = subscribeToTable('orders', () => {
+          console.log('📦 Order update detected via Realtime');
+          fetchPaymentStats();
+        }, 'admin_orders');
 
-      return () => {
-        unsubscribeFromTable(paymentsChannel);
-        unsubscribeFromTable(ordersChannel);
-      };
+        return () => {
+          unsubscribeFromTable(paymentsChannel);
+          unsubscribeFromTable(ordersChannel);
+        };
+      }
+      // For regular users, no auto refresh - data only updates on manual refetch
     }
   }, [user?.id, month]);
 

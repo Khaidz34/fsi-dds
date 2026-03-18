@@ -88,15 +88,19 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
-      // Setup Supabase Realtime subscription for orders
-      const channel = subscribeToTable('orders', () => {
-        console.log('📦 Order update detected via Realtime');
-        fetchOrders();
-      }, 'user_orders');
+      // Only setup Realtime subscriptions for admin users
+      if (user?.role === 'admin') {
+        // Setup Supabase Realtime subscription for orders
+        const channel = subscribeToTable('orders', () => {
+          console.log('📦 Order update detected via Realtime');
+          fetchOrders();
+        }, 'admin_orders');
 
-      return () => {
-        unsubscribeFromTable(channel);
-      };
+        return () => {
+          unsubscribeFromTable(channel);
+        };
+      }
+      // For regular users, no auto refresh - data only updates on manual refetch or after actions
     }
   }, [user?.id, user?.role, language]);
 

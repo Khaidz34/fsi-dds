@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ordersAPI } from '../services/api';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface Order {
   id: number;
@@ -18,6 +19,7 @@ export interface Order {
 }
 
 export const useMonthlyOrders = (month: string) => {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,16 +45,20 @@ export const useMonthlyOrders = (month: string) => {
   useEffect(() => {
     fetchOrders();
     
-    // Setup Supabase Realtime subscription for orders
-    const channel = subscribeToTable('orders', () => {
-      console.log('📦 Monthly orders update detected via Realtime');
-      fetchOrders();
-    }, `monthly_orders_${month}`);
+    // Only setup Realtime subscriptions for admin users
+    if (user?.role === 'admin') {
+      // Setup Supabase Realtime subscription for orders
+      const channel = subscribeToTable('orders', () => {
+        console.log('📦 Monthly orders update detected via Realtime');
+        fetchOrders();
+      }, `monthly_orders_${month}`);
 
-    return () => {
-      unsubscribeFromTable(channel);
-    };
-  }, [month]);
+      return () => {
+        unsubscribeFromTable(channel);
+      };
+    }
+    // For regular users, no auto refresh - data only updates on manual refetch
+  }, [month, user?.role]);
 
   return {
     orders,
