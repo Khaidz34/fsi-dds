@@ -213,10 +213,28 @@ async function initDatabase() {
 
 // Health Check
 app.get('/health', async (req, res) => {
+  // Simple health check without database dependency
+  res.json({ 
+    status: 'ok', 
+    server: 'running',
+    timestamp: new Date().toISOString(),
+    message: 'Server is healthy'
+  });
+});
+
+// Database health check (separate endpoint)
+app.get('/health/db', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database health check timeout')), 5000);
+    });
+    
+    const dbPromise = supabase
       .from('users')
       .select('count', { count: 'exact', head: true });
+    
+    const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
     
     if (error) {
       return res.status(500).json({ 
