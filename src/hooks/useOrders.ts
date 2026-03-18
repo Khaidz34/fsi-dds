@@ -102,7 +102,7 @@ export const useOrders = (language?: string) => {
       }
       // For regular users, no auto refresh - data only updates on manual refetch or after actions
     }
-  }, [user?.id, user?.role, language]);
+  }, [user?.id, language]); // Remove user?.role to avoid dependency issues
 
   return {
     orders,

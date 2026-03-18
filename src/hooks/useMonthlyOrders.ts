@@ -58,7 +58,7 @@ export const useMonthlyOrders = (month: string) => {
       };
     }
     // For regular users, no auto refresh - data only updates on manual refetch
-  }, [month, user?.role]);
+  }, [month]); // Remove user?.role dependency to avoid infinite loops
 
   return {
     orders,

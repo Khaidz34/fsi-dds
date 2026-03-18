@@ -97,7 +97,7 @@ export const usePayments = (month?: string) => {
       }
       // For regular users, no auto refresh - data only updates on manual refetch
     }
-  }, [user?.id, month]);
+  }, [user?.id, month]); // Remove user?.role to avoid dependency issues
 
   return {
     paymentStats,
