@@ -13,11 +13,33 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    chunkSizeWarningLimit: 600, // Increase warning threshold
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['framer-motion', 'recharts']
+        manualChunks: (id) => {
+          // Vendor chunks
+          if (id.includes('node_modules/react')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/recharts')) {
+            return 'recharts-vendor';
+          }
+          if (id.includes('node_modules/framer-motion')) {
+            return 'framer-vendor';
+          }
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+          // Component chunks
+          if (id.includes('src/components')) {
+            return 'components';
+          }
+          if (id.includes('src/hooks')) {
+            return 'hooks';
+          }
+          if (id.includes('src/services')) {
+            return 'services';
+          }
         }
       }
     }

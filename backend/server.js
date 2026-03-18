@@ -66,6 +66,31 @@ if (!supabaseUrl || !supabaseKey) {
   console.log('✅ Supabase Key: Configured');
 }
 
+// #region agent log - Supabase config debug (H1)
+try {
+  fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Debug-Session-Id': 'e63c99'
+    },
+    body: JSON.stringify({
+      sessionId: 'e63c99',
+      runId: 'initial',
+      hypothesisId: 'H1',
+      location: 'backend/server.js:SupabaseConfig',
+      message: 'Supabase configuration status at startup',
+      data: {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey,
+        supabaseConfigured
+      },
+      timestamp: Date.now()
+    })
+  }).catch(() => {});
+} catch {}
+// #endregion
+
 // Middleware
 app.use(cors({
   origin: function(origin, callback) {
@@ -391,6 +416,27 @@ app.get('/api/test', (req, res) => {
 // Basic API routes
 app.get('/api/menu/today', async (req, res) => {
   try {
+    // #region agent log - Menu today entry (H1,H3)
+    try {
+      fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': 'e63c99'
+        },
+        body: JSON.stringify({
+          sessionId: 'e63c99',
+          runId: 'initial',
+          hypothesisId: 'H3',
+          location: 'backend/server.js:/api/menu/today',
+          message: 'Entered /api/menu/today handler',
+          data: {},
+          timestamp: Date.now()
+        })
+      }).catch(() => {});
+    } catch {}
+    // #endregion
+
     // Check if Supabase is configured
     if (!supabaseConfigured || !supabase) {
       console.warn('⚠️  Supabase not configured, returning empty menu');
@@ -435,6 +481,31 @@ app.get('/api/menu/today', async (req, res) => {
 
     const { data: menu, error } = await Promise.race([dbPromise, timeoutPromise]);
 
+    // #region agent log - Menu today DB result (H3)
+    try {
+      fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': 'e63c99'
+        },
+        body: JSON.stringify({
+          sessionId: 'e63c99',
+          runId: 'initial',
+          hypothesisId: 'H3',
+          location: 'backend/server.js:/api/menu/today',
+          message: 'Result from Supabase menus query',
+          data: {
+            hasError: !!error,
+            errorMessage: error ? error.message : null,
+            hasMenu: !!menu
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {});
+    } catch {}
+    // #endregion
+
     if (error && error.code !== 'PGRST116') {
       console.error('Menu database error:', error.message);
       return res.status(500).json({ 
@@ -462,6 +533,28 @@ app.get('/api/menu/today', async (req, res) => {
     res.json(menu);
   } catch (error) {
     console.error('Menu error:', error.message);
+    // #region agent log - Menu today catch (H3)
+    try {
+      fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Debug-Session-Id': 'e63c99'
+        },
+        body: JSON.stringify({
+          sessionId: 'e63c99',
+          runId: 'initial',
+          hypothesisId: 'H3',
+          location: 'backend/server.js:/api/menu/today',
+          message: 'Caught error in /api/menu/today',
+          data: {
+            errorMessage: error instanceof Error ? error.message : String(error)
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {});
+    } catch {}
+    // #endregion
     res.status(500).json({ 
       error: 'Menu service temporarily unavailable',
       message: error.message,
