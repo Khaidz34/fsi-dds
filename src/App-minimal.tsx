@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
-import Login from './components/Login';
+import { Login } from './components/Login';
 
 export default function App() {
   const { user, isAuthenticated, isLoading } = useAuth();
