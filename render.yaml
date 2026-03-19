@@ -13,8 +13,8 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: SUPABASE_URL
-        value: https://abeaqpjfngcwjlcaypzh.supabase.co
+        value: https://bsmylhwyfmzbqnytnhzh.supabase.co
       - key: SUPABASE_ANON_KEY
-        value: YOUR_SUPABASE_ANON_KEY_HERE
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzbXlsaHd5Zm16YnFueXRuaHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4OTE0NjUsImV4cCI6MjA4OTQ2NzQ2NX0.ZaIpSI1GwxaGTFfCCjuf19-EHoOlqkKxCqgZFq20vHM
       - key: PORT
         value: 10000
