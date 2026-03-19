@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { User, Clock, ChevronRight, Zap, Users } from 'lucide-react';
+import { AnimatePresence } from '../framer-motion-mock';
 
 interface Customer {
   id: number;

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ChefHat, ChevronRight, Eye, EyeOff, Globe, Palette } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
+import { AnimatePresence } from '../framer-motion-mock';
 
 interface LoginProps {
   theme: 'fusion' | 'corporate';

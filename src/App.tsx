@@ -66,6 +66,7 @@ import { FusionSliceGame } from './components/FusionSliceGame';
 import PaymentDashboard from './components/PaymentDashboard';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI } from './services/api';
+import { AnimatePresence } from './framer-motion-mock';
 
 const TRANSLATIONS = {
   vi: {

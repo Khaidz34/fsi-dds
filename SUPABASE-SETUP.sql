@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_dishes_menu_id ON dishes(menu_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
-CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(month);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at);
 
 -- =====================================================
 -- Row Level Security (RLS) - Optional

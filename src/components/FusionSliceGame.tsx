@@ -14,6 +14,7 @@ import {
   Flame,
   Home
 } from 'lucide-react';
+import { AnimatePresence } from '../framer-motion-mock';
 
 // --- Types ---
 interface Sliceable {

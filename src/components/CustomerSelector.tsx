@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import { ChevronDown, User, Search, Check } from 'lucide-react';
+import { AnimatePresence } from '../framer-motion-mock';
 
 interface Customer {
   id: number;
