@@ -1555,7 +1555,17 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  console.log('Serving index.html from:', indexPath);
+  
+  // Check if file exists before sending
+  if (!require('fs').existsSync(indexPath)) {
+    console.error('index.html not found at:', indexPath);
+    return res.status(404).json({ error: 'Frontend not found' });
+  }
+  
+  res.sendFile(indexPath);
 });
 
 // Graceful shutdown
