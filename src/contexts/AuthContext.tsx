@@ -40,18 +40,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Kiểm tra token khi app khởi động
   useEffect(() => {
     const initAuth = async () => {
-      const savedToken = tokenStorage.get();
-      if (savedToken) {
-        try {
-          setToken(savedToken);
-          const userData = await authAPI.getMe();
-          setUser(userData);
-        } catch (error) {
-          console.error('Token không hợp lệ:', error);
-          tokenStorage.remove();
+      try {
+        const savedToken = tokenStorage.get();
+        if (savedToken) {
+          try {
+            setToken(savedToken);
+            const userData = await authAPI.getMe();
+            setUser(userData);
+          } catch (error) {
+            console.error('Token không hợp lệ:', error);
+            tokenStorage.remove();
+            setToken(null);
+            setUser(null);
+          }
         }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initAuth();
