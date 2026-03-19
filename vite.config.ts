@@ -9,6 +9,11 @@ export default defineConfig({
     tailwindcss()
   ],
   base: '/', // Đổi từ '/FSI-DDS/' thành '/' cho production
+  resolve: {
+    alias: {
+      'framer-motion': '/src/framer-motion-mock.ts'
+    }
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -26,9 +31,6 @@ export default defineConfig({
           }
           if (id.includes('node_modules/recharts')) {
             return 'recharts-vendor';
-          }
-          if (id.includes('node_modules/framer-motion')) {
-            return 'framer-vendor';
           }
           if (id.includes('node_modules')) {
             return 'vendor';
