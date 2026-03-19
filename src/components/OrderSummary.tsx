@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+
 import { User, Utensils, FileText, DollarSign } from 'lucide-react';
 
 interface Dish {
@@ -54,7 +54,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
     });
 
   return (
-    <motion.div
+    <div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -196,6 +196,6 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
           )}
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 };

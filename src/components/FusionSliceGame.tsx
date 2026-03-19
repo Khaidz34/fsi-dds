@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { 
   Sword, 
   Heart, 
@@ -478,7 +478,7 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
             </div>
             <div className="flex gap-1.5 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
               {[...Array(3)].map((_, i) => (
-                <motion.div
+                <div
                   key={i}
                   animate={{ 
                     scale: i < lives ? [1, 1.2, 1] : 0.8,
@@ -486,7 +486,7 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
                   }}
                 >
                   <Heart className={i < lives ? "text-red-500 fill-current" : "text-slate-600"} size={20} />
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>
@@ -496,11 +496,11 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
         {/* Game Screens */}
         <AnimatePresence>
           {gameState === 'START' && (
-            <motion.div 
+            <div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-800 via-purple-800 to-rose-800 p-8 text-center"
             >
-              <motion.div 
+              <div 
                 initial={{ y: 50 }} animate={{ y: 0 }}
                 className="mb-12 relative z-10"
               >
@@ -509,7 +509,7 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
                   <span className="text-orange-500 text-7xl">SLICE</span>
                 </h1>
                 <p className="text-slate-400 font-bold tracking-[0.3em] uppercase text-[10px] mt-4">Viet-Nippon Blade</p>
-              </motion.div>
+              </div>
 
               <button
                 onClick={resetGame}
@@ -520,11 +520,11 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
                   PLAY NOW
                 </span>
               </button>
-            </motion.div>
+            </div>
           )}
 
           {gameState === 'GAMEOVER' && (
-            <motion.div 
+            <div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-rose-900/95 backdrop-blur-md p-8 text-center text-white"
             >
@@ -543,14 +543,14 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
                 <RotateCcw size={32} />
                 RETRY
               </button>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
         {/* BOOM Feedback */}
         <AnimatePresence>
           {showBoom && (
-            <motion.div
+            <div
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: [0, 1.5, 1], rotate: 0 }}
               exit={{ scale: 0, opacity: 0 }}
@@ -559,7 +559,7 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
               <span className="text-7xl font-black text-orange-500 drop-shadow-[0_0_30px_rgba(255,69,0,0.8)] italic">
                 BOOM!
               </span>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>

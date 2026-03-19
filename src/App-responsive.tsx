@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { 
   LayoutDashboard, 
   Utensils, 
@@ -207,14 +207,14 @@ export default function App() {
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {showMobileMenu && (
-          <motion.div
+          <div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setShowMobileMenu(false)}
           >
-            <motion.div
+            <div
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
@@ -309,8 +309,8 @@ export default function App() {
                   </button>
                 </div>
               </nav>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -442,7 +442,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
-              <motion.div
+              <div
                 key="dashboard"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -503,11 +503,11 @@ export default function App() {
                     </div>
                   </div>
                 )}
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'menu' && (
-              <motion.div
+              <div
                 key="menu"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -538,11 +538,11 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'orders' && (
-              <motion.div
+              <div
                 key="orders"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -582,18 +582,18 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'payment-calendar' && (
-              <motion.div
+              <div
                 key="payment-calendar"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
                 <PaymentDashboard translations={t} />
-              </motion.div>
+              </div>
             )}
           </AnimatePresence>
         </div>

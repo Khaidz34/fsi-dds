@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+
 import { 
   Calendar as CalendarIcon, 
   DollarSign, 
@@ -127,7 +127,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     <div className="space-y-8">
       {/* Payment Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
@@ -141,9 +141,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <p className="text-2xl font-bold text-gray-900">{paymentStats?.ordersCount || 0}</p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -158,9 +158,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <p className="text-2xl font-bold text-green-600">{paymentStats?.paidTotal?.toLocaleString() || '0'}đ</p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -180,9 +180,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               )}
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -197,11 +197,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <p className="text-2xl font-bold text-gray-900">{paymentStats?.ordersTotal?.toLocaleString() || '0'}đ</p>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Calendar View */}
-      <motion.div
+      <div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
@@ -287,7 +287,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             <span className="text-xs text-gray-600">{translations.paymentDashboard.threePlusMeals}</span>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

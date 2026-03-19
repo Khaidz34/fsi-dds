@@ -1247,7 +1247,7 @@ export default function App() {
           {/* Theme transition overlay */}
           <AnimatePresence>
             {isThemeChanging && (
-              <motion.div
+              <div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -1257,12 +1257,12 @@ export default function App() {
                   <div className="w-5 h-5 border-2 border-app-accent/30 border-t-app-accent rounded-full animate-spin" />
                   <span className="text-sm font-medium text-app-ink/70">Đang chuyển theme...</span>
                 </div>
-              </motion.div>
+              </div>
             )}
           </AnimatePresence>
 
           <div className="flex items-center gap-4">
-            <motion.h2 
+            <h2 
               key={`${activeTab}-${currentLang}`}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1270,7 +1270,7 @@ export default function App() {
               className="text-2xl font-display font-bold tracking-tight capitalize brush-accent"
             >
               {activeTab === 'menu-mgmt' ? t.admin.menuManagement : activeTab}
-            </motion.h2>
+            </h2>
           </div>
 
           <div className="flex items-center gap-6">
@@ -1325,7 +1325,7 @@ export default function App() {
           {/* Tab transition overlay */}
           <AnimatePresence>
             {isLanguageChanging && (
-              <motion.div
+              <div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -1335,13 +1335,13 @@ export default function App() {
                   <div className="w-16 h-16 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
                   <p className="text-app-ink/70 font-medium">Đang chuyển ngôn ngữ...</p>
                 </div>
-              </motion.div>
+              </div>
             )}
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && user?.role === 'user' && (
-              <motion.div
+              <div
                 key="dashboard-user"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1412,11 +1412,11 @@ export default function App() {
 
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'dashboard' && user?.role === 'admin' && (
-              <motion.div
+              <div
                 key="dashboard-admin"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1455,7 +1455,7 @@ export default function App() {
                     <div className="space-y-4">
                       <AnimatePresence mode="wait">
                         {isLanguageChanging ? (
-                          <motion.div
+                          <div
                             key="admin-menu-loading"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -1463,10 +1463,10 @@ export default function App() {
                             className="flex items-center justify-center py-8"
                           >
                             <div className="w-8 h-8 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
-                          </motion.div>
+                          </div>
                         ) : (
                           menu?.dishes?.map((dish, idx) => (
-                            <motion.div 
+                            <div 
                               key={`${dish.id}-admin-${currentLang}`}
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ 
@@ -1482,7 +1482,7 @@ export default function App() {
                             >
                               <div className="flex items-center gap-4">
                                 <span className="text-sm font-black text-[#DA251D]">{idx + 1}</span>
-                                <motion.p 
+                                <p 
                                   key={`${dish.id}-admin-name-${currentLang}`}
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
@@ -1490,10 +1490,10 @@ export default function App() {
                                   className="font-bold text-sm"
                                 >
                                   {dish.name}
-                                </motion.p>
+                                </p>
                               </div>
                               <ChevronRight size={16} className="text-[#2D241E]/20" />
-                            </motion.div>
+                            </div>
                           ))
                         )}
                       </AnimatePresence>
@@ -1535,11 +1535,11 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'menu' && (
-              <motion.div
+              <div
                 key="menu"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1547,7 +1547,7 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Promotional Banner */}
-                <motion.div 
+                <div 
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="relative overflow-hidden rounded-[2.5rem] crimson-gradient p-8 md:p-12 shadow-2xl shadow-[#DA251D]/20"
@@ -1581,13 +1581,13 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Menu List */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 pb-64">
                   <AnimatePresence mode="wait">
                     {isLanguageChanging ? (
-                      <motion.div
+                      <div
                         key="language-loading"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -1598,10 +1598,10 @@ export default function App() {
                           <div className="w-12 h-12 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
                           <p className="text-app-ink/60 font-medium">Đang chuyển ngôn ngữ...</p>
                         </div>
-                      </motion.div>
+                      </div>
                     ) : (
                       menu?.dishes?.map((dish, index) => (
-                        <motion.div 
+                        <div 
                           key={`${dish.id}-${currentLang}`}
                           layout
                           initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -1636,7 +1636,7 @@ export default function App() {
                           onClick={() => handleSelectDish(dish.id)}
                         >
                           {selectedDishes.includes(dish.id) && (
-                            <motion.div 
+                            <div 
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
                               className="absolute top-4 right-4 z-10"
@@ -1644,13 +1644,13 @@ export default function App() {
                               <div className="bg-[#DA251D] text-white p-1 rounded-full shadow-lg">
                                 <CheckCircle2 size={16} />
                               </div>
-                            </motion.div>
+                            </div>
                           )}
                           
                           
                           <div className="flex-1">
                             <div className="flex items-start justify-between mb-4">
-                              <motion.h4 
+                              <h4 
                                 key={`${dish.id}-name-${currentLang}`}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -1664,32 +1664,32 @@ export default function App() {
                                 }`}
                               >
                                 {dish.name}
-                              </motion.h4>
+                              </h4>
                             </div>
                             
                             {/* Selection indicator */}
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 {selectedDishes.includes(dish.id) && (
-                                  <motion.span 
+                                  <span 
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="text-xs bg-[#DA251D] text-white px-2 py-1 rounded-full font-bold"
                                   >
                                     Món {selectedDishes.indexOf(dish.id) + 1}
-                                  </motion.span>
+                                  </span>
                                 )}
                               </div>
                               
                               {!selectedDishes.includes(dish.id) && selectedDishes.length < 2 && (
-                                <motion.div 
+                                <div 
                                   whileHover={{ scale: 1.1 }}
                                   className="w-6 h-6 border-2 border-[#DA251D]/30 rounded-full group-hover:border-[#DA251D] transition-colors"
                                 />
                               )}
                             </div>
                           </div>
-                        </motion.div>
+                        </div>
                       ))
                     )}
                   </AnimatePresence>
@@ -1707,7 +1707,7 @@ export default function App() {
 
                 {/* Place Order Bar - Improved Layout */}
                 {selectedDishes.length > 0 && (
-                  <motion.div 
+                  <div 
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 100, opacity: 0 }}
@@ -1842,12 +1842,12 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 )}
-              </motion.div>
+              </div>
             )}
             {activeTab === 'orders' && (
-              <motion.div
+              <div
                 key="orders"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1878,7 +1878,7 @@ export default function App() {
 
                   <div className="space-y-4">
                     {orders.map((order) => (
-                      <motion.div 
+                      <div 
                         key={order.id} 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1922,7 +1922,7 @@ export default function App() {
                             {/* Actions */}
                             <div className="flex items-center justify-center md:justify-end gap-2">
                               {user?.role === 'admin' && (
-                                <motion.button 
+                                <button 
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={async () => {
@@ -1941,16 +1941,16 @@ export default function App() {
                                   title="Xóa đơn hàng"
                                 >
                                   <Trash2 size={16} />
-                                </motion.button>
+                                </button>
                               )}
                             </div>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                     
                     {orders.length === 0 && (
-                      <motion.div 
+                      <div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-center py-12"
@@ -1960,15 +1960,15 @@ export default function App() {
                         </div>
                         <p className="text-gray-500 text-lg font-medium">Chưa có đơn hàng nào</p>
                         <p className="text-gray-400 text-sm">Hãy đặt món đầu tiên của bạn</p>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'menu-mgmt' && (
-              <motion.div
+              <div
                 key="menu-mgmt"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2014,7 +2014,7 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <AnimatePresence mode="wait">
                       {isLanguageChanging ? (
-                        <motion.div
+                        <div
                           key="mgmt-menu-loading"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
@@ -2025,10 +2025,10 @@ export default function App() {
                             <div className="w-10 h-10 border-3 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
                             <p className="text-app-ink/60 text-sm">Đang tải menu...</p>
                           </div>
-                        </motion.div>
+                        </div>
                       ) : (
                         menu?.dishes?.map((dish, index) => (
-                          <motion.div 
+                          <div 
                             key={`${dish.id}-mgmt-${currentLang}`}
                             initial={{ opacity: 0, y: 20, scale: 0.95 }}
                             animate={{ 
@@ -2046,7 +2046,7 @@ export default function App() {
                             className="flex items-center gap-6 p-6 bg-[#FDF4E3]/30 rounded-3xl border border-[#F5E6D3] hover:border-[#DA251D]/40 transition-all duration-300"
                           >
                             <div className="flex-1">
-                              <motion.p 
+                              <p 
                                 key={`${dish.id}-mgmt-name-${currentLang}`}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -2054,7 +2054,7 @@ export default function App() {
                                 className="font-bold text-lg mb-1"
                               >
                                 {dish.name}
-                              </motion.p>
+                              </p>
                               <div className="flex items-center justify-between">
                                 <div className="flex gap-2">
                                   <button 
@@ -2067,7 +2067,7 @@ export default function App() {
                                 </div>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         ))
                       )}
                     </AnimatePresence>
@@ -2083,11 +2083,11 @@ export default function App() {
                     )}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'stats' && (
-              <motion.div
+              <div
                 key="stats"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2171,11 +2171,11 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'payments' && (
-              <motion.div
+              <div
                 key="payments"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2264,11 +2264,11 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'invoicing' && (
-              <motion.div
+              <div
                 key="invoicing"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2276,11 +2276,11 @@ export default function App() {
                 className="space-y-8"
               >
                 <PaymentDashboard translations={t} />
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'payment-calendar' && (
-              <motion.div
+              <div
                 key="payment-calendar"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2288,11 +2288,11 @@ export default function App() {
                 className="space-y-8"
               >
                 <PaymentDashboard translations={t} />
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'feedback' && (
-              <motion.div
+              <div
                 key="feedback"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2405,11 +2405,11 @@ export default function App() {
                     </div>
                   </div>
                 )}
-              </motion.div>
+              </div>
             )}
 
             {activeTab === 'accounts' && (
-              <motion.div
+              <div
                 key="accounts"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -2458,7 +2458,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
             )}
           </AnimatePresence>
         </div>
@@ -2466,7 +2466,7 @@ export default function App() {
 
       <AnimatePresence>
         {showOrderSuccess && (
-          <motion.div 
+          <div 
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
@@ -2479,7 +2479,7 @@ export default function App() {
               <p className="font-black uppercase tracking-widest text-xs">{t.orderSuccess}</p>
               <p className="text-[10px] opacity-80 font-medium">Your meal is being prepared with love.</p>
             </div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
@@ -2487,14 +2487,14 @@ export default function App() {
       <AnimatePresence>
         {showExportModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <motion.div 
+            <div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowExportModal(false)}
               className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -2571,7 +2571,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>
@@ -2579,14 +2579,14 @@ export default function App() {
       <AnimatePresence>
         {showAddMenuModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <motion.div 
+            <div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAddMenuModal(false)}
               className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -2631,7 +2631,7 @@ export default function App() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>
@@ -2640,14 +2640,14 @@ export default function App() {
       <AnimatePresence>
         {showMultilingualModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <motion.div 
+            <div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMultilingualModal(false)}
               className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -2772,7 +2772,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>
@@ -2780,7 +2780,7 @@ export default function App() {
       {/* Order Summary Modal */}
       <AnimatePresence>
         {showOrderSummary && (
-          <motion.div
+          <div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -2808,14 +2808,14 @@ export default function App() {
                 theme={theme}
               />
             </div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       {/* Order Success Modal */}
       <AnimatePresence>
         {showOrderSuccess && (
-          <motion.div
+          <div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
@@ -2826,7 +2826,7 @@ export default function App() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Đặt món thành công!</h3>
             <p className="text-gray-600">Đơn hàng của bạn đã được ghi nhận</p>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
@@ -2835,21 +2835,21 @@ export default function App() {
 
 function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
-    <motion.button 
+    <button 
       onClick={onClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${active ? 'bg-app-accent text-white shadow-lg shadow-app-accent/20' : 'text-app-ink/40 hover:text-app-accent hover:bg-app-accent/5'}`}
     >
       {active && <div className="absolute inset-0 silk-texture opacity-10" />}
-      <motion.div 
+      <div 
         className={`${active ? 'text-white' : 'group-hover:text-app-accent'} transition-colors duration-300 relative z-10`}
         whileHover={{ rotate: active ? 0 : 5 }}
         transition={{ duration: 0.2 }}
       >
         {icon}
-      </motion.div>
-      <motion.span 
+      </div>
+      <span 
         key={label}
         initial={{ opacity: 0, x: -5 }}
         animate={{ opacity: 1, x: 0 }}
@@ -2857,9 +2857,9 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
         className="hidden md:block font-bold text-xs uppercase tracking-widest relative z-10"
       >
         {label}
-      </motion.span>
+      </span>
       {active && (
-        <motion.div 
+        <div 
           layoutId="active-pill" 
           className="ml-auto w-1.5 h-1.5 bg-white rounded-full relative z-10"
           initial={{ scale: 0 }}
@@ -2867,7 +2867,7 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
           transition={{ type: "spring", stiffness: 500, damping: 30 }}
         />
       )}
-    </motion.button>
+    </button>
   );
 }
 

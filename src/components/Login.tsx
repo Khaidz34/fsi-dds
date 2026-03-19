@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { ChefHat, ChevronRight, Eye, EyeOff, Globe, Palette } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
@@ -294,7 +294,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
       <div className="absolute top-[-10%] right-[-10%] w-[40%] aspect-square bg-app-accent blur-[120px] rounded-full opacity-10 animate-zen-float" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] aspect-square bg-app-gold blur-[120px] rounded-full opacity-5" />
 
-      <motion.div 
+      <div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md relative z-10"
@@ -322,7 +322,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
               
               <AnimatePresence>
                 {showThemeMenu && (
-                  <motion.div
+                  <div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
@@ -356,7 +356,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
                     >
                       💼 <span>Corporate</span>
                     </button>
-                  </motion.div>
+                  </div>
                 )}
               </AnimatePresence>
             </div>
@@ -382,7 +382,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
               
               <AnimatePresence>
                 {showLangMenu && (
-                  <motion.div
+                  <div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
@@ -430,7 +430,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
                     >
                       🇯🇵 <span>日本語</span>
                     </button>
-                  </motion.div>
+                  </div>
                 )}
               </AnimatePresence>
             </div>
@@ -522,7 +522,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
           <AnimatePresence mode="wait">
             {/* Login Form */}
             {viewMode === 'login' && (
-            <motion.form 
+            <form 
               key="login-form"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -610,12 +610,12 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
                 </span>
                 {!isLoading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
               </button>
-            </motion.form>
+            </form>
           )}
 
           {/* Register Form */}
           {viewMode === 'register' && (
-            <motion.form 
+            <form 
               key="register-form"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -725,12 +725,12 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
                 </span>
                 {!isLoading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
               </button>
-            </motion.form>
+            </form>
           )}
 
           {/* Forgot Password Form */}
           {viewMode === 'forgot-password' && (
-            <motion.form 
+            <form 
               key="forgot-password-form"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -837,7 +837,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
               >
                 ← {t.backToLogin}
               </button>
-            </motion.form>
+            </form>
           )}
           </AnimatePresence>
         </div>
@@ -854,7 +854,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

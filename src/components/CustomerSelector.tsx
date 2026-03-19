@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { ChevronDown, User, Search, Check } from 'lucide-react';
 
 interface Customer {
@@ -74,7 +74,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
       {/* Dropdown */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <div
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -133,13 +133,13 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       {/* Selection Info */}
       {selectedCustomerId && selectedCustomerId !== currentUserId && (
-        <motion.div 
+        <div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-3 text-white/80 text-xs bg-white/10 px-3 py-2 rounded-lg border border-white/20"
@@ -152,7 +152,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
               Bạn đang đặt món cho: <span className="font-semibold">{selectedCustomer.fullname}</span>
             </span>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

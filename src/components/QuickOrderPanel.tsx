@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { User, Clock, ChevronRight, Zap, Users } from 'lucide-react';
 
 interface Customer {
@@ -37,7 +37,7 @@ export const QuickOrderPanel: React.FC<QuickOrderPanelProps> = ({
   }
 
   return (
-    <motion.div
+    <div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-4 border border-white/20"
@@ -56,7 +56,7 @@ export const QuickOrderPanel: React.FC<QuickOrderPanelProps> = ({
       <div className="grid grid-cols-2 gap-2">
         <AnimatePresence>
           {frequentCustomers.map((order, index) => (
-            <motion.button
+            <button
               key={order.customerId}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ 
@@ -85,21 +85,21 @@ export const QuickOrderPanel: React.FC<QuickOrderPanelProps> = ({
                 <Clock size={8} />
                 <span>{order.orderCount} đơn</span>
               </div>
-            </motion.button>
+            </button>
           ))}
         </AnimatePresence>
       </div>
 
       {recentOrders.length > 4 && (
-        <motion.button
+        <button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => setShowAll(!showAll)}
           className="w-full mt-3 py-2 text-white/60 hover:text-white text-xs font-medium transition-colors"
         >
           {showAll ? 'Thu gọn' : `Xem thêm ${recentOrders.length - 4} người`}
-        </motion.button>
+        </button>
       )}
-    </motion.div>
+    </div>
   );
 };
