@@ -41,22 +41,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        console.log('🔐 Initializing auth...');
         const savedToken = tokenStorage.get();
+        console.log('📝 Saved token:', savedToken ? 'Found' : 'Not found');
+        
         if (savedToken) {
           try {
             setToken(savedToken);
+            console.log('🔄 Fetching user data...');
             const userData = await authAPI.getMe();
+            console.log('✅ User data fetched:', userData);
             setUser(userData);
           } catch (error) {
-            console.error('Token không hợp lệ:', error);
+            console.error('❌ Token invalid:', error);
             tokenStorage.remove();
             setToken(null);
             setUser(null);
           }
+        } else {
+          console.log('ℹ️ No saved token, user not authenticated');
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error('❌ Auth initialization error:', error);
       } finally {
+        console.log('✅ Auth initialization complete');
         setIsLoading(false);
       }
     };
