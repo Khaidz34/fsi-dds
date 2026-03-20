@@ -37,7 +37,9 @@ export const useAdminPayments = (month?: string) => {
       setError(null);
       
       if (user?.role === 'admin') {
-        const data = await paymentsAPI.getAll(currentMonth);
+        const response = await paymentsAPI.getAll(currentMonth);
+        // Handle both old format (array) and new format (object with data property)
+        const data = Array.isArray(response) ? response : response?.data || [];
         setUserPayments(data);
       }
     } catch (err) {
