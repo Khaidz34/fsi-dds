@@ -163,33 +163,72 @@ app.use(cors({
   credentials: true
 }));
 
+// Enable gzip compression for responses
+const compression = require('compression');
+app.use(compression({
+  level: 6, // Balance between compression ratio and CPU usage
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    // Don't compress SSE streams
+    if (req.path.includes('/sse/')) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
+
 app.use(express.json());
 
 // Serve static files from public directory (frontend build)
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rate limiting middleware
+// Rate limiting middleware - Per-user and per-IP limits
 const rateLimit = {};
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX = 1000; // 1000 requests per minute (increased from 500)
+const RATE_LIMIT_MAX_PER_IP = 500; // 500 requests per minute per IP
+const RATE_LIMIT_MAX_PER_USER = 100; // 100 requests per minute per user
 
 const rateLimitMiddleware = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
+  const userId = req.user?.id || 'anonymous';
   const now = Date.now();
   
+  // Initialize rate limit tracking
   if (!rateLimit[ip]) {
     rateLimit[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
   }
   
+  // Reset if window expired
   if (now > rateLimit[ip].resetTime) {
     rateLimit[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
   }
   
   rateLimit[ip].count++;
   
-  if (rateLimit[ip].count > RATE_LIMIT_MAX) {
-    return res.status(429).json({ error: 'Too many requests' });
+  // Check IP-based rate limit
+  if (rateLimit[ip].count > RATE_LIMIT_MAX_PER_IP) {
+    console.warn(`⚠️  Rate limit exceeded for IP ${ip}`);
+    return res.status(429).json({ error: 'Too many requests from this IP' });
+  }
+  
+  // Check user-based rate limit (if authenticated)
+  if (req.user?.id) {
+    const userKey = `user_${userId}`;
+    if (!rateLimit[userKey]) {
+      rateLimit[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+    }
+    
+    if (now > rateLimit[userKey].resetTime) {
+      rateLimit[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+    }
+    
+    rateLimit[userKey].count++;
+    
+    if (rateLimit[userKey].count > RATE_LIMIT_MAX_PER_USER) {
+      console.warn(`⚠️  Rate limit exceeded for user ${userId}`);
+      return res.status(429).json({ error: 'Too many requests' });
+    }
   }
   
   next();
@@ -1270,7 +1309,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
         cache.set(cacheKey, {
           data: result.data,
           total: result.total
-        }, 5 * 60 * 1000); // 5-minute TTL
+        }, 10 * 60 * 1000); // 10-minute TTL (increased from 5 for better performance)
         
         // Calculate pagination metadata
         const totalPages = Math.ceil(result.total / validLimit);
