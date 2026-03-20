@@ -31,7 +31,7 @@ class RealtimeManager {
   private lastPolledData: any = null;
 
   constructor(apiUrl: string = '') {
-    this.apiUrl = apiUrl || (import.meta.env.VITE_API_URL || 'http://localhost:10000');
+    this.apiUrl = apiUrl || ((import.meta as any).env?.VITE_API_URL || 'http://localhost:10000');
   }
 
   /**
@@ -59,6 +59,8 @@ class RealtimeManager {
 
       // EventSource doesn't support custom headers, so pass token as query parameter
       const url = `${this.apiUrl}/api/sse/payments?token=${encodeURIComponent(token)}`;
+      console.log(`🔗 Connecting to SSE: ${this.apiUrl}/api/sse/payments`);
+      
       this.eventSource = new EventSource(url);
 
       this.eventSource.onopen = () => {
@@ -70,7 +72,25 @@ class RealtimeManager {
 
       this.eventSource.onmessage = (event) => {
         try {
+          // Skip heartbeat messages
+          if (event.data === ':heartbeat' || event.data.startsWith(':')) {
+            return;
+          }
+          
           const update = JSON.parse(event.data);
+          
+          // Skip connection confirmation messages
+          if (update.type === 'connected') {
+            console.log('✅ SSE connection confirmed for user', update.userId);
+            return;
+          }
+          
+          // Skip error messages
+          if (update.type === 'error') {
+            console.error('❌ SSE error:', update.error);
+            return;
+          }
+          
           console.log('📨 Real-time update received:', update.type);
           if (this.config?.onUpdate) {
             this.config.onUpdate(update);
@@ -125,14 +145,14 @@ class RealtimeManager {
       this.config.onModeChange('polling');
     }
 
-    // Start polling every 10 seconds (increased from 5 to reduce refresh frequency)
+    // Start polling every 5 seconds (faster updates when SSE unavailable)
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
 
     this.pollInterval = setInterval(() => {
       this.pollForUpdates();
-    }, 10000);
+    }, 5000);
 
     // Poll immediately
     this.pollForUpdates();
@@ -186,7 +206,10 @@ class RealtimeManager {
       
       // Only emit update if data actually changed
       // This prevents unnecessary re-renders
-      if (this.lastPolledData && JSON.stringify(this.lastPolledData) === JSON.stringify(data)) {
+      const currentDataStr = JSON.stringify(this.lastPolledData);
+      const newDataStr = JSON.stringify(data);
+      
+      if (this.lastPolledData && currentDataStr === newDataStr) {
         return; // Data hasn't changed, don't emit update
       }
       

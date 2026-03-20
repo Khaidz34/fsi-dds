@@ -1409,11 +1409,24 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
 app.get('/api/sse/payments', (req, res) => {
   try {
     // Get token from query parameter (EventSource doesn't support custom headers)
-    const token = req.query.token || req.headers.authorization?.split(' ')[1];
+    let token = req.query.token;
+    
+    // If no token in query, try Authorization header
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(' ');
+      if (parts.length === 2 && parts[0] === 'Bearer') {
+        token = parts[1];
+      }
+    }
     
     if (!token) {
       console.log('❌ SSE: No token provided');
-      return res.status(401).json({ error: 'Access token required' });
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Access token required' })}\n\n`);
+      res.end();
+      return;
     }
 
     // Verify token
@@ -1421,9 +1434,18 @@ app.get('/api/sse/payments', (req, res) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
       userId = decoded.userId;
+      
+      if (!userId) {
+        throw new Error('No userId in token');
+      }
     } catch (err) {
-      console.log('❌ SSE: Invalid token');
-      return res.status(401).json({ error: 'Invalid token' });
+      console.log('❌ SSE: Invalid token:', err.message);
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Invalid token' })}\n\n`);
+      res.end();
+      return;
     }
 
     console.log(`🔌 SSE connection established for user ${userId}`);
@@ -1433,6 +1455,7 @@ app.get('/api/sse/payments', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for real-time
     
     // Store connection
     sseConnections.set(userId, {
@@ -1455,7 +1478,11 @@ app.get('/api/sse/payments', (req, res) => {
     });
   } catch (err) {
     console.error('❌ SSE endpoint error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.write(`data: ${JSON.stringify({ type: 'error', error: 'Internal server error' })}\n\n`);
+    res.end();
   }
 });
 
@@ -1530,8 +1557,19 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
 
     console.log('✅ Payment marked successfully:', payment);
 
-    // Send SSE notification to the user
+    // Send SSE notification to the user whose payment was marked
     sendSSENotification(userId, {
+      type: 'payment_marked',
+      userId,
+      data: {
+        amount,
+        month,
+        timestamp: Date.now()
+      }
+    });
+
+    // Also send notification to admin (current user) to update their dashboard
+    sendSSENotification(req.user.id, {
       type: 'payment_marked',
       userId,
       data: {

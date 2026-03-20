@@ -35,9 +35,9 @@ export const useAdminPayments = (month?: string) => {
 
   const fetchUserPayments = async () => {
     try {
-      // Debounce: don't fetch more than once per 2 seconds
+      // Debounce: don't fetch more than once per 1 second
       const now = Date.now();
-      if (now - lastUpdateTime < 2000) {
+      if (now - lastUpdateTime < 1000) {
         console.log('⏱️  Debouncing payment fetch (too soon)');
         return;
       }
