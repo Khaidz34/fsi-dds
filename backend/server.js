@@ -976,13 +976,13 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   // Validate pagination parameters
   const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
   const validOffset = Math.max(parseInt(offset) || 0, 0);
-  
+
   const startDate = `${month}-01`;
-  // Get last day of month
+  // Get next month for proper date range - JavaScript months are 0-indexed
   const [year, monthNum] = month.split('-');
-  const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
-  const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
-  
+  const nextMonthDate = new Date(parseInt(year), parseInt(monthNum), 1);
+  const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
   // Fallback: Get all users and calculate stats manually
   const { data: users, error: usersError } = await supabase
     .from('users')
@@ -990,11 +990,11 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     .eq('role', 'user')
     .order('fullname')
     .range(validOffset, validOffset + validLimit - 1);
-  
+
   if (usersError) throw usersError;
-  
+
   const userStats = [];
-  
+
   for (const user of users || []) {
     // Get user's orders for the month - use proper date range
     const { data: orders } = await supabase
@@ -1002,21 +1002,21 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       .select('price')
       .eq('user_id', user.id)
       .gte('created_at', `${startDate}T00:00:00`)
-      .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
-    
+      .lt('created_at', `${nextMonth}T00:00:00`);
+
     // Get user's payments for the month - use proper date range
     const { data: payments } = await supabase
       .from('payments')
       .select('amount')
       .eq('user_id', user.id)
       .gte('created_at', `${startDate}T00:00:00`)
-      .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
-    
+      .lt('created_at', `${nextMonth}T00:00:00`);
+
     const ordersCount = orders?.length || 0;
     const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
-    
+
     userStats.push({
       userId: user.id,
       fullname: user.fullname,
@@ -1031,13 +1031,13 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
     });
   }
-  
+
   // Get total count
   const { count: totalCount } = await supabase
     .from('users')
     .select('*', { count: 'exact', head: true })
     .eq('role', 'user');
-  
+
   return {
     data: userStats,
     total: totalCount || 0,
@@ -1051,20 +1051,22 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
  */
 const getUserPaymentStats = async (supabase, userId, month) => {
   const startDate = `${month}-01`;
-  // Get last day of month
+  // Get last day of month - JavaScript months are 0-indexed
   const [year, monthNum] = month.split('-');
   const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
-  const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
   
-  console.log(`💰 User payment stats: userId=${userId}, month=${month}, range=${startDate}T00:00:00 to ${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
+  console.log(`💰 User payment stats: userId=${userId}, month=${month}, year=${year}, monthNum=${monthNum}, lastDay=${lastDay}`);
   
   // Get user's orders for the month - use proper date range
+  const nextMonthDate = new Date(parseInt(year), parseInt(monthNum), 1);
+  const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+  
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
     .select('price')
     .eq('user_id', userId)
     .gte('created_at', `${startDate}T00:00:00`)
-    .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
+    .lt('created_at', `${nextMonth}T00:00:00`);
   
   // Get user's payments for the month - use proper date range
   const { data: payments, error: paymentsError } = await supabase
@@ -1072,7 +1074,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     .select('amount')
     .eq('user_id', userId)
     .gte('created_at', `${startDate}T00:00:00`)
-    .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
+    .lt('created_at', `${nextMonth}T00:00:00`);
   
   if (ordersError) {
     console.error(`❌ Orders error for user ${userId}:`, ordersError);
