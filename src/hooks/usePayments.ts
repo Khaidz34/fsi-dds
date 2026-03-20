@@ -53,9 +53,7 @@ export const usePayments = (month?: string) => {
         });
         
         totalStats.remainingTotal = Math.max(0, totalStats.remainingTotal);
-        // Recalculate remainingCount based on total remaining amount (40,000đ per order)
-        const orderPrice = 40000;
-        totalStats.remainingCount = totalStats.remainingTotal > 0 ? Math.ceil(totalStats.remainingTotal / orderPrice) : 0;
+        totalStats.remainingCount = Math.max(0, totalStats.remainingCount);
         
         setPaymentStats(totalStats);
       } else {

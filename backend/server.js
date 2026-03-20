@@ -1107,10 +1107,9 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
     
-    // Calculate remaining count: number of unpaid orders
-    // Assuming each order is 40,000đ (standard price), calculate how many are unpaid
-    const orderPrice = 40000; // Standard order price
-    const remainingCount = remainingTotal > 0 ? Math.ceil(remainingTotal / orderPrice) : 0;
+    // Calculate remaining count: number of unpaid orders = total orders - number of payments
+    const paidCount = payments?.length || 0;
+    const remainingCount = Math.max(0, ordersCount - paidCount);
 
     userStats.push({
       userId: user.id,
@@ -1119,7 +1118,7 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       month,
       ordersCount,
       ordersTotal,
-      paidCount: payments?.length || 0,
+      paidCount,
       paidTotal,
       remainingCount,
       remainingTotal,
@@ -1186,18 +1185,17 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
-  // Calculate remaining count: number of unpaid orders
-  // Assuming each order is 40,000đ (standard price), calculate how many are unpaid
-  const orderPrice = 40000; // Standard order price
-  const remainingCount = remainingTotal > 0 ? Math.ceil(remainingTotal / orderPrice) : 0;
+  // Calculate remaining count: number of unpaid orders = total orders - number of payments
+  const paidCount = payments?.length || 0;
+  const remainingCount = Math.max(0, ordersCount - paidCount);
   
-  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${payments?.length || 0} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid count ${remainingCount}`);
+  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${paidCount} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid count ${remainingCount}`);
   
   return {
     month,
     ordersCount,
     ordersTotal,
-    paidCount: payments?.length || 0,
+    paidCount,
     paidTotal,
     remainingCount,
     remainingTotal,
