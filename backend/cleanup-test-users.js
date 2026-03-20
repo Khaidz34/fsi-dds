@@ -9,7 +9,7 @@ require('dotenv').config();
 const http = require('http');
 const https = require('https');
 
-const API_URL = process.env.API_URL || 'https://fsi-dds.onrender.com';
+const API_URL = process.env.API_URL || 'https://fsi-dds.foodorder';
 const NUM_USERS = 30;
 
 // Helper function to make HTTP requests

@@ -978,87 +978,69 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   const validOffset = Math.max(parseInt(offset) || 0, 0);
   
   const startDate = `${month}-01`;
-  const endDate = `${month}-31`;
+  // Get last day of month
+  const [year, monthNum] = month.split('-');
+  const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+  const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
   
-  // Single optimized JOIN query with database aggregation
-  const { data, error, count } = await supabase
-    .rpc('get_payment_stats', {
-      p_month_start: startDate,
-      p_month_end: endDate,
-      p_limit: validLimit,
-      p_offset: validOffset
+  // Fallback: Get all users and calculate stats manually
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, fullname, username')
+    .eq('role', 'user')
+    .order('fullname')
+    .range(validOffset, validOffset + validLimit - 1);
+  
+  if (usersError) throw usersError;
+  
+  const userStats = [];
+  
+  for (const user of users || []) {
+    // Get user's orders for the month - use proper date range
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('price')
+      .eq('user_id', user.id)
+      .gte('created_at', `${startDate}T00:00:00`)
+      .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
+    
+    // Get user's payments for the month - use proper date range
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('user_id', user.id)
+      .gte('created_at', `${startDate}T00:00:00`)
+      .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
+    
+    const ordersCount = orders?.length || 0;
+    const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+    const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+    const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+    
+    userStats.push({
+      userId: user.id,
+      fullname: user.fullname,
+      username: user.username,
+      month,
+      ordersCount,
+      ordersTotal,
+      paidCount: payments?.length || 0,
+      paidTotal,
+      remainingCount: remainingTotal > 0 ? 1 : 0,
+      remainingTotal,
+      overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
     });
-  
-  // Fallback to manual query if RPC not available
-  if (error && error.code === 'PGRST204') {
-    // Fallback: Get all users and calculate stats manually (less efficient but works)
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, fullname, username')
-      .eq('role', 'user')
-      .order('fullname')
-      .range(validOffset, validOffset + validLimit - 1);
-    
-    if (usersError) throw usersError;
-    
-    const userStats = [];
-    
-    for (const user of users || []) {
-      // Get user's orders for the month
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('price')
-        .eq('user_id', user.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
-      
-      // Get user's payments for the month
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('amount')
-        .eq('user_id', user.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
-      
-      const ordersCount = orders?.length || 0;
-      const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
-      const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
-      const remainingTotal = Math.max(0, ordersTotal - paidTotal);
-      
-      userStats.push({
-        userId: user.id,
-        fullname: user.fullname,
-        username: user.username,
-        month,
-        ordersCount,
-        ordersTotal,
-        paidCount: payments?.length || 0,
-        paidTotal,
-        remainingCount: remainingTotal > 0 ? 1 : 0,
-        remainingTotal,
-        overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
-      });
-    }
-    
-    // Get total count
-    const { count: totalCount } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'user');
-    
-    return {
-      data: userStats,
-      total: totalCount || 0,
-      limit: validLimit,
-      offset: validOffset
-    };
   }
   
-  if (error) throw error;
+  // Get total count
+  const { count: totalCount } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true })
+    .eq('role', 'user');
   
   return {
-    data: data || [],
-    total: count || 0,
+    data: userStats,
+    total: totalCount || 0,
     limit: validLimit,
     offset: validOffset
   };
@@ -1069,23 +1051,26 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
  */
 const getUserPaymentStats = async (supabase, userId, month) => {
   const startDate = `${month}-01`;
-  const endDate = `${month}-31`;
+  // Get last day of month
+  const [year, monthNum] = month.split('-');
+  const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+  const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
   
-  // Get user's orders for the month
+  // Get user's orders for the month - use proper date range
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
     .select('price')
     .eq('user_id', userId)
-    .gte('created_at', startDate)
-    .lte('created_at', endDate);
+    .gte('created_at', `${startDate}T00:00:00`)
+    .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
   
-  // Get user's payments for the month
+  // Get user's payments for the month - use proper date range
   const { data: payments, error: paymentsError } = await supabase
     .from('payments')
     .select('amount')
     .eq('user_id', userId)
-    .gte('created_at', startDate)
-    .lte('created_at', endDate);
+    .gte('created_at', `${startDate}T00:00:00`)
+    .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
   
   if (ordersError || paymentsError) {
     throw ordersError || paymentsError;
