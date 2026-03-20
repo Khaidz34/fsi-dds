@@ -27,7 +27,10 @@ export const usePayments = (month?: string) => {
       setError(null);
       
       if (user?.role === 'admin') {
-        const data = await paymentsAPI.getAll(month);
+        const response = await paymentsAPI.getAll(month);
+        // Handle both old format (array) and new format (object with data property)
+        const data = Array.isArray(response) ? response : response?.data || [];
+        
         const totalStats = data.reduce((acc, curr) => ({
           month: month || new Date().toISOString().slice(0, 7),
           ordersCount: acc.ordersCount + curr.ordersCount,
@@ -53,7 +56,9 @@ export const usePayments = (month?: string) => {
         
         setPaymentStats(totalStats);
       } else {
-        const data = await paymentsAPI.getMy(month);
+        const response = await paymentsAPI.getMy(month);
+        // Handle both old format (object) and new format (object with data property)
+        const data = response?.data ? response.data[0] : response;
         setPaymentStats(data);
       }
     } catch (err) {
