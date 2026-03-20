@@ -980,7 +980,8 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   const startDate = `${month}-01`;
   // Get next month for proper date range - JavaScript months are 0-indexed
   const [year, monthNum] = month.split('-');
-  const nextMonthDate = new Date(parseInt(year), parseInt(monthNum), 1);
+  const monthIndex = parseInt(monthNum) - 1; // Convert 1-indexed to 0-indexed
+  const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
 
   // Fallback: Get all users and calculate stats manually
@@ -1053,12 +1054,13 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const startDate = `${month}-01`;
   // Get last day of month - JavaScript months are 0-indexed
   const [year, monthNum] = month.split('-');
-  const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+  const monthIndex = parseInt(monthNum) - 1; // Convert 1-indexed to 0-indexed
+  const lastDay = new Date(parseInt(year), monthIndex + 1, 0).getDate();
   
-  console.log(`💰 User payment stats: userId=${userId}, month=${month}, year=${year}, monthNum=${monthNum}, lastDay=${lastDay}`);
+  console.log(`💰 User payment stats: userId=${userId}, month=${month}, year=${year}, monthNum=${monthNum}, monthIndex=${monthIndex}, lastDay=${lastDay}`);
   
   // Get user's orders for the month - use proper date range
-  const nextMonthDate = new Date(parseInt(year), parseInt(monthNum), 1);
+  const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
   
   const { data: orders, error: ordersError } = await supabase
