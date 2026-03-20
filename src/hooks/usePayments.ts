@@ -83,28 +83,24 @@ export const usePayments = (month?: string) => {
     if (user?.id) {
       fetchPaymentStats();
       
-      // Only setup real-time for admin users
-      if (user?.role === 'admin') {
-        // Use real-time manager for admin users
-        realtimeManager.connect({
-          userId: user.id,
-          onUpdate: () => {
-            console.log('💰 Real-time update received, refetching payment stats');
-            fetchPaymentStats();
-          },
-          onError: (error) => {
-            console.error('Real-time error:', error);
-          },
-          onModeChange: (mode) => {
-            console.log(`📡 Real-time mode changed to: ${mode}`);
-          }
-        });
+      // Setup real-time for all users (both admin and regular)
+      realtimeManager.connect({
+        userId: user.id,
+        onUpdate: () => {
+          console.log('💰 Real-time update received, refetching payment stats');
+          fetchPaymentStats();
+        },
+        onError: (error) => {
+          console.error('Real-time error:', error);
+        },
+        onModeChange: (mode) => {
+          console.log(`📡 Real-time mode changed to: ${mode}`);
+        }
+      });
 
-        return () => {
-          realtimeManager.disconnect();
-        };
-      }
-      // For regular users, no auto refresh - data only updates on manual refetch
+      return () => {
+        realtimeManager.disconnect();
+      };
     }
   }, [user?.id, month]);
 
