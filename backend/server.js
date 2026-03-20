@@ -1093,6 +1093,51 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   };
 };
 
+// Debug endpoint to check payment data
+app.get('/api/debug/payments', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    // Check users
+    const { data: allUsers, error: usersError } = await supabase
+      .from('users')
+      .select('id, fullname, username, role');
+    
+    // Check orders
+    const { data: allOrders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id, user_id, price, created_at');
+    
+    // Check payments
+    const { data: allPayments, error: paymentsError } = await supabase
+      .from('payments')
+      .select('id, user_id, amount, created_at');
+
+    res.json({
+      users: {
+        count: allUsers?.length || 0,
+        data: allUsers || [],
+        error: usersError
+      },
+      orders: {
+        count: allOrders?.length || 0,
+        data: allOrders?.slice(0, 5) || [],
+        error: ordersError
+      },
+      payments: {
+        count: allPayments?.length || 0,
+        data: allPayments?.slice(0, 5) || [],
+        error: paymentsError
+      }
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Payments Routes
 app.get('/api/payments/today', authenticateToken, async (req, res) => {
   try {
