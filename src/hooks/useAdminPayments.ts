@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
+import { realtimeManager } from '../services/realtime';
 
 export interface UserPaymentInfo {
   userId: number;
@@ -82,21 +83,24 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
       
-      // Setup Supabase Realtime subscriptions
-      const paymentsChannel = subscribeToTable('payments', () => {
-        console.log('💰 Payment update detected via Realtime');
-        fetchUserPayments();
-        fetchPaymentHistory();
-      }, 'admin_payments');
-      
-      const ordersChannel = subscribeToTable('orders', () => {
-        console.log('📦 Order update detected via Realtime');
-        fetchUserPayments();
-      }, 'admin_orders');
+      // Use real-time manager for admin users
+      realtimeManager.connect({
+        userId: user.id,
+        onUpdate: () => {
+          console.log('💰 Real-time update received, refetching admin payments');
+          fetchUserPayments();
+          fetchPaymentHistory();
+        },
+        onError: (error) => {
+          console.error('Real-time error:', error);
+        },
+        onModeChange: (mode) => {
+          console.log(`📡 Real-time mode changed to: ${mode}`);
+        }
+      });
 
       return () => {
-        unsubscribeFromTable(paymentsChannel);
-        unsubscribeFromTable(ordersChannel);
+        realtimeManager.disconnect();
       };
     }
   }, [user?.role, currentMonth]);

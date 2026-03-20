@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ordersAPI } from '../services/api';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { realtimeManager } from '../services/realtime';
 
 export interface Order {
   id: number;
@@ -45,20 +46,26 @@ export const useMonthlyOrders = (month: string) => {
   useEffect(() => {
     fetchOrders();
     
-    // Only setup Realtime subscriptions for admin users
+    // Only setup real-time for admin users
     if (user?.role === 'admin') {
-      // Setup Supabase Realtime subscription for orders
-      const channel = subscribeToTable('orders', () => {
-        console.log('📦 Monthly orders update detected via Realtime');
-        fetchOrders();
-      }, `monthly_orders_${month}`);
+      // Use real-time manager for admin users
+      realtimeManager.connect({
+        userId: user.id,
+        onUpdate: () => {
+          console.log('📦 Real-time update received, refetching monthly orders');
+          fetchOrders();
+        },
+        onError: (error) => {
+          console.error('Real-time error:', error);
+        }
+      });
 
       return () => {
-        unsubscribeFromTable(channel);
+        realtimeManager.disconnect();
       };
     }
     // For regular users, no auto refresh - data only updates on manual refetch
-  }, [month]); // Remove user?.role dependency to avoid infinite loops
+  }, [month, user?.role]);
 
   return {
     orders,
