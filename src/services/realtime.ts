@@ -56,12 +56,9 @@ class RealtimeManager {
         return;
       }
 
-      const url = `${this.apiUrl}/api/sse/payments`;
-      this.eventSource = new EventSource(url, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      } as any);
+      // EventSource doesn't support custom headers, so pass token as query parameter
+      const url = `${this.apiUrl}/api/sse/payments?token=${encodeURIComponent(token)}`;
+      this.eventSource = new EventSource(url);
 
       this.eventSource.onopen = () => {
         console.log('✅ SSE connection established');

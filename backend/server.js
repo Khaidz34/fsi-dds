@@ -1367,36 +1367,57 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
 });
 
 // SSE endpoint for real-time payment updates
-app.get('/api/sse/payments', authenticateToken, (req, res) => {
-  const userId = req.user.id;
-  
-  console.log(`🔌 SSE connection established for user ${userId}`);
-  
-  // Set SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  
-  // Store connection
-  sseConnections.set(userId, {
-    res,
-    lastHeartbeat: Date.now()
-  });
-  
-  // Send initial connection message
-  res.write(`data: ${JSON.stringify({ type: 'connected', userId, timestamp: Date.now() })}\n\n`);
-  
-  // Handle client disconnect
-  req.on('close', () => {
-    console.log(`🔌 SSE connection closed for user ${userId}`);
-    sseConnections.delete(userId);
-  });
-  
-  req.on('error', (err) => {
-    console.error(`❌ SSE error for user ${userId}:`, err.message);
-    sseConnections.delete(userId);
-  });
+app.get('/api/sse/payments', (req, res) => {
+  try {
+    // Get token from query parameter (EventSource doesn't support custom headers)
+    const token = req.query.token || req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      console.log('❌ SSE: No token provided');
+      return res.status(401).json({ error: 'Access token required' });
+    }
+
+    // Verify token
+    let userId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      userId = decoded.userId;
+    } catch (err) {
+      console.log('❌ SSE: Invalid token');
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    console.log(`🔌 SSE connection established for user ${userId}`);
+    
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // Store connection
+    sseConnections.set(userId, {
+      res,
+      lastHeartbeat: Date.now()
+    });
+    
+    // Send initial connection message
+    res.write(`data: ${JSON.stringify({ type: 'connected', userId, timestamp: Date.now() })}\n\n`);
+    
+    // Handle client disconnect
+    req.on('close', () => {
+      console.log(`🔌 SSE connection closed for user ${userId}`);
+      sseConnections.delete(userId);
+    });
+    
+    req.on('error', (err) => {
+      console.error(`❌ SSE error for user ${userId}:`, err.message);
+      sseConnections.delete(userId);
+    });
+  } catch (err) {
+    console.error('❌ SSE endpoint error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.post('/api/payments', authenticateToken, async (req, res) => {
