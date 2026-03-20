@@ -4,12 +4,13 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
+const cache = require('./cache');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Simple in-memory cache for performance
-const cache = {
+// Legacy cache functions for backward compatibility with menu/dishes caching
+const legacyCache = {
   menus: { data: null, timestamp: 0, ttl: 5000 }, // 5 seconds
   dishes: { data: null, timestamp: 0, ttl: 5000 },
   users: { data: null, timestamp: 0, ttl: 5000 },
@@ -17,7 +18,7 @@ const cache = {
 };
 
 const getCache = (key) => {
-  const item = cache[key];
+  const item = legacyCache[key];
   if (!item) return null;
   if (Date.now() - item.timestamp > item.ttl) {
     item.data = null;
@@ -27,16 +28,16 @@ const getCache = (key) => {
 };
 
 const setCache = (key, data) => {
-  if (cache[key]) {
-    cache[key].data = data;
-    cache[key].timestamp = Date.now();
+  if (legacyCache[key]) {
+    legacyCache[key].data = data;
+    legacyCache[key].timestamp = Date.now();
   }
 };
 
 const clearCache = (key) => {
-  if (cache[key]) {
-    cache[key].data = null;
-    cache[key].timestamp = 0;
+  if (legacyCache[key]) {
+    legacyCache[key].data = null;
+    legacyCache[key].timestamp = 0;
   }
 };
 
@@ -811,6 +812,19 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
     }
 
+    // Invalidate cache when order is created
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    // Invalidate admin payments cache
+    cache.invalidate(`payments:admin:${currentMonth}`, `order_created:user_${orderedFor}`);
+    
+    // Invalidate user-specific payment cache
+    cache.invalidate(`payments:user:${orderedFor}:${currentMonth}`, `order_created`);
+    
+    // Invalidate stats caches
+    cache.invalidate(`stats:dashboard:${currentMonth}`, `order_created`);
+    cache.invalidate(`stats:user:${orderedFor}:${currentMonth}`, `order_created`);
+
     res.json({ success: true, order });
   } catch (error) {
     console.error('Order creation error:', error);
@@ -858,6 +872,20 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     if (updateError) {
       return res.status(500).json({ error: 'Lỗi cập nhật đơn hàng' });
     }
+
+    // Invalidate cache when order is updated
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const affectedUserId = order.ordered_for || order.user_id;
+    
+    // Invalidate admin payments cache
+    cache.invalidate(`payments:admin:${currentMonth}`, `order_updated:user_${affectedUserId}`);
+    
+    // Invalidate user-specific payment cache
+    cache.invalidate(`payments:user:${affectedUserId}:${currentMonth}`, `order_updated`);
+    
+    // Invalidate stats caches
+    cache.invalidate(`stats:dashboard:${currentMonth}`, `order_updated`);
+    cache.invalidate(`stats:user:${affectedUserId}:${currentMonth}`, `order_updated`);
 
     res.json({
       success: true,
@@ -1119,8 +1147,37 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
       const validOffset = Math.max(parseInt(offset) || 0, 0);
       
+      // Check cache first (5-minute TTL for admin payments)
+      const cacheKey = `payments:admin:${currentMonth}`;
+      const cachedResult = cache.get(cacheKey);
+      
+      if (cachedResult) {
+        // Apply pagination to cached data
+        const paginatedData = cachedResult.data.slice(validOffset, validOffset + validLimit);
+        const totalPages = Math.ceil(cachedResult.total / validLimit);
+        const currentPage = Math.floor(validOffset / validLimit) + 1;
+        
+        return res.json({
+          data: paginatedData,
+          pagination: {
+            total: cachedResult.total,
+            page: currentPage,
+            pageSize: validLimit,
+            hasMore: validOffset + validLimit < cachedResult.total,
+            totalPages
+          },
+          cached: true
+        });
+      }
+      
       try {
         const result = await buildPaymentStatsQuery(supabase, currentMonth, validLimit, validOffset);
+        
+        // Cache the full result (without pagination applied)
+        cache.set(cacheKey, {
+          data: result.data,
+          total: result.total
+        }, 5 * 60 * 1000); // 5-minute TTL
         
         // Calculate pagination metadata
         const totalPages = Math.ceil(result.total / validLimit);
@@ -1134,7 +1191,8 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
             pageSize: validLimit,
             hasMore: validOffset + validLimit < result.total,
             totalPages
-          }
+          },
+          cached: false
         });
       } catch (error) {
         console.error('Payment stats query error:', error);
@@ -1285,6 +1343,18 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     }
 
     console.log('✅ Payment marked successfully:', payment);
+
+    // Invalidate cache entries related to this payment
+    // Invalidate admin payments cache for this month
+    cache.invalidate(`payments:admin:${month}`, `payment_marked:user_${userId}`);
+    
+    // Invalidate user-specific payment cache
+    cache.invalidate(`payments:user:${userId}:${month}`, `payment_marked`);
+    
+    // Invalidate all stats caches for this month
+    cache.invalidate(`stats:dashboard:${month}`, `payment_marked`);
+    cache.invalidate(`stats:user:${userId}:${month}`, `payment_marked`);
+
     res.json({ success: true, payment });
   } catch (error) {
     console.error('❌ Mark paid error:', error);
@@ -1348,6 +1418,19 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
 
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    // Check cache first (10-minute TTL for stats)
+    const cacheKey = `stats:dashboard:${currentMonth}`;
+    const cachedStats = cache.get(cacheKey);
+    
+    if (cachedStats) {
+      return res.json({
+        ...cachedStats,
+        cached: true
+      });
+    }
+
     const today = new Date().toISOString().split('T')[0];
     
     // Get today's orders
@@ -1389,11 +1472,19 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
       .sort((a, b) => b.orderCount - a.orderCount)
       .slice(0, 5);
 
-    res.json({
+    const stats = {
       ordersToday: ordersToday || 0,
       totalUsers: totalUsers || 0,
       popularDishesCount: popularDishesArray.length,
       popularDishes: popularDishesArray
+    };
+
+    // Cache the stats (10-minute TTL)
+    cache.set(cacheKey, stats, 10 * 60 * 1000);
+
+    res.json({
+      ...stats,
+      cached: false
     });
   } catch (error) {
     console.error('Admin dashboard stats error:', error);
@@ -1632,6 +1723,85 @@ app.get('/api/orders/weekly-stats', authenticateToken, async (req, res) => {
     res.json(stats);
   } catch (error) {
     console.error('Weekly stats error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// =====================================================
+// Cache Management Endpoints (Task 2.5)
+// =====================================================
+
+// Get cache statistics (admin only)
+app.get('/api/admin/cache/stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const stats = cache.getStats();
+    const invalidationLog = cache.getInvalidationLog();
+
+    res.json({
+      stats,
+      invalidationLog: invalidationLog.slice(-50), // Last 50 events
+      cacheKeys: cache.getAllKeys()
+    });
+  } catch (error) {
+    console.error('Cache stats error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Clear cache (admin only)
+app.post('/api/admin/cache/clear', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const { key } = req.body;
+
+    if (key) {
+      // Clear specific cache key
+      const count = cache.invalidate(key, 'admin_manual_clear');
+      res.json({
+        success: true,
+        message: `Đã xóa ${count} mục cache`,
+        cleared: count
+      });
+    } else {
+      // Clear all cache
+      const beforeSize = cache.getAllKeys().length;
+      cache.clear('admin_manual_clear_all');
+      res.json({
+        success: true,
+        message: `Đã xóa toàn bộ cache (${beforeSize} mục)`,
+        cleared: beforeSize
+      });
+    }
+  } catch (error) {
+    console.error('Cache clear error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get cache entry info (admin only, for debugging)
+app.get('/api/admin/cache/entry/:key', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const { key } = req.params;
+    const info = cache.getEntryInfo(key);
+
+    if (!info) {
+      return res.status(404).json({ error: 'Cache entry not found' });
+    }
+
+    res.json(info);
+  } catch (error) {
+    console.error('Cache entry info error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
 });
