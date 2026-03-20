@@ -7,6 +7,8 @@ npm run build
 
 echo "=== Installing Backend Dependencies ==="
 cd backend
+# Force fresh install of all dependencies
+rm -rf node_modules package-lock.json
 npm install --production
 
 echo "=== Copying Frontend Build to Backend Public ==="
@@ -29,3 +31,4 @@ fi
 
 echo "=== Build Complete ==="
 ls -la public/
+
