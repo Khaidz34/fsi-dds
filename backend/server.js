@@ -1107,9 +1107,10 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
     
-    // Calculate remaining count: if there's any unpaid amount, count how many orders are unpaid
-    // For simplicity, if remaining > 0, all orders are considered unpaid (since we don't track per-order payments)
-    const remainingCount = remainingTotal > 0 ? ordersCount : 0;
+    // Calculate remaining count: number of unpaid orders
+    // Assuming each order is 40,000đ (standard price), calculate how many are unpaid
+    const orderPrice = 40000; // Standard order price
+    const remainingCount = remainingTotal > 0 ? Math.ceil(remainingTotal / orderPrice) : 0;
 
     userStats.push({
       userId: user.id,
@@ -1185,9 +1186,10 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
-  // Calculate remaining count: if there's any unpaid amount, count how many orders are unpaid
-  // For simplicity, if remaining > 0, all orders are considered unpaid (since we don't track per-order payments)
-  const remainingCount = remainingTotal > 0 ? ordersCount : 0;
+  // Calculate remaining count: number of unpaid orders
+  // Assuming each order is 40,000đ (standard price), calculate how many are unpaid
+  const orderPrice = 40000; // Standard order price
+  const remainingCount = remainingTotal > 0 ? Math.ceil(remainingTotal / orderPrice) : 0;
   
   console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${payments?.length || 0} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid count ${remainingCount}`);
   
