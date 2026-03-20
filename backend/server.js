@@ -936,6 +936,150 @@ app.get('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
+// =====================================================
+// Payment Query Builder - Optimized JOIN queries
+// =====================================================
+
+/**
+ * Build optimized payment stats query using single JOIN
+ * Replaces N+1 query pattern with database aggregation
+ */
+const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) => {
+  // Validate pagination parameters
+  const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+  const validOffset = Math.max(parseInt(offset) || 0, 0);
+  
+  const startDate = `${month}-01`;
+  const endDate = `${month}-31`;
+  
+  // Single optimized JOIN query with database aggregation
+  const { data, error, count } = await supabase
+    .rpc('get_payment_stats', {
+      p_month_start: startDate,
+      p_month_end: endDate,
+      p_limit: validLimit,
+      p_offset: validOffset
+    });
+  
+  // Fallback to manual query if RPC not available
+  if (error && error.code === 'PGRST204') {
+    // Fallback: Get all users and calculate stats manually (less efficient but works)
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, fullname, username')
+      .eq('role', 'user')
+      .order('fullname')
+      .range(validOffset, validOffset + validLimit - 1);
+    
+    if (usersError) throw usersError;
+    
+    const userStats = [];
+    
+    for (const user of users || []) {
+      // Get user's orders for the month
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('price')
+        .eq('user_id', user.id)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+      
+      // Get user's payments for the month
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+      
+      const ordersCount = orders?.length || 0;
+      const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+      const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+      const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+      
+      userStats.push({
+        userId: user.id,
+        fullname: user.fullname,
+        username: user.username,
+        month,
+        ordersCount,
+        ordersTotal,
+        paidCount: payments?.length || 0,
+        paidTotal,
+        remainingCount: remainingTotal > 0 ? 1 : 0,
+        remainingTotal,
+        overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
+      });
+    }
+    
+    // Get total count
+    const { count: totalCount } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'user');
+    
+    return {
+      data: userStats,
+      total: totalCount || 0,
+      limit: validLimit,
+      offset: validOffset
+    };
+  }
+  
+  if (error) throw error;
+  
+  return {
+    data: data || [],
+    total: count || 0,
+    limit: validLimit,
+    offset: validOffset
+  };
+};
+
+/**
+ * Get single user payment stats
+ */
+const getUserPaymentStats = async (supabase, userId, month) => {
+  const startDate = `${month}-01`;
+  const endDate = `${month}-31`;
+  
+  // Get user's orders for the month
+  const { data: orders, error: ordersError } = await supabase
+    .from('orders')
+    .select('price')
+    .eq('user_id', userId)
+    .gte('created_at', startDate)
+    .lte('created_at', endDate);
+  
+  // Get user's payments for the month
+  const { data: payments, error: paymentsError } = await supabase
+    .from('payments')
+    .select('amount')
+    .eq('user_id', userId)
+    .gte('created_at', startDate)
+    .lte('created_at', endDate);
+  
+  if (ordersError || paymentsError) {
+    throw ordersError || paymentsError;
+  }
+  
+  const ordersCount = orders?.length || 0;
+  const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+  const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+  
+  return {
+    month,
+    ordersCount,
+    ordersTotal,
+    paidCount: payments?.length || 0,
+    paidTotal,
+    remainingCount: remainingTotal > 0 ? 1 : 0,
+    remainingTotal,
+    overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
+  };
+};
+
 // Payments Routes
 app.get('/api/payments/today', authenticateToken, async (req, res) => {
   try {
@@ -962,73 +1106,54 @@ app.get('/api/payments/today', authenticateToken, async (req, res) => {
   }
 });
 
-// Get payments with optional month filter
+// Get payments with optional month filter and pagination
 app.get('/api/payments', authenticateToken, async (req, res) => {
   try {
-    const { month } = req.query;
+    const { month, limit, offset } = req.query;
     
     if (req.user.role === 'admin') {
-      // Admin gets aggregated stats for all users
+      // Admin gets aggregated stats for all users with pagination
       const currentMonth = month || new Date().toISOString().slice(0, 7);
-      const startDate = `${currentMonth}-01`;
-      const endDate = `${currentMonth}-31`;
       
-      // Get all users
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('id, fullname, username');
+      // Validate pagination parameters
+      const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+      const validOffset = Math.max(parseInt(offset) || 0, 0);
       
-      if (usersError) {
-        return res.status(500).json({ error: 'Lỗi lấy danh sách users' });
-      }
-      
-      const userStats = [];
-      
-      for (const user of users || []) {
-        // Get user's orders for the month
-        const { data: orders, error: ordersError } = await supabase
-          .from('orders')
-          .select('price')
-          .eq('user_id', user.id)
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
+      try {
+        const result = await buildPaymentStatsQuery(supabase, currentMonth, validLimit, validOffset);
         
-        // Get user's payments for the month
-        const { data: payments, error: paymentsError } = await supabase
-          .from('payments')
-          .select('amount')
-          .eq('user_id', user.id)
-          .gte('created_at', startDate)
-          .lte('created_at', endDate);
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(result.total / validLimit);
+        const currentPage = Math.floor(validOffset / validLimit) + 1;
         
-        if (!ordersError && !paymentsError) {
-          const ordersCount = orders?.length || 0;
-          const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
-          const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
-          const remainingTotal = Math.max(0, ordersTotal - paidTotal);
-          const unpaidOrdersCount = Math.ceil(remainingTotal / 40000); // Each order is 40,000đ
-          
-          userStats.push({
-            userId: user.id,
-            fullname: user.fullname,
-            username: user.username,
-            month: currentMonth,
-            ordersCount: unpaidOrdersCount, // Show unpaid orders count instead of total
-            ordersTotal,
-            paidCount: payments?.length || 0,
-            paidTotal,
-            remainingCount: remainingTotal > 0 ? 1 : 0,
-            remainingTotal,
-            overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
-          });
-        }
+        res.json({
+          data: result.data,
+          pagination: {
+            total: result.total,
+            page: currentPage,
+            pageSize: validLimit,
+            hasMore: validOffset + validLimit < result.total,
+            totalPages
+          }
+        });
+      } catch (error) {
+        console.error('Payment stats query error:', error);
+        res.status(500).json({ error: 'Lỗi truy vấn thanh toán: ' + error.message });
       }
-      
-      res.json(userStats);
     } else {
       // Regular user gets their own payment data
-      const data = await paymentsAPI.getMy(month);
-      res.json([data]); // Wrap in array for consistency
+      const currentMonth = month || new Date().toISOString().slice(0, 7);
+      const stats = await getUserPaymentStats(supabase, req.user.id, currentMonth);
+      res.json({
+        data: [stats],
+        pagination: {
+          total: 1,
+          page: 1,
+          pageSize: 1,
+          hasMore: false,
+          totalPages: 1
+        }
+      });
     }
   } catch (error) {
     console.error('Payments error:', error);
@@ -1081,46 +1206,8 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
     
     // Calculate user's payment stats based on orders and payments
     const currentMonth = month || new Date().toISOString().slice(0, 7);
-    const startDate = `${currentMonth}-01`;
-    const endDate = `${currentMonth}-31`;
     
-    // Get user's orders for the month
-    const { data: orders, error: ordersError } = await supabase
-      .from('orders')
-      .select('price')
-      .eq('user_id', req.user.id)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
-    
-    // Get user's payments for the month
-    const { data: payments, error: paymentsError } = await supabase
-      .from('payments')
-      .select('amount')
-      .eq('user_id', req.user.id)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
-    
-    if (ordersError || paymentsError) {
-      return res.status(500).json({ error: 'Lỗi database' });
-    }
-    
-    const ordersCount = orders?.length || 0;
-    const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
-    const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
-    const remainingTotal = Math.max(0, ordersTotal - paidTotal);
-    const unpaidOrdersCount = Math.ceil(remainingTotal / 40000); // Each order is 40,000đ
-    
-    const stats = {
-      month: currentMonth,
-      ordersCount: unpaidOrdersCount, // Show unpaid orders count instead of total
-      ordersTotal,
-      paidCount: payments?.length || 0,
-      paidTotal,
-      remainingCount: remainingTotal > 0 ? 1 : 0,
-      remainingTotal,
-      overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
-    };
-    
+    const stats = await getUserPaymentStats(supabase, req.user.id, currentMonth);
     res.json(stats);
   } catch (error) {
     console.error('My payments error:', error);

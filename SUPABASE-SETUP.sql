@@ -100,6 +100,10 @@ CREATE INDEX IF NOT EXISTS idx_dishes_menu_id ON dishes(menu_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at);
 
+-- Composite indexes for payment system optimization (Phase 1)
+CREATE INDEX IF NOT EXISTS idx_orders_user_id_created_at ON orders(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id_created_at ON payments(user_id, created_at);
+
 -- =====================================================
 -- Row Level Security (RLS) - Optional
 -- =====================================================
