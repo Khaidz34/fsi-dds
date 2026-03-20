@@ -20,11 +20,12 @@ export const usePayments = (month?: string) => {
   const { user } = useAuth();
   const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPaymentStats = async () => {
     try {
-      setIsLoading(true);
+      setIsRefreshing(true);
       setError(null);
       
       if (user?.role === 'admin') {
@@ -75,7 +76,7 @@ export const usePayments = (month?: string) => {
         remainingTotal: 0
       });
     } finally {
-      setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -86,9 +87,12 @@ export const usePayments = (month?: string) => {
       // Setup real-time for all users (both admin and regular)
       realtimeManager.connect({
         userId: user.id,
-        onUpdate: () => {
-          console.log('💰 Real-time update received, refetching payment stats');
-          fetchPaymentStats();
+        onUpdate: (update) => {
+          console.log('💰 Real-time update received:', update.type);
+          // Refresh payment stats on order or payment changes
+          if (update.type === 'order_created' || update.type === 'order_updated' || update.type === 'payment_marked') {
+            fetchPaymentStats();
+          }
         },
         onError: (error) => {
           console.error('Real-time error:', error);
@@ -107,6 +111,7 @@ export const usePayments = (month?: string) => {
   return {
     paymentStats,
     isLoading,
+    isRefreshing,
     error,
     refetch: fetchPaymentStats
   };

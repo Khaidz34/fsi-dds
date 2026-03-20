@@ -35,7 +35,7 @@ interface PaymentDashboardProps {
 
 const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  const { paymentStats, isLoading } = usePayments(currentMonth);
+  const { paymentStats, isLoading, isRefreshing } = usePayments(currentMonth);
   const { orders } = useMonthlyOrders(currentMonth);
 
   // Tạo dữ liệu calendar từ orders thực tế
@@ -130,9 +130,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
         <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+          className={`bg-white rounded-2xl p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+              </div>
+            )}
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <ShoppingBag className="text-blue-600" size={24} />
             </div>
@@ -147,9 +152,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+          className={`bg-white rounded-2xl p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+              </div>
+            )}
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
               <CheckCircle className="text-green-600" size={24} />
             </div>
@@ -164,9 +174,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+          className={`bg-white rounded-2xl p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin"></div>
+              </div>
+            )}
             <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
               <Clock className="text-orange-600" size={24} />
             </div>
@@ -186,9 +201,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+          className={`bg-white rounded-2xl p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
+              </div>
+            )}
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
               <DollarSign className="text-purple-600" size={24} />
             </div>
