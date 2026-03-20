@@ -1106,6 +1106,10 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+    
+    // Calculate remaining count: if there's any unpaid amount, count how many orders are unpaid
+    // For simplicity, if remaining > 0, all orders are considered unpaid (since we don't track per-order payments)
+    const remainingCount = remainingTotal > 0 ? ordersCount : 0;
 
     userStats.push({
       userId: user.id,
@@ -1116,7 +1120,7 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       ordersTotal,
       paidCount: payments?.length || 0,
       paidTotal,
-      remainingCount: remainingTotal > 0 ? 1 : 0,
+      remainingCount,
       remainingTotal,
       overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
     });
@@ -1154,7 +1158,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
-    .select('price')
+    .select('id, price')
     .eq('user_id', userId)
     .gte('created_at', `${startDate}T00:00:00`)
     .lt('created_at', `${nextMonth}T00:00:00`);
@@ -1181,7 +1185,11 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
-  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${payments?.length || 0} payments (${paidTotal}đ), remaining ${remainingTotal}đ`);
+  // Calculate remaining count: if there's any unpaid amount, count how many orders are unpaid
+  // For simplicity, if remaining > 0, all orders are considered unpaid (since we don't track per-order payments)
+  const remainingCount = remainingTotal > 0 ? ordersCount : 0;
+  
+  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${payments?.length || 0} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid count ${remainingCount}`);
   
   return {
     month,
@@ -1189,7 +1197,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     ordersTotal,
     paidCount: payments?.length || 0,
     paidTotal,
-    remainingCount: remainingTotal > 0 ? 1 : 0,
+    remainingCount,
     remainingTotal,
     overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
   };
