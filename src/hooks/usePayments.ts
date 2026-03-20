@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
+import { realtimeManager } from '../services/realtime';
 
 export interface PaymentStats {
   month: string;
@@ -82,27 +83,30 @@ export const usePayments = (month?: string) => {
     if (user?.id) {
       fetchPaymentStats();
       
-      // Only setup Realtime subscriptions for admin users
+      // Only setup real-time for admin users
       if (user?.role === 'admin') {
-        // Setup Supabase Realtime subscription for payments
-        const paymentsChannel = subscribeToTable('payments', () => {
-          console.log('💰 Payment update detected via Realtime');
-          fetchPaymentStats();
-        }, 'admin_payments');
-        
-        const ordersChannel = subscribeToTable('orders', () => {
-          console.log('📦 Order update detected via Realtime');
-          fetchPaymentStats();
-        }, 'admin_orders');
+        // Use real-time manager for admin users
+        realtimeManager.connect({
+          userId: user.id,
+          onUpdate: () => {
+            console.log('💰 Real-time update received, refetching payment stats');
+            fetchPaymentStats();
+          },
+          onError: (error) => {
+            console.error('Real-time error:', error);
+          },
+          onModeChange: (mode) => {
+            console.log(`📡 Real-time mode changed to: ${mode}`);
+          }
+        });
 
         return () => {
-          unsubscribeFromTable(paymentsChannel);
-          unsubscribeFromTable(ordersChannel);
+          realtimeManager.disconnect();
         };
       }
       // For regular users, no auto refresh - data only updates on manual refetch
     }
-  }, [user?.id, month]); // Remove user?.role to avoid dependency issues
+  }, [user?.id, month]);
 
   return {
     paymentStats,

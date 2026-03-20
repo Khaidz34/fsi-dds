@@ -41,6 +41,45 @@ const clearCache = (key) => {
   }
 };
 
+// =====================================================
+// SSE (Server-Sent Events) Manager for Real-time Updates
+// =====================================================
+
+const sseConnections = new Map(); // userId -> { res, lastHeartbeat }
+
+const sendSSENotification = (userId, notification) => {
+  const connection = sseConnections.get(userId);
+  if (connection && connection.res && !connection.res.writableEnded) {
+    try {
+      connection.res.write(`data: ${JSON.stringify(notification)}\n\n`);
+      console.log(`📤 SSE notification sent to user ${userId}:`, notification.type);
+    } catch (err) {
+      console.error(`❌ Error sending SSE to user ${userId}:`, err.message);
+      sseConnections.delete(userId);
+    }
+  }
+};
+
+const sendSSEHeartbeat = (userId) => {
+  const connection = sseConnections.get(userId);
+  if (connection && connection.res && !connection.res.writableEnded) {
+    try {
+      connection.res.write(`:heartbeat\n\n`);
+      connection.lastHeartbeat = Date.now();
+    } catch (err) {
+      console.error(`❌ Error sending heartbeat to user ${userId}:`, err.message);
+      sseConnections.delete(userId);
+    }
+  }
+};
+
+// Send heartbeat to all connected users every 30 seconds
+setInterval(() => {
+  sseConnections.forEach((connection, userId) => {
+    sendSSEHeartbeat(userId);
+  });
+}, 30000);
+
 console.log('=== FSI-DDS Server Starting ===');
 console.log('Process ID:', process.pid);
 console.log('Node Version:', process.version);
@@ -812,9 +851,20 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
     }
 
-    // Invalidate cache when order is created
+    // Send SSE notification to the user whose payment is affected
     const currentMonth = new Date().toISOString().slice(0, 7);
-    
+    sendSSENotification(orderedFor, {
+      type: 'order_created',
+      userId: orderedFor,
+      data: {
+        orderId: order.id,
+        price: order.price,
+        month: currentMonth,
+        timestamp: Date.now()
+      }
+    });
+
+    // Invalidate cache when order is created
     // Invalidate admin payments cache
     cache.invalidate(`payments:admin:${currentMonth}`, `order_created:user_${orderedFor}`);
     
@@ -1316,6 +1366,39 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
   }
 });
 
+// SSE endpoint for real-time payment updates
+app.get('/api/sse/payments', authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  
+  console.log(`🔌 SSE connection established for user ${userId}`);
+  
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
+  // Store connection
+  sseConnections.set(userId, {
+    res,
+    lastHeartbeat: Date.now()
+  });
+  
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', userId, timestamp: Date.now() })}\n\n`);
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log(`🔌 SSE connection closed for user ${userId}`);
+    sseConnections.delete(userId);
+  });
+  
+  req.on('error', (err) => {
+    console.error(`❌ SSE error for user ${userId}:`, err.message);
+    sseConnections.delete(userId);
+  });
+});
+
 app.post('/api/payments', authenticateToken, async (req, res) => {
   try {
     const { amount, method, notes } = req.body;
@@ -1386,6 +1469,17 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     }
 
     console.log('✅ Payment marked successfully:', payment);
+
+    // Send SSE notification to the user
+    sendSSENotification(userId, {
+      type: 'payment_marked',
+      userId,
+      data: {
+        amount,
+        month,
+        timestamp: Date.now()
+      }
+    });
 
     // Invalidate cache entries related to this payment
     // Invalidate admin payments cache for this month
