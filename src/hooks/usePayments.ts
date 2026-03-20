@@ -85,28 +85,39 @@ export const usePayments = (month?: string) => {
       fetchPaymentStats();
       
       // Setup real-time for all users (both admin and regular)
-      realtimeManager.connect({
-        userId: user.id,
-        onUpdate: (update) => {
-          console.log('💰 Real-time update received:', update.type);
-          // Refresh payment stats on order or payment changes
-          if (update.type === 'order_created' || update.type === 'order_updated' || update.type === 'payment_marked') {
-            fetchPaymentStats();
+      // Only connect once per user, not per month change
+      if (!realtimeManager.isSSEConnected()) {
+        realtimeManager.connect({
+          userId: user.id,
+          onUpdate: (update) => {
+            console.log('💰 Real-time update received:', update.type);
+            // Refresh payment stats on order or payment changes
+            if (update.type === 'order_created' || update.type === 'order_updated' || update.type === 'order_deleted' || update.type === 'payment_marked') {
+              fetchPaymentStats();
+            }
+          },
+          onError: (error) => {
+            console.error('Real-time error:', error);
+          },
+          onModeChange: (mode) => {
+            console.log(`📡 Real-time mode changed to: ${mode}`);
           }
-        },
-        onError: (error) => {
-          console.error('Real-time error:', error);
-        },
-        onModeChange: (mode) => {
-          console.log(`📡 Real-time mode changed to: ${mode}`);
-        }
-      });
+        });
+      }
 
       return () => {
-        realtimeManager.disconnect();
+        // Don't disconnect here - let it persist across month changes
+        // realtimeManager.disconnect();
       };
     }
-  }, [user?.id, month]);
+  }, [user?.id]);
+
+  // Separate effect for month changes - just refetch data
+  useEffect(() => {
+    if (user?.id) {
+      fetchPaymentStats();
+    }
+  }, [month]);
 
   return {
     paymentStats,

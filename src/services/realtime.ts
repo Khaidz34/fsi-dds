@@ -6,7 +6,7 @@
 import { tokenStorage } from './api';
 
 export interface RealtimeUpdate {
-  type: 'payment_marked' | 'order_created' | 'order_updated' | 'connected';
+  type: 'payment_marked' | 'order_created' | 'order_updated' | 'order_deleted' | 'connected';
   userId: number;
   data: any;
   timestamp: number;
@@ -38,6 +38,12 @@ class RealtimeManager {
    * Connect to real-time updates
    */
   connect(config: RealtimeConfig) {
+    // If already connected with same user, don't reconnect
+    if (this.config && this.config.userId === config.userId && this.eventSource) {
+      console.log(`🔌 Already connected for user ${config.userId}`);
+      return;
+    }
+
     this.config = config;
     console.log(`🔌 Connecting to real-time updates for user ${config.userId}`);
     this.connectSSE();
@@ -263,6 +269,13 @@ class RealtimeManager {
    */
   isConnected(): boolean {
     return this.eventSource !== null || this.pollInterval !== null;
+  }
+
+  /**
+   * Check if SSE is connected
+   */
+  isSSEConnected(): boolean {
+    return this.eventSource !== null;
   }
 }
 

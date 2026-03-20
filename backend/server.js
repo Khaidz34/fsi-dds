@@ -996,6 +996,17 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Chỉ admin mới có thể xóa đơn hàng' });
     }
 
+    // Get order details before deletion to know which user to notify
+    const { data: orderData, error: fetchError } = await supabase
+      .from('orders')
+      .select('user_id, price')
+      .eq('id', orderId)
+      .single();
+
+    if (fetchError || !orderData) {
+      return res.status(404).json({ error: 'Đơn hàng không tồn tại' });
+    }
+
     const { error } = await supabase
       .from('orders')
       .delete()
@@ -1004,6 +1015,43 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     if (error) {
       return res.status(500).json({ error: 'Lỗi xóa đơn hàng' });
     }
+
+    // Invalidate cache for this user's payment stats
+    const month = new Date().toISOString().slice(0, 7);
+    console.log(`🗑️  Invalidating cache for month ${month}`);
+    const invalidated1 = cache.invalidate(`payments:user:${orderData.user_id}:${month}`);
+    const invalidated2 = cache.invalidate(`payments:admin:${month}`);
+    const invalidated3 = cache.invalidate(`stats:dashboard:${month}`);
+    const invalidated4 = cache.invalidate(`stats:user:${orderData.user_id}:${month}`);
+    console.log(`🗑️  Cache invalidated: ${invalidated1 + invalidated2 + invalidated3 + invalidated4} entries`);
+
+    console.log(`🗑️  Order ${orderId} deleted by admin ${req.user.id}, notifying user ${orderData.user_id}`);
+
+    // Send SSE notification to the affected user
+    sendSSENotification(orderData.user_id, {
+      type: 'order_deleted',
+      userId: orderData.user_id,
+      data: {
+        orderId,
+        price: orderData.price,
+        month
+      },
+      timestamp: Date.now()
+    });
+
+    // Also send notification to admin to update their dashboard
+    console.log(`📢 Sending order_deleted notification to admin ${req.user.id}`);
+    sendSSENotification(req.user.id, {
+      type: 'order_deleted',
+      userId: orderData.user_id,
+      data: {
+        orderId,
+        price: orderData.price,
+        month,
+        affectedUserId: orderData.user_id
+      },
+      timestamp: Date.now()
+    });
 
     res.json({ success: true });
   } catch (error) {
