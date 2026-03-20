@@ -28,6 +28,7 @@ class RealtimeManager {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // Start with 1 second
   private apiUrl: string;
+  private lastPolledData: any = null;
 
   constructor(apiUrl: string = '') {
     this.apiUrl = apiUrl || (import.meta.env.VITE_API_URL || 'http://localhost:10000');
@@ -124,14 +125,14 @@ class RealtimeManager {
       this.config.onModeChange('polling');
     }
 
-    // Start polling every 5 seconds
+    // Start polling every 10 seconds (increased from 5 to reduce refresh frequency)
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
 
     this.pollInterval = setInterval(() => {
       this.pollForUpdates();
-    }, 5000);
+    }, 10000);
 
     // Poll immediately
     this.pollForUpdates();
@@ -182,6 +183,14 @@ class RealtimeManager {
       }
 
       const data = await response.json();
+      
+      // Only emit update if data actually changed
+      // This prevents unnecessary re-renders
+      if (this.lastPolledData && JSON.stringify(this.lastPolledData) === JSON.stringify(data)) {
+        return; // Data hasn't changed, don't emit update
+      }
+      
+      this.lastPolledData = data;
       
       // Emit update event
       if (this.config.onUpdate) {

@@ -29,11 +29,20 @@ export const useAdminPayments = (month?: string) => {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
 
   const currentMonth = month || new Date().toISOString().slice(0, 7);
 
   const fetchUserPayments = async () => {
     try {
+      // Debounce: don't fetch more than once per 2 seconds
+      const now = Date.now();
+      if (now - lastUpdateTime < 2000) {
+        console.log('⏱️  Debouncing payment fetch (too soon)');
+        return;
+      }
+      setLastUpdateTime(now);
+
       setIsLoading(true);
       setError(null);
       
