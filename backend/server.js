@@ -1056,6 +1056,8 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
   const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
   
+  console.log(`💰 User payment stats: userId=${userId}, month=${month}, range=${startDate}T00:00:00 to ${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
+  
   // Get user's orders for the month - use proper date range
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
@@ -1072,14 +1074,21 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     .gte('created_at', `${startDate}T00:00:00`)
     .lt('created_at', `${month}-${String(parseInt(lastDay) + 1).padStart(2, '0')}T00:00:00`);
   
-  if (ordersError || paymentsError) {
-    throw ordersError || paymentsError;
+  if (ordersError) {
+    console.error(`❌ Orders error for user ${userId}:`, ordersError);
+    throw ordersError;
+  }
+  if (paymentsError) {
+    console.error(`❌ Payments error for user ${userId}:`, paymentsError);
+    throw paymentsError;
   }
   
   const ordersCount = orders?.length || 0;
   const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+  
+  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${payments?.length || 0} payments (${paidTotal}đ), remaining ${remainingTotal}đ`);
   
   return {
     month,
