@@ -1086,14 +1086,22 @@ export default function App() {
       });
     });
 
-    // Mapping tiếng Nhật sang tiếng Việt
-    const jaToViMapping = {
+    // Mapping tất cả ngôn ngữ sang tiếng Việt cho export
+    const toViMapping = {
+      // From Japanese
       'ご飯追加': 'Thêm cơm',
       'スープ追加': 'Thêm canh',
       'チリソース': 'Thêm tương ớt',
       'ヌクマム': 'Thêm mắm',
-      '箸': 'Thêm thìa',
-      'ご飯少なめ': 'Ít cơm'
+      '箸': 'Thêm đũa',
+      'ご飯少なめ': 'Ít cơm',
+      // From English
+      'Extra Rice': 'Thêm cơm',
+      'Extra Soup': 'Thêm canh',
+      'Chili Sauce': 'Thêm tương ớt',
+      'Fish Sauce': 'Thêm mắm',
+      'Chopsticks': 'Thêm đũa',
+      'Less Rice': 'Ít cơm'
     };
 
     // Create export format: Number. Name 1+2 (Notes)
@@ -1116,12 +1124,12 @@ export default function App() {
 
       let line = `${index + 1}.\t${userName} ${dishText}`;
       
-      // Add notes if available - convert Japanese to Vietnamese if needed
+      // Add notes if available - convert all languages to Vietnamese
       if (order.notes && order.notes.trim()) {
         let notes = order.notes;
-        // Replace Japanese text with Vietnamese
-        Object.entries(jaToViMapping).forEach(([ja, vi]) => {
-          notes = notes.replace(new RegExp(ja, 'g'), vi);
+        // Replace all known phrases with Vietnamese
+        Object.entries(toViMapping).forEach(([source, vi]) => {
+          notes = notes.replace(new RegExp(source, 'g'), vi);
         });
         line += ` (${notes})`;
       }
