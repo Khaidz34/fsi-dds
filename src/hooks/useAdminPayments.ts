@@ -92,24 +92,15 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
       
-      // Use real-time manager for admin users
-      realtimeManager.connect({
-        userId: user.id,
-        onUpdate: () => {
-          console.log('💰 Real-time update received, refetching admin payments');
-          fetchUserPayments();
-          fetchPaymentHistory();
-        },
-        onError: (error) => {
-          console.error('Real-time error:', error);
-        },
-        onModeChange: (mode) => {
-          console.log(`📡 Real-time mode changed to: ${mode}`);
-        }
-      });
+      // Use polling instead of SSE for more reliability
+      const pollInterval = setInterval(() => {
+        console.log('🔄 Polling admin payments...');
+        fetchUserPayments();
+        fetchPaymentHistory();
+      }, 3000); // Poll every 3 seconds
 
       return () => {
-        realtimeManager.disconnect();
+        clearInterval(pollInterval);
       };
     }
   }, [user?.role, currentMonth]);
