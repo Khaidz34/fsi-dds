@@ -2869,11 +2869,11 @@ export default function App() {
                                 <div className="grid grid-cols-2 gap-3">
                                   <div className="bg-white/60 rounded-2xl p-4">
                                     <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Tổng suất</p>
-                                    <p className="text-xl font-black text-[#1C1917]">{totalOrders}</p>
+                                    <p className="text-xl font-black text-[#1C1917]">{payment.ordersCount}</p>
                                   </div>
                                   <div className="bg-white/60 rounded-2xl p-4">
                                     <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Chưa thanh</p>
-                                    <p className="text-xl font-black text-amber-600">{payment.ordersCount}</p>
+                                    <p className="text-xl font-black text-amber-600">{payment.remainingCount}</p>
                                   </div>
                                 </div>
                               </div>
