@@ -106,7 +106,7 @@ export const usePayments = (month?: string) => {
       const pollInterval = setInterval(() => {
         console.log('🔄 Polling payment stats...');
         fetchPaymentStats(false);
-      }, 5000); // Poll every 5 seconds
+      }, 3000); // Poll every 3 seconds
 
       return () => {
         clearInterval(pollInterval);
