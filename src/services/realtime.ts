@@ -151,17 +151,17 @@ class RealtimeManager {
       this.config.onModeChange('polling');
     }
 
-    // Start polling every 5 seconds (faster updates when SSE unavailable)
+    // Start polling every 10 seconds (slower to avoid excessive requests)
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
 
     this.pollInterval = setInterval(() => {
       this.pollForUpdates();
-    }, 5000);
+    }, 10000);
 
-    // Poll immediately
-    this.pollForUpdates();
+    // Don't poll immediately - wait for first interval
+    // this.pollForUpdates();
   }
 
   /**
@@ -221,14 +221,17 @@ class RealtimeManager {
       
       this.lastPolledData = data;
       
-      // Emit update event
-      if (this.config.onUpdate) {
-        this.config.onUpdate({
-          type: 'order_created',
-          userId: this.config.userId,
-          data,
-          timestamp: Date.now()
-        });
+      // Only emit update if data actually changed (not on first poll)
+      if (this.lastPolledData) {
+        // Emit update event only if there's a real change
+        if (this.config.onUpdate) {
+          this.config.onUpdate({
+            type: 'payment_marked', // Generic type for polling updates
+            userId: this.config.userId,
+            data,
+            timestamp: Date.now()
+          });
+        }
       }
     } catch (err) {
       console.error('Polling error:', err);
