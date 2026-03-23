@@ -1174,10 +1174,10 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
     
-    // Calculate remaining count based on unpaid orders
-    // Count orders where paid = false
-    const paidCount = payments?.length || 0;
-    const unpaidOrders = orders?.filter(order => !order.paid) || [];
+    // Count paid and unpaid orders based on 'paid' field
+    const paidOrders = orders?.filter(order => order.paid === true) || [];
+    const unpaidOrders = orders?.filter(order => order.paid === false || !order.paid) || [];
+    const paidCount = paidOrders.length;
     const remainingCount = unpaidOrders.length;
 
     userStats.push({
@@ -1255,13 +1255,13 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
-  // Calculate remaining count based on unpaid orders
-  // Count orders where paid = false
-  const paidCount = payments?.length || 0;
-  const unpaidOrders = orders?.filter(order => !order.paid) || [];
+  // Count paid and unpaid orders based on 'paid' field
+  const paidOrders = orders?.filter(order => order.paid === true) || [];
+  const unpaidOrders = orders?.filter(order => order.paid === false || !order.paid) || [];
+  const paidCount = paidOrders.length;
   const remainingCount = unpaidOrders.length;
   
-  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${paidCount} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid meals ${remainingCount}`);
+  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), paid: ${paidCount} orders, unpaid: ${remainingCount} orders, money remaining: ${remainingTotal}đ`);
   
   return {
     month,
