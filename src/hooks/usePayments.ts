@@ -103,16 +103,18 @@ export const usePayments = (month?: string) => {
       initialFetch();
       
       // Setup polling instead of SSE for more reliability
+      // Admin: 3 seconds, User: 10 seconds
+      const pollIntervalMs = user?.role === 'admin' ? 3000 : 10000;
       const pollInterval = setInterval(() => {
-        console.log('🔄 Polling payment stats...');
+        console.log(`🔄 Polling payment stats (${user?.role})...`);
         fetchPaymentStats(false);
-      }, 3000); // Poll every 3 seconds
+      }, pollIntervalMs);
 
       return () => {
         clearInterval(pollInterval);
       };
     }
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   // Separate effect for month changes - just refetch data
   useEffect(() => {
