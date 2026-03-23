@@ -2186,7 +2186,7 @@ export default function App() {
                                 <div className="w-6 h-6 bg-[#DA251D] text-white rounded-full flex items-center justify-center font-bold text-xs">
                                   {index + 1}
                                 </div>
-                                <span className="font-medium text-[#1C1917] text-sm whitespace-nowrap">{dish?.name}</span>
+                                <span className="font-medium text-[#1C1917] text-sm whitespace-nowrap">{getDishName(dish, currentLang)}</span>
                                 <button 
                                   onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dishId))}
                                   className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors"
@@ -2262,7 +2262,7 @@ export default function App() {
                                       <div className="w-8 h-8 bg-[#DA251D] text-white rounded-full flex items-center justify-center font-bold text-sm">
                                         {index + 1}
                                       </div>
-                                      <span className="font-semibold text-[#1C1917]">{dish?.name}</span>
+                                      <span className="font-semibold text-[#1C1917]">{getDishName(dish, currentLang)}</span>
                                     </div>
                                     <button 
                                       onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dishId))}
@@ -2797,7 +2797,7 @@ export default function App() {
                                 <div className="w-6 h-6 bg-[#DA251D] text-white rounded-full flex items-center justify-center font-bold text-xs">
                                   {index + 1}
                                 </div>
-                                <span className="font-medium text-[#1C1917]">{dish?.name}</span>
+                                <span className="font-medium text-[#1C1917]">{getDishName(dish, currentLang)}</span>
                                 <button 
                                   onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dishId))}
                                   className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors"
