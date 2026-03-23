@@ -24,14 +24,18 @@ export const usePayments = (month?: string) => {
   const [error, setError] = useState<string | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchPaymentStats = async () => {
+  const fetchPaymentStats = async (isInitial: boolean = false) => {
     try {
       // Clear any pending fetch
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
 
-      setIsRefreshing(true);
+      if (isInitial) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       setError(null);
       
       if (user?.role === 'admin') {
@@ -82,15 +86,18 @@ export const usePayments = (month?: string) => {
         remainingTotal: 0
       });
     } finally {
-      setIsRefreshing(false);
+      if (isInitial) {
+        setIsLoading(false);
+      } else {
+        setIsRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
     if (user?.id) {
       const initialFetch = async () => {
-        await fetchPaymentStats();
-        setIsLoading(false);
+        await fetchPaymentStats(true);
       };
       
       initialFetch();
@@ -103,7 +110,7 @@ export const usePayments = (month?: string) => {
           console.log('💰 Real-time update received:', update.type);
           // Refresh payment stats on order or payment changes
           if (update.type === 'order_created' || update.type === 'order_updated' || update.type === 'order_deleted' || update.type === 'payment_marked') {
-            fetchPaymentStats();
+            fetchPaymentStats(false);
           }
         },
         onError: (error) => {
@@ -124,7 +131,7 @@ export const usePayments = (month?: string) => {
   // Separate effect for month changes - just refetch data
   useEffect(() => {
     if (user?.id) {
-      fetchPaymentStats();
+      fetchPaymentStats(false);
     }
   }, [month]);
 
@@ -133,6 +140,6 @@ export const usePayments = (month?: string) => {
     isLoading,
     isRefreshing,
     error,
-    refetch: fetchPaymentStats
+    refetch: () => fetchPaymentStats(false)
   };
 };

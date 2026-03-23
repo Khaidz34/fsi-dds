@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ordersAPI } from '../services/api';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { realtimeManager } from '../services/realtime';
 
 export interface Order {
   id: number;
@@ -24,6 +23,7 @@ export const useMonthlyOrders = (month: string) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -46,22 +46,17 @@ export const useMonthlyOrders = (month: string) => {
   useEffect(() => {
     fetchOrders();
     
-    // Only setup real-time for admin users
+    // Only setup polling for admin users
     if (user?.role === 'admin') {
-      // Use real-time manager for admin users
-      realtimeManager.connect({
-        userId: user.id,
-        onUpdate: () => {
-          console.log('📦 Real-time update received, refetching monthly orders');
-          fetchOrders();
-        },
-        onError: (error) => {
-          console.error('Real-time error:', error);
-        }
-      });
+      // Poll for new orders every 3 seconds
+      pollIntervalRef.current = setInterval(() => {
+        fetchOrders();
+      }, 3000);
 
       return () => {
-        realtimeManager.disconnect();
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+        }
       };
     }
     // For regular users, no auto refresh - data only updates on manual refetch

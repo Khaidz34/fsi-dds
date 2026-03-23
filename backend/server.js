@@ -801,6 +801,7 @@ app.get('/api/orders/today', async (req, res) => {
       `)
       .gte('created_at', today)
       .lt('created_at', today + 'T23:59:59')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -846,6 +847,7 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
       .eq('user_id', req.user.id)
       .gte('created_at', today)
       .lt('created_at', today + 'T23:59:59')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -1007,9 +1009,10 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Đơn hàng không tồn tại' });
     }
 
+    // Soft delete: mark as deleted instead of removing
     const { error } = await supabase
       .from('orders')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', orderId);
 
     if (error) {
@@ -1139,6 +1142,7 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       .from('orders')
       .select('price')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00`)
       .lt('created_at', `${nextMonth}T00:00:00`);
 
@@ -1208,6 +1212,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     .from('orders')
     .select('id, price')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .gte('created_at', `${startDate}T00:00:00`)
     .lt('created_at', `${nextMonth}T00:00:00`);
   
@@ -1267,7 +1272,8 @@ app.get('/api/debug/payments', authenticateToken, async (req, res) => {
     // Check orders
     const { data: allOrders, error: ordersError } = await supabase
       .from('orders')
-      .select('id, user_id, price, created_at');
+      .select('id, user_id, price, created_at')
+      .is('deleted_at', null);
     
     // Check payments
     const { data: allPayments, error: paymentsError } = await supabase
@@ -1667,6 +1673,7 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
     const { count: ordersCount, error: ordersError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
+      .is('deleted_at', null)
       .gte('created_at', today)
       .lt('created_at', today + 'T23:59:59');
 
@@ -1674,6 +1681,7 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
     const { data: orders, error: revenueError } = await supabase
       .from('orders')
       .select('price')
+      .is('deleted_at', null)
       .gte('created_at', today)
       .lt('created_at', today + 'T23:59:59');
 
@@ -1729,6 +1737,7 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
     const { count: ordersToday, error: ordersTodayError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
+      .is('deleted_at', null)
       .gte('created_at', today)
       .lt('created_at', today + 'T23:59:59');
 
@@ -1744,6 +1753,7 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
         dish1_id,
         dish1:dish1_id (name)
       `)
+      .is('deleted_at', null)
       .not('dish1_id', 'is', null)
       .limit(5);
 
@@ -1987,6 +1997,7 @@ app.get('/api/orders/weekly-stats', authenticateToken, async (req, res) => {
     const { data: orders, error } = await supabase
       .from('orders')
       .select('created_at')
+      .is('deleted_at', null)
       .gte('created_at', startDate.toISOString().split('T')[0])
       .lte('created_at', endDate.toISOString().split('T')[0]);
 
