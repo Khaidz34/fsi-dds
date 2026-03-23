@@ -1227,7 +1227,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
-    .select('id, price')
+    .select('id, price, paid')
     .eq('user_id', userId)
     .is('deleted_at', null)
     .gte('created_at', `${startDate}T00:00:00`)
