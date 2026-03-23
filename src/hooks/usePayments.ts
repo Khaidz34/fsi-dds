@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
@@ -22,17 +22,14 @@ export const usePayments = (month?: string) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchPaymentStats = async () => {
     try {
-      // Debounce: don't fetch if last fetch was less than 1 second ago
-      const now = Date.now();
-      if (now - lastFetchTime < 1000) {
-        console.log('⏱️  Skipping fetch - too soon after last fetch');
-        return;
+      // Clear any pending fetch
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
       }
-      setLastFetchTime(now);
 
       setIsRefreshing(true);
       setError(null);
@@ -91,7 +88,12 @@ export const usePayments = (month?: string) => {
 
   useEffect(() => {
     if (user?.id) {
-      fetchPaymentStats();
+      const initialFetch = async () => {
+        await fetchPaymentStats();
+        setIsLoading(false);
+      };
+      
+      initialFetch();
       
       // Setup real-time for all users (both admin and regular)
       // Always try to connect to SSE, even if polling is running
