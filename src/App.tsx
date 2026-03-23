@@ -3620,6 +3620,7 @@ export default function App() {
                 isLoading={isPlacingOrder}
                 translations={t}
                 theme={theme}
+                currentLang={currentLang}
               />
             </div>
           </div>

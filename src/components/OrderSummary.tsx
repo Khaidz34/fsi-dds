@@ -2,9 +2,14 @@ import React from 'react';
 
 import { User, Utensils, FileText, DollarSign } from 'lucide-react';
 
+type Language = 'vi' | 'en' | 'ja';
+
 interface Dish {
   id: number;
   name: string;
+  name_vi?: string;
+  name_en?: string;
+  name_ja?: string;
 }
 
 interface OrderSummaryProps {
@@ -23,9 +28,25 @@ interface OrderSummaryProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading?: boolean;
-  translations: any; // Add translations prop
-  theme?: 'fusion' | 'corporate'; // Add theme prop
+  translations: any;
+  theme?: 'fusion' | 'corporate';
+  currentLang?: Language; // Add currentLang prop
 }
+
+// Helper function to get dish name by language
+const getDishName = (dish: Dish, lang: Language): string => {
+  if (!dish) return '';
+  
+  switch (lang) {
+    case 'en':
+      return dish.name_en || dish.name || '';
+    case 'ja':
+      return dish.name_ja || dish.name || '';
+    case 'vi':
+    default:
+      return dish.name_vi || dish.name || '';
+  }
+};
 
 export const OrderSummary: React.FC<OrderSummaryProps> = ({
   selectedDishes,
@@ -37,7 +58,8 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
   onCancel,
   isLoading = false,
   translations: t,
-  theme = 'fusion'
+  theme = 'fusion',
+  currentLang = 'vi' // Default to Vietnamese
 }) => {
   const activeOptions = Object.entries(options)
     .filter(([_, value]) => value)
@@ -103,7 +125,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                   }`}>
                     {index + 1}
                   </span>
-                  <p className="text-sm text-gray-900 font-medium truncate">{dish.name}</p>
+                  <p className="text-sm text-gray-900 font-medium truncate">{getDishName(dish, currentLang)}</p>
                 </div>
               ))}
             </div>
@@ -118,7 +140,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                 }`}>
                   {index + 1}
                 </div>
-                <p className="text-sm text-gray-900 font-medium">{dish.name}</p>
+                <p className="text-sm text-gray-900 font-medium">{getDishName(dish, currentLang)}</p>
               </div>
             ))}
           </div>
