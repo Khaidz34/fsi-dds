@@ -4,6 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const cache = require('./cache');
 
 const app = express();
@@ -164,7 +166,6 @@ app.use(cors({
 }));
 
 // Enable gzip compression for responses
-const compression = require('compression');
 app.use(compression({
   level: 6, // Balance between compression ratio and CPU usage
   threshold: 1024, // Only compress responses > 1KB
@@ -1214,6 +1215,14 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
  * Get single user payment stats
  */
 const getUserPaymentStats = async (supabase, userId, month) => {
+  // Check cache first
+  const cacheKey = `payments:user:${userId}:${month}`;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    console.log(`✅ Cache hit for ${cacheKey}`);
+    return cached;
+  }
+
   const startDate = `${month}-01`;
   // Get last day of month - JavaScript months are 0-indexed
   const [year, monthNum] = month.split('-');
@@ -1264,7 +1273,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   
   console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), paid: ${paidCount} orders, unpaid: ${remainingCount} orders, money remaining: ${remainingTotal}đ`);
   
-  return {
+  const result = {
     month,
     ordersCount,
     ordersTotal,
@@ -1274,6 +1283,11 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     remainingTotal,
     overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
   };
+
+  // Cache for 10 minutes
+  cache.set(cacheKey, result, 10 * 60 * 1000);
+  
+  return result;
 };
 
 // Debug endpoint to check payment data
