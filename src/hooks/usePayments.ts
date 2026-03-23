@@ -102,28 +102,14 @@ export const usePayments = (month?: string) => {
       
       initialFetch();
       
-      // Setup real-time for all users (both admin and regular)
-      // Always try to connect to SSE, even if polling is running
-      realtimeManager.connect({
-        userId: user.id,
-        onUpdate: (update) => {
-          console.log('💰 Real-time update received:', update.type);
-          // Refresh payment stats on order or payment changes
-          if (update.type === 'order_created' || update.type === 'order_updated' || update.type === 'order_deleted' || update.type === 'payment_marked') {
-            fetchPaymentStats(false);
-          }
-        },
-        onError: (error) => {
-          console.error('Real-time error:', error);
-        },
-        onModeChange: (mode) => {
-          console.log(`📡 Real-time mode changed to: ${mode}`);
-        }
-      });
+      // Setup polling instead of SSE for more reliability
+      const pollInterval = setInterval(() => {
+        console.log('🔄 Polling payment stats...');
+        fetchPaymentStats(false);
+      }, 5000); // Poll every 5 seconds
 
       return () => {
-        // Don't disconnect here - let it persist across month changes
-        // realtimeManager.disconnect();
+        clearInterval(pollInterval);
       };
     }
   }, [user?.id]);
