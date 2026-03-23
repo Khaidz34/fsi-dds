@@ -1256,6 +1256,7 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   
   // Calculate remaining count based on remaining money
   // remainingCount = number of unpaid meals (remainingTotal / 40000)
+  // Example: 400,000đ remaining = 10 unpaid meals
   const paidCount = payments?.length || 0;
   const remainingCount = Math.ceil(remainingTotal / 40000);
   
