@@ -479,6 +479,94 @@ const getDishName = (dish: any, lang: Language): string => {
   }
 };
 
+// Helper function to translate order notes to current language
+const translateNotes = (notes: string | null | undefined, targetLang: Language): string => {
+  if (!notes || !notes.trim()) return '';
+  
+  // Translation mappings for order options
+  const translations: Record<Language, Record<string, string>> = {
+    vi: {
+      // Vietnamese (original)
+      'Thêm cơm': 'Thêm cơm',
+      'Thêm canh': 'Thêm canh',
+      'Thêm tương ớt': 'Thêm tương ớt',
+      'Thêm mắm': 'Thêm mắm',
+      'Thêm đũa': 'Thêm đũa',
+      'Ít cơm': 'Ít cơm',
+      // From English
+      'Extra Rice': 'Thêm cơm',
+      'Extra Soup': 'Thêm canh',
+      'Chili Sauce': 'Thêm tương ớt',
+      'Fish Sauce': 'Thêm mắm',
+      'Chopsticks': 'Thêm đũa',
+      'Less Rice': 'Ít cơm',
+      // From Japanese
+      'ご飯追加': 'Thêm cơm',
+      'スープ追加': 'Thêm canh',
+      'チリソース': 'Thêm tương ớt',
+      'ヌクマム': 'Thêm mắm',
+      '箸': 'Thêm đũa',
+      'ご飯少なめ': 'Ít cơm'
+    },
+    en: {
+      // From Vietnamese
+      'Thêm cơm': 'Extra Rice',
+      'Thêm canh': 'Extra Soup',
+      'Thêm tương ớt': 'Chili Sauce',
+      'Thêm mắm': 'Fish Sauce',
+      'Thêm đũa': 'Chopsticks',
+      'Ít cơm': 'Less Rice',
+      // English (original)
+      'Extra Rice': 'Extra Rice',
+      'Extra Soup': 'Extra Soup',
+      'Chili Sauce': 'Chili Sauce',
+      'Fish Sauce': 'Fish Sauce',
+      'Chopsticks': 'Chopsticks',
+      'Less Rice': 'Less Rice',
+      // From Japanese
+      'ご飯追加': 'Extra Rice',
+      'スープ追加': 'Extra Soup',
+      'チリソース': 'Chili Sauce',
+      'ヌクマム': 'Fish Sauce',
+      '箸': 'Chopsticks',
+      'ご飯少なめ': 'Less Rice'
+    },
+    ja: {
+      // From Vietnamese
+      'Thêm cơm': 'ご飯追加',
+      'Thêm canh': 'スープ追加',
+      'Thêm tương ớt': 'チリソース',
+      'Thêm mắm': 'ヌクマム',
+      'Thêm đũa': '箸',
+      'Ít cơm': 'ご飯少なめ',
+      // From English
+      'Extra Rice': 'ご飯追加',
+      'Extra Soup': 'スープ追加',
+      'Chili Sauce': 'チリソース',
+      'Fish Sauce': 'ヌクマム',
+      'Chopsticks': '箸',
+      'Less Rice': 'ご飯少なめ',
+      // Japanese (original)
+      'ご飯追加': 'ご飯追加',
+      'スープ追加': 'スープ追加',
+      'チリソース': 'チリソース',
+      'ヌクマム': 'ヌクマム',
+      '箸': '箸',
+      'ご飯少なめ': 'ご飯少なめ'
+    }
+  };
+  
+  let translatedNotes = notes;
+  const targetTranslations = translations[targetLang];
+  
+  // Replace all known phrases with target language
+  Object.entries(targetTranslations).forEach(([source, target]) => {
+    translatedNotes = translatedNotes.replace(new RegExp(source, 'g'), target);
+  });
+  
+  return translatedNotes;
+};
+
 const FallingPetals = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
   const items = useMemo(() => Array.from({ length: 20 }).map((_, i) => ({
     id: i,
@@ -2344,7 +2432,7 @@ export default function App() {
                             {/* Ghi chú */}
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.orderNotes}</p>
-                              <p className="text-sm text-[#1C1917]/80 line-clamp-2">{order.notes || t.noNotes}</p>
+                              <p className="text-sm text-[#1C1917]/80 line-clamp-2">{translateNotes(order.notes, currentLang) || t.noNotes}</p>
                             </div>
                             
                             {/* Actions */}
