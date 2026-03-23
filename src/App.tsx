@@ -780,15 +780,15 @@ export default function App() {
     
     setIsPlacingOrder(true);
     
-    // Tạo ghi chú từ các tùy chọn - luôn dùng tiếng Việt
-    const viTranslations = TRANSLATIONS.vi;
+    // Tạo ghi chú từ các tùy chọn - sử dụng ngôn ngữ hiện tại
+    const currentTranslations = TRANSLATIONS[currentLang];
     const options = [];
-    if (extraRice) options.push(viTranslations.extraRice);
-    if (extraSoup) options.push(viTranslations.extraSoup);
-    if (chiliSauce) options.push(viTranslations.chiliSauce);
-    if (fishSauce) options.push(viTranslations.fishSauce);
-    if (chopsticks) options.push(viTranslations.chopsticks);
-    if (lessRice) options.push(viTranslations.lessRice);
+    if (extraRice) options.push(currentTranslations.extraRice);
+    if (extraSoup) options.push(currentTranslations.extraSoup);
+    if (chiliSauce) options.push(currentTranslations.chiliSauce);
+    if (fishSauce) options.push(currentTranslations.fishSauce);
+    if (chopsticks) options.push(currentTranslations.chopsticks);
+    if (lessRice) options.push(currentTranslations.lessRice);
     
     const finalNotes = [...options, orderNotes.trim()].filter(Boolean).join(' ');
     
