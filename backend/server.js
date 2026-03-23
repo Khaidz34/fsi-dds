@@ -1238,10 +1238,10 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
-  // Calculate remaining count: if there's remaining debt, then there are unpaid orders
-  // remainingCount = 1 if remainingTotal > 0, else 0
+  // Calculate remaining count: number of unpaid orders
+  // remainingCount = ordersCount - paidCount (number of orders without payment)
   const paidCount = payments?.length || 0;
-  const remainingCount = remainingTotal > 0 ? 1 : 0;
+  const remainingCount = Math.max(0, ordersCount - paidCount);
   
   console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${paidCount} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid count ${remainingCount}`);
   
