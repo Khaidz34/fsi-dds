@@ -185,30 +185,30 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Rate limiting middleware - Per-user and per-IP limits
-const rateLimit = {};
+const rateLimitStore = {};
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const RATE_LIMIT_MAX_PER_IP = 500; // 500 requests per minute per IP
 const RATE_LIMIT_MAX_PER_USER = 100; // 100 requests per minute per user
 
 const rateLimitMiddleware = (req, res, next) => {
+  const now = Date.now();
   const ip = req.ip || req.connection.remoteAddress;
   const userId = req.user?.id || 'anonymous';
-  const now = Date.now();
   
   // Initialize rate limit tracking
-  if (!rateLimit[ip]) {
-    rateLimit[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+  if (!rateLimitStore[ip]) {
+    rateLimitStore[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
   }
   
   // Reset if window expired
-  if (now > rateLimit[ip].resetTime) {
-    rateLimit[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+  if (now > rateLimitStore[ip].resetTime) {
+    rateLimitStore[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
   }
   
-  rateLimit[ip].count++;
+  rateLimitStore[ip].count++;
   
   // Check IP-based rate limit
-  if (rateLimit[ip].count > RATE_LIMIT_MAX_PER_IP) {
+  if (rateLimitStore[ip].count > RATE_LIMIT_MAX_PER_IP) {
     console.warn(`⚠️  Rate limit exceeded for IP ${ip}`);
     return res.status(429).json({ error: 'Too many requests from this IP' });
   }
@@ -216,17 +216,17 @@ const rateLimitMiddleware = (req, res, next) => {
   // Check user-based rate limit (if authenticated)
   if (req.user?.id) {
     const userKey = `user_${userId}`;
-    if (!rateLimit[userKey]) {
-      rateLimit[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+    if (!rateLimitStore[userKey]) {
+      rateLimitStore[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
     }
     
-    if (now > rateLimit[userKey].resetTime) {
-      rateLimit[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+    if (now > rateLimitStore[userKey].resetTime) {
+      rateLimitStore[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
     }
     
-    rateLimit[userKey].count++;
+    rateLimitStore[userKey].count++;
     
-    if (rateLimit[userKey].count > RATE_LIMIT_MAX_PER_USER) {
+    if (rateLimitStore[userKey].count > RATE_LIMIT_MAX_PER_USER) {
       console.warn(`⚠️  Rate limit exceeded for user ${userId}`);
       return res.status(429).json({ error: 'Too many requests' });
     }
