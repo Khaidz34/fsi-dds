@@ -1155,7 +1155,7 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     // Get user's orders for the month - use proper date range
     const { data: orders } = await supabase
       .from('orders')
-      .select('price')
+      .select('id, price, paid')
       .eq('user_id', user.id)
       .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00`)
@@ -1174,10 +1174,11 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
     
-    // Calculate remaining count based on remaining money
-    // remainingCount = number of unpaid meals (remainingTotal / 40000)
+    // Calculate remaining count based on unpaid orders
+    // Count orders where paid = false
     const paidCount = payments?.length || 0;
-    const remainingCount = Math.ceil(remainingTotal / 40000);
+    const unpaidOrders = orders?.filter(order => !order.paid) || [];
+    const remainingCount = unpaidOrders.length;
 
     userStats.push({
       userId: user.id,
@@ -1254,11 +1255,11 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
-  // Calculate remaining count based on remaining money
-  // remainingCount = number of unpaid meals (remainingTotal / 40000)
-  // Example: 400,000đ remaining = 10 unpaid meals
+  // Calculate remaining count based on unpaid orders
+  // Count orders where paid = false
   const paidCount = payments?.length || 0;
-  const remainingCount = Math.ceil(remainingTotal / 40000);
+  const unpaidOrders = orders?.filter(order => !order.paid) || [];
+  const remainingCount = unpaidOrders.length;
   
   console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${paidCount} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid meals ${remainingCount}`);
   
@@ -1636,6 +1637,29 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     }
 
     console.log('✅ Payment marked successfully:', payment);
+
+    // Update all unpaid orders for this user in this month to paid = true
+    const startDate = `${month}-01`;
+    const [year, monthNum] = month.split('-');
+    const monthIndex = parseInt(monthNum) - 1;
+    const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
+    const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+    
+    const { data: updatedOrders, error: updateError } = await supabase
+      .from('orders')
+      .update({ paid: true })
+      .eq('user_id', userId)
+      .eq('paid', false)
+      .is('deleted_at', null)
+      .gte('created_at', `${startDate}T00:00:00`)
+      .lt('created_at', `${nextMonth}T00:00:00`)
+      .select();
+    
+    if (updateError) {
+      console.error('⚠️  Error updating orders paid status:', updateError);
+    } else {
+      console.log(`✅ Updated ${updatedOrders?.length || 0} orders to paid = true`);
+    }
 
     // Send SSE notification to the user whose payment was marked
     sendSSENotification(userId, {
