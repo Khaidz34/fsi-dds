@@ -1638,27 +1638,52 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
 
     console.log('✅ Payment marked successfully:', payment);
 
-    // Update all unpaid orders for this user in this month to paid = true
+    // Calculate how many orders should be marked as paid based on payment amount
+    // Each order costs 40,000đ
+    const mealsCount = Math.floor(amount / 40000);
+    console.log(`💰 Payment amount: ${amount}đ = ${mealsCount} meals`);
+    
+    // Get unpaid orders for this user in this month (ordered by created_at)
     const startDate = `${month}-01`;
     const [year, monthNum] = month.split('-');
     const monthIndex = parseInt(monthNum) - 1;
     const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
     const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
     
-    const { data: updatedOrders, error: updateError } = await supabase
+    const { data: unpaidOrders, error: fetchError } = await supabase
       .from('orders')
-      .update({ paid: true })
+      .select('id, created_at')
       .eq('user_id', userId)
       .eq('paid', false)
       .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00`)
       .lt('created_at', `${nextMonth}T00:00:00`)
-      .select();
+      .order('created_at', { ascending: true });
     
-    if (updateError) {
-      console.error('⚠️  Error updating orders paid status:', updateError);
+    if (fetchError) {
+      console.error('⚠️  Error fetching unpaid orders:', fetchError);
     } else {
-      console.log(`✅ Updated ${updatedOrders?.length || 0} orders to paid = true`);
+      console.log(`📋 Found ${unpaidOrders?.length || 0} unpaid orders`);
+      
+      // Only mark the first N orders as paid (where N = mealsCount)
+      const ordersToMarkPaid = unpaidOrders?.slice(0, mealsCount) || [];
+      const orderIds = ordersToMarkPaid.map(o => o.id);
+      
+      if (orderIds.length > 0) {
+        const { data: updatedOrders, error: updateError } = await supabase
+          .from('orders')
+          .update({ paid: true })
+          .in('id', orderIds)
+          .select();
+        
+        if (updateError) {
+          console.error('⚠️  Error updating orders paid status:', updateError);
+        } else {
+          console.log(`✅ Marked ${updatedOrders?.length || 0} orders as paid (oldest first)`);
+        }
+      } else {
+        console.log('ℹ️  No orders to mark as paid');
+      }
     }
 
     // Send SSE notification to the user whose payment was marked
