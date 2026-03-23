@@ -102,17 +102,36 @@ export const usePayments = (month?: string) => {
       
       initialFetch();
       
-      // Setup polling instead of SSE for more reliability
-      // Admin: 3 seconds, User: 10 seconds
-      const pollIntervalMs = user?.role === 'admin' ? 3000 : 10000;
-      const pollInterval = setInterval(() => {
-        console.log(`🔄 Polling payment stats (${user?.role})...`);
-        fetchPaymentStats(false);
-      }, pollIntervalMs);
+      if (user?.role === 'admin') {
+        // Admin: Poll every 3 seconds to monitor all users
+        const pollInterval = setInterval(() => {
+          console.log('🔄 Polling payment stats (admin)...');
+          fetchPaymentStats(false);
+        }, 3000);
 
-      return () => {
-        clearInterval(pollInterval);
-      };
+        return () => {
+          clearInterval(pollInterval);
+        };
+      } else {
+        // User: Subscribe to realtime updates on payments and orders tables
+        // Only refresh when admin marks payment or when orders change
+        console.log('👂 Subscribing to payment & order updates (user)...');
+        
+        const paymentsSubscription = subscribeToTable('payments', () => {
+          console.log('💰 Payment update received, refreshing stats...');
+          fetchPaymentStats(false);
+        }, `payments_user_${user.id}`);
+
+        const ordersSubscription = subscribeToTable('orders', () => {
+          console.log('📦 Order update received, refreshing stats...');
+          fetchPaymentStats(false);
+        }, `orders_user_${user.id}`);
+
+        return () => {
+          unsubscribeFromTable(paymentsSubscription);
+          unsubscribeFromTable(ordersSubscription);
+        };
+      }
     }
   }, [user?.id, user?.role]);
 
