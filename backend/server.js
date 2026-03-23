@@ -1175,10 +1175,9 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
     
     // Calculate remaining count based on remaining money
-    // If remainingTotal > 0, there are unpaid meals (show 1)
-    // If remainingTotal = 0, all meals are paid (show 0)
+    // remainingCount = number of unpaid meals (remainingTotal / 40000)
     const paidCount = payments?.length || 0;
-    const remainingCount = remainingTotal > 0 ? 1 : 0;
+    const remainingCount = Math.ceil(remainingTotal / 40000);
 
     userStats.push({
       userId: user.id,
@@ -1256,12 +1255,11 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
   // Calculate remaining count based on remaining money
-  // If remainingTotal > 0, there are unpaid meals (show 1)
-  // If remainingTotal = 0, all meals are paid (show 0)
+  // remainingCount = number of unpaid meals (remainingTotal / 40000)
   const paidCount = payments?.length || 0;
-  const remainingCount = remainingTotal > 0 ? 1 : 0;
+  const remainingCount = Math.ceil(remainingTotal / 40000);
   
-  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${paidCount} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid status ${remainingCount}`);
+  console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), ${paidCount} payments (${paidTotal}đ), remaining ${remainingTotal}đ, unpaid meals ${remainingCount}`);
   
   return {
     month,
