@@ -905,6 +905,21 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       }
     });
 
+    // Also send notification to the person who placed the order (if different)
+    if (req.user.id !== orderedFor) {
+      sendSSENotification(req.user.id, {
+        type: 'order_created',
+        userId: req.user.id,
+        data: {
+          orderId: order.id,
+          price: order.price,
+          month: currentMonth,
+          orderedFor: orderedFor,
+          timestamp: Date.now()
+        }
+      });
+    }
+
     // Invalidate cache when order is created
     // Invalidate admin payments cache
     cache.invalidate(`payments:admin:${currentMonth}`, `order_created:user_${orderedFor}`);
