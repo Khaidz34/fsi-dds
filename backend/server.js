@@ -878,7 +878,8 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       dish2_id: dish2Id || null,
       notes: notes || null,
       rating: rating || null,
-      price: 40000
+      price: 40000,
+      paid: false  // Explicitly set paid to false for new orders
     };
 
     const { data: order, error } = await supabase
