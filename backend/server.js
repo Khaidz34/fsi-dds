@@ -878,9 +878,10 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
-    // Admin sees all orders, regular users see only their own
+    // Admin sees all orders, regular users see their own orders + orders placed for them
     if (req.user.role !== 'admin') {
-      query = query.eq('user_id', req.user.id);
+      // Use OR filter: show orders where user_id = current user OR ordered_for = current user
+      query = query.or(`user_id.eq.${req.user.id},ordered_for.eq.${req.user.id}`);
     }
 
     const { data: orders, error } = await query;
@@ -1189,11 +1190,11 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   const userStats = [];
 
   for (const user of users || []) {
-    // Get user's orders for the month - use proper date range
+    // Get user's orders for the month (both placed by them and placed for them)
     const { data: orders } = await supabase
       .from('orders')
       .select('id, price, paid')
-      .eq('user_id', user.id)
+      .or(`user_id.eq.${user.id},ordered_for.eq.${user.id}`)
       .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00`)
       .lt('created_at', `${nextMonth}T00:00:00`);
