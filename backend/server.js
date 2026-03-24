@@ -872,7 +872,7 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
         *,
         dish1:dish1_id (id, name, name_vi, name_en, name_ja, sort_order),
         dish2:dish2_id (id, name, name_vi, name_en, name_ja, sort_order),
-        orderer:ordered_by (id, fullname),
+        orderer:user_id (id, fullname),
         receiver:ordered_for (id, fullname)
       `)
       .is('deleted_at', null)
@@ -881,6 +881,7 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
     // Admin sees all orders, regular users see their own orders + orders placed for them
     if (req.user.role !== 'admin') {
       // Use OR filter: show orders where user_id = current user OR ordered_for = current user
+      console.log(`🔍 Applying OR filter for user ${req.user.id}: user_id.eq.${req.user.id},ordered_for.eq.${req.user.id}`);
       query = query.or(`user_id.eq.${req.user.id},ordered_for.eq.${req.user.id}`);
     }
 
@@ -892,6 +893,12 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
     }
 
     console.log('📋 All orders fetched:', orders?.length || 0);
+    if (req.user.role !== 'admin') {
+      const byUser = orders?.filter(o => o.user_id === req.user.id).length || 0;
+      const forUser = orders?.filter(o => o.ordered_for === req.user.id).length || 0;
+      console.log(`   - Orders placed by user: ${byUser}`);
+      console.log(`   - Orders placed for user: ${forUser}`);
+    }
     res.json(orders || []);
   } catch (error) {
     console.error('All orders error:', error);
@@ -1271,10 +1278,12 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
   
+  // FIX: Use OR filter to include orders placed BY user AND orders placed FOR user
+  console.log(`🔍 Querying orders with OR filter: user_id.eq.${userId},ordered_for.eq.${userId}`);
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
-    .select('id, price, paid')
-    .eq('user_id', userId)
+    .select('id, price, paid, user_id, ordered_for')
+    .or(`user_id.eq.${userId},ordered_for.eq.${userId}`)
     .is('deleted_at', null)
     .gte('created_at', `${startDate}T00:00:00`)
     .lt('created_at', `${nextMonth}T00:00:00`);
@@ -1308,6 +1317,12 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   const remainingCount = unpaidOrders.length;
   
   console.log(`  📊 ${ordersCount} orders (${ordersTotal}đ), paid: ${paidCount} orders, unpaid: ${remainingCount} orders, money remaining: ${remainingTotal}đ`);
+  if (ordersCount > 0) {
+    const byUser = orders?.filter(o => o.user_id === userId).length || 0;
+    const forUser = orders?.filter(o => o.ordered_for === userId).length || 0;
+    console.log(`     - Orders placed by user: ${byUser}`);
+    console.log(`     - Orders placed for user: ${forUser}`);
+  }
   
   const result = {
     month,
