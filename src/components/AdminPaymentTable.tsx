@@ -21,10 +21,13 @@ type SortField = 'fullname' | 'ordersCount' | 'remainingTotal' | 'paidTotal';
 type SortOrder = 'asc' | 'desc';
 
 export const AdminPaymentTable: React.FC<AdminPaymentTableProps> = ({
-  userPayments,
+  userPayments = [],
   isProcessingPayment,
   onMarkPaid
 }) => {
+  // Safety check: ensure userPayments is an array
+  const safePayments = Array.isArray(userPayments) ? userPayments : [];
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('remainingTotal');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -35,7 +38,7 @@ export const AdminPaymentTable: React.FC<AdminPaymentTableProps> = ({
 
   // Filter data
   const filteredData = useMemo(() => {
-    return userPayments.filter(payment => {
+    return safePayments.filter(payment => {
       const matchesSearch = payment.fullname.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = 
         filterStatus === 'all' ? true :
@@ -44,7 +47,7 @@ export const AdminPaymentTable: React.FC<AdminPaymentTableProps> = ({
       
       return matchesSearch && matchesFilter;
     });
-  }, [userPayments, searchTerm, filterStatus]);
+  }, [safePayments, searchTerm, filterStatus]);
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -87,8 +90,8 @@ export const AdminPaymentTable: React.FC<AdminPaymentTableProps> = ({
       <ChevronDown size={16} />;
   };
 
-  const totalUnpaid = userPayments.reduce((sum, p) => sum + p.remainingTotal, 0);
-  const totalPaid = userPayments.reduce((sum, p) => sum + p.paidTotal, 0);
+  const totalUnpaid = safePayments.reduce((sum, p) => sum + p.remainingTotal, 0);
+  const totalPaid = safePayments.reduce((sum, p) => sum + p.paidTotal, 0);
 
   return (
     <div className="space-y-6">
@@ -97,19 +100,19 @@ export const AdminPaymentTable: React.FC<AdminPaymentTableProps> = ({
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4 border border-orange-200">
           <p className="text-sm text-orange-700 font-semibold mb-1">Chưa thanh toán</p>
           <p className="text-2xl font-black text-orange-600">{totalUnpaid.toLocaleString()}đ</p>
-          <p className="text-xs text-orange-600 mt-1">{userPayments.filter(p => p.remainingTotal > 0).length} người</p>
+          <p className="text-xs text-orange-600 mt-1">{safePayments.filter(p => p.remainingTotal > 0).length} người</p>
         </div>
         
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 border border-green-200">
           <p className="text-sm text-green-700 font-semibold mb-1">Đã thanh toán</p>
           <p className="text-2xl font-black text-green-600">{totalPaid.toLocaleString()}đ</p>
-          <p className="text-xs text-green-600 mt-1">{userPayments.filter(p => p.remainingTotal === 0).length} người</p>
+          <p className="text-xs text-green-600 mt-1">{safePayments.filter(p => p.remainingTotal === 0).length} người</p>
         </div>
 
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 border border-blue-200">
           <p className="text-sm text-blue-700 font-semibold mb-1">Tổng cộng</p>
           <p className="text-2xl font-black text-blue-600">{(totalUnpaid + totalPaid).toLocaleString()}đ</p>
-          <p className="text-xs text-blue-600 mt-1">{userPayments.length} người</p>
+          <p className="text-xs text-blue-600 mt-1">{safePayments.length} người</p>
         </div>
       </div>
 
