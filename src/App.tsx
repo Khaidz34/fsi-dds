@@ -2832,7 +2832,7 @@ export default function App() {
                 <div className="lacquer-card p-4 lg:p-10">
                   <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.payments}</h3>
                   
-                  {userPayments.length > 0 ? (
+                  {userPayments && userPayments.length > 0 ? (
                     <AdminPaymentTable
                       userPayments={userPayments}
                       isProcessingPayment={isProcessingPayment}
