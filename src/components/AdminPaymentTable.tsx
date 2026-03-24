@@ -7,8 +7,8 @@ interface PaymentUser {
   ordersCount: number;
   paidTotal: number;
   remainingTotal: number;
-  paidCount: number;
-  remainingCount: number;
+  paidCount?: number;
+  remainingCount?: number;
 }
 
 interface AdminPaymentTableProps {
@@ -223,7 +223,7 @@ export const AdminPaymentTable: React.FC<AdminPaymentTableProps> = ({
                   <td className="px-6 py-4">
                     <p className="font-semibold text-gray-900">{payment.fullname}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {payment.paidCount} đã thanh toán, {payment.remainingCount} chưa thanh toán
+                      {payment.paidCount !== undefined ? `${payment.paidCount} đã thanh toán, ${payment.remainingCount} chưa thanh toán` : 'N/A'}
                     </p>
                   </td>
                   <td className="px-6 py-4 text-right">
