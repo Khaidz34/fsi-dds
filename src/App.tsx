@@ -2833,66 +2833,14 @@ export default function App() {
                   <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.payments}</h3>
                   
                   {userPayments.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {userPayments
-                        .filter(payment => payment.remainingTotal > 0)
-                        .map((payment) => {
-                          const totalOrders = Math.ceil(payment.ordersTotal / 40000);
-                          return (
-                            <div key={payment.userId} className="bg-gradient-to-br from-[#FDF4E3] to-[#F5E6D3] rounded-3xl border-2 border-[#E5D4B8] p-6 shadow-lg hover:shadow-xl transition-shadow">
-                              {/* Header with user info */}
-                              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#E5D4B8]">
-                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#DA251D] shadow-md">
-                                  <UserIcon size={28} />
-                                </div>
-                                <div className="flex-1">
-                                  <p className="font-bold text-lg text-[#1C1917]">{payment.fullname}</p>
-                                  <p className="text-xs text-[#1C1917]/50 font-semibold">@{payment.username}</p>
-                                </div>
-                              </div>
-
-                              {/* Stats Grid */}
-                              <div className="space-y-4 mb-6">
-                                {/* Paid Amount */}
-                                <div className="bg-white/60 rounded-2xl p-4">
-                                  <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Đã thanh toán</p>
-                                  <p className="text-2xl font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</p>
-                                </div>
-
-                                {/* Remaining Debt */}
-                                <div className="bg-white/60 rounded-2xl p-4">
-                                  <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Số nợ</p>
-                                  <p className="text-2xl font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</p>
-                                </div>
-
-                                {/* Total Orders */}
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div className="bg-white/60 rounded-2xl p-4">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Tổng suất</p>
-                                    <p className="text-xl font-black text-[#1C1917]">{totalOrders}</p>
-                                  </div>
-                                  <div className="bg-white/60 rounded-2xl p-4">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Chưa thanh</p>
-                                    <p className="text-xl font-black text-amber-600">{payment.remainingCount}</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Payment Button */}
-                              <button
-                                onClick={() => {
-                                  setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
-                                  setShowPaymentConfirm(true);
-                                }}
-                                disabled={isProcessingPayment}
-                                className="w-full bg-[#DA251D] text-white py-3 rounded-2xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
-                              >
-                                {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
-                              </button>
-                            </div>
-                          );
-                        })}
-                    </div>
+                    <AdminPaymentTable
+                      userPayments={userPayments}
+                      isProcessingPayment={isProcessingPayment}
+                      onMarkPaid={(userId, amount) => {
+                        setPendingPayment({ userId, amount });
+                        setShowPaymentConfirm(true);
+                      }}
+                    />
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-gray-400 mb-4">
