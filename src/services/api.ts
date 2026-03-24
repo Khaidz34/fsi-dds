@@ -164,6 +164,8 @@ export const ordersAPI = {
   
   getMy: (month?: string) => apiCall<any[]>(`/orders/my${month ? `?month=${month}` : ''}`),
 
+  getAll: (lang?: string) => apiCall<any[]>(`/orders/all${lang ? `?lang=${lang}` : ''}`),
+
   getWeeklyStats: () => apiCall<Array<{ name: string; orders: number; date: string }>>('/orders/weekly-stats'),
 
   create: (orderData: {

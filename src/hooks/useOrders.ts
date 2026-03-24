@@ -28,8 +28,8 @@ export const useOrders = (language?: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      // Admin sees all orders, regular users see only their own
-      const endpoint = user?.role === 'admin' ? 'getToday' : 'getMy';
+      // Admin sees all orders (history), regular users see only their own
+      const endpoint = user?.role === 'admin' ? 'getAll' : 'getAll';
       const data = await ordersAPI[endpoint](language);
       setOrders(data);
     } catch (err) {

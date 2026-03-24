@@ -863,6 +863,41 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all orders (order history) - admin sees all, users see their own
+app.get('/api/orders/all', authenticateToken, async (req, res) => {
+  try {
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        dish1:dish1_id (id, name, name_vi, name_en, name_ja, sort_order),
+        dish2:dish2_id (id, name, name_vi, name_en, name_ja, sort_order),
+        orderer:ordered_by (id, fullname),
+        receiver:ordered_for (id, fullname)
+      `)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    // Admin sees all orders, regular users see only their own
+    if (req.user.role !== 'admin') {
+      query = query.eq('user_id', req.user.id);
+    }
+
+    const { data: orders, error } = await query;
+
+    if (error) {
+      console.error('All orders query error:', error);
+      return res.status(500).json({ error: 'Lỗi database' });
+    }
+
+    console.log('📋 All orders fetched:', orders?.length || 0);
+    res.json(orders || []);
+  } catch (error) {
+    console.error('All orders error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 app.post('/api/orders', authenticateToken, async (req, res) => {
   try {
     const { dish1Id, dish2Id, orderedFor, notes, rating } = req.body;

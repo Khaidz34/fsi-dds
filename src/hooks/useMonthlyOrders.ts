@@ -29,8 +29,8 @@ export const useMonthlyOrders = (month: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      // Get all orders for the month
-      const data = await ordersAPI.getToday();
+      // Get all orders (not just today)
+      const data = await ordersAPI.getAll();
       // Filter by month
       const filteredData = data.filter(order => 
         order.created_at && order.created_at.startsWith(month)
