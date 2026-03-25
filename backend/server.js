@@ -1200,7 +1200,7 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     // Get user's orders for the month (both placed by them and placed for them)
     const { data: orders } = await supabase
       .from('orders')
-      .select('id, price, paid')
+      .select('id, price, paid, user_id, ordered_for')
       .or(`user_id.eq.${user.id},ordered_for.eq.${user.id}`)
       .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00`)
@@ -1215,13 +1215,25 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       .lt('created_at', `${nextMonth}T00:00:00`);
 
     const ordersCount = orders?.length || 0;
-    const ordersTotal = orders?.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+    
+    // FIX: Only count orders where user is the one who PAYS
+    // If ordered_for is set, that person pays. Otherwise, user_id pays.
+    const ordersForPayment = orders?.filter(order => {
+      // If ordered_for is set, only count if user is the one paying (ordered_for = userId)
+      if (order.ordered_for) {
+        return order.ordered_for === user.id;
+      }
+      // If ordered_for is not set, user_id is the one paying
+      return order.user_id === user.id;
+    }) || [];
+    
+    const ordersTotal = ordersForPayment.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
     const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
     const remainingTotal = Math.max(0, ordersTotal - paidTotal);
     
     // Count paid and unpaid orders based on 'paid' field
-    const paidOrders = orders?.filter(order => order.paid === true) || [];
-    const unpaidOrders = orders?.filter(order => order.paid === false || !order.paid) || [];
+    const paidOrders = ordersForPayment?.filter(order => order.paid === true) || [];
+    const unpaidOrders = ordersForPayment?.filter(order => order.paid === false || !order.paid) || [];
     const paidCount = paidOrders.length;
     const remainingCount = unpaidOrders.length;
 

@@ -11,8 +11,11 @@ export interface UserPaymentInfo {
   month: string;
   ordersCount: number;
   ordersTotal: number;
+  paidCount: number;
   paidTotal: number;
+  remainingCount: number;
   remainingTotal: number;
+  overpaidTotal?: number;
 }
 
 export interface PaymentHistory {
