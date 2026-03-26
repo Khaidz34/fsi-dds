@@ -1061,7 +1061,7 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     // Get order details before deletion to know which user to notify
     const { data: orderData, error: fetchError } = await supabase
       .from('orders')
-      .select('user_id, price')
+      .select('user_id, price, ordered_for')
       .eq('id', orderId)
       .single();
 
@@ -1079,21 +1079,24 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi xóa đơn hàng' });
     }
 
-    // Invalidate cache for this user's payment stats
+    // Determine who pays for this order
+    const payingUserId = orderData.ordered_for || orderData.user_id;
+
+    // Invalidate cache for the paying user's payment stats
     const month = new Date().toISOString().slice(0, 7);
-    console.log(`🗑️  Invalidating cache for month ${month}`);
-    const invalidated1 = cache.invalidate(`payments:user:${orderData.user_id}:${month}`);
+    console.log(`🗑️  Invalidating cache for month ${month}, paying user: ${payingUserId}`);
+    const invalidated1 = cache.invalidate(`payments:user:${payingUserId}:${month}`);
     const invalidated2 = cache.invalidate(`payments:admin:${month}`);
     const invalidated3 = cache.invalidate(`stats:dashboard:${month}`);
-    const invalidated4 = cache.invalidate(`stats:user:${orderData.user_id}:${month}`);
+    const invalidated4 = cache.invalidate(`stats:user:${payingUserId}:${month}`);
     console.log(`🗑️  Cache invalidated: ${invalidated1 + invalidated2 + invalidated3 + invalidated4} entries`);
 
-    console.log(`🗑️  Order ${orderId} deleted by admin ${req.user.id}, notifying user ${orderData.user_id}`);
+    console.log(`🗑️  Order ${orderId} deleted by admin ${req.user.id}, notifying paying user ${payingUserId}`);
 
-    // Send SSE notification to the affected user
-    sendSSENotification(orderData.user_id, {
+    // Send SSE notification to the paying user
+    sendSSENotification(payingUserId, {
       type: 'order_deleted',
-      userId: orderData.user_id,
+      userId: payingUserId,
       data: {
         orderId,
         price: orderData.price,
@@ -1106,12 +1109,12 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     console.log(`📢 Sending order_deleted notification to admin ${req.user.id}`);
     sendSSENotification(req.user.id, {
       type: 'order_deleted',
-      userId: orderData.user_id,
+      userId: payingUserId,
       data: {
         orderId,
         price: orderData.price,
         month,
-        affectedUserId: orderData.user_id
+        affectedUserId: payingUserId
       },
       timestamp: Date.now()
     });
