@@ -1187,72 +1187,19 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-  // Fallback: Get all users and calculate stats manually
-  const { data: users, error: usersError } = await supabase
-    .from('users')
-    .select('id, fullname, username')
-    .eq('role', 'user')
-    .order('fullname')
-    .range(validOffset, validOffset + validLimit - 1);
+  // Optimized SQL query using CTEs to eliminate N+1 query problem
+  // This reduces query count from 1+2N to just 2 queries (1 for data, 1 for count)
+  const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats', {
+    p_month: month,
+    p_start_date: `${startDate}T00:00:00`,
+    p_next_month: `${nextMonth}T00:00:00`,
+    p_limit: validLimit,
+    p_offset: validOffset
+  });
 
-  if (usersError) throw usersError;
-
-  const userStats = [];
-
-  for (const user of users || []) {
-    // Get user's orders for the month (both placed by them and placed for them)
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('id, price, paid, user_id, ordered_for')
-      .or(`user_id.eq.${user.id},ordered_for.eq.${user.id}`)
-      .is('deleted_at', null)
-      .gte('created_at', `${startDate}T00:00:00`)
-      .lt('created_at', `${nextMonth}T00:00:00`);
-
-    // Get user's payments for the month - use proper date range
-    const { data: payments } = await supabase
-      .from('payments')
-      .select('amount')
-      .eq('user_id', user.id)
-      .gte('created_at', `${startDate}T00:00:00`)
-      .lt('created_at', `${nextMonth}T00:00:00`);
-
-    const ordersCount = orders?.length || 0;
-    
-    // FIX: Only count orders where user is the one who PAYS
-    // If ordered_for is set, that person pays. Otherwise, user_id pays.
-    const ordersForPayment = orders?.filter(order => {
-      // If ordered_for is set, only count if user is the one paying (ordered_for = userId)
-      if (order.ordered_for) {
-        return order.ordered_for === user.id;
-      }
-      // If ordered_for is not set, user_id is the one paying
-      return order.user_id === user.id;
-    }) || [];
-    
-    const ordersTotal = ordersForPayment.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
-    const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
-    const remainingTotal = Math.max(0, ordersTotal - paidTotal);
-    
-    // Count paid and unpaid orders based on 'paid' field
-    const paidOrders = ordersForPayment?.filter(order => order.paid === true) || [];
-    const unpaidOrders = ordersForPayment?.filter(order => order.paid === false || !order.paid) || [];
-    const paidCount = paidOrders.length;
-    const remainingCount = unpaidOrders.length;
-
-    userStats.push({
-      userId: user.id,
-      fullname: user.fullname,
-      username: user.username,
-      month,
-      ordersCount,
-      ordersTotal,
-      paidCount,
-      paidTotal,
-      remainingCount,
-      remainingTotal,
-      overpaidTotal: paidTotal > ordersTotal ? paidTotal - ordersTotal : 0
-    });
+  if (statsError) {
+    console.error('❌ Error calling get_payment_stats RPC:', statsError);
+    throw statsError;
   }
 
   // Get total count
@@ -1262,7 +1209,7 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     .eq('role', 'user');
 
   return {
-    data: userStats,
+    data: userStats || [],
     total: totalCount || 0,
     limit: validLimit,
     offset: validOffset

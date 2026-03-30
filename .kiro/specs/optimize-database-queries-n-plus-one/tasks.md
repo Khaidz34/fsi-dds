@@ -1,0 +1,88 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - N+1 Query Pattern Detection
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the N+1 query problem exists
+  - **Scoped PBT Approach**: Test with concrete user counts (10, 50, 100 users) to ensure reproducibility
+  - Test that buildPaymentStatsQuery executes 1+2N queries (1 user query + 2 queries per user) on unfixed code
+  - Measure query count for limit=10 (expect 21 queries), limit=50 (expect 101 queries), limit=100 (expect 201 queries)
+  - Measure response time for limit=100 (expect >2-3 seconds)
+  - Use database query logging or instrumentation to count actual queries executed
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the N+1 bug exists)
+  - Document counterexamples found: actual query counts and response times
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.3, 1.4_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Business Logic Equivalence
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for various input scenarios
+  - Write property-based tests capturing observed behavior patterns from Preservation Requirements
+  - Test payment responsibility logic: users with ordered_for orders have correct ordersTotal (only orders they pay for)
+  - Test soft delete filtering: orders with deleted_at IS NOT NULL are excluded from calculations
+  - Test paid field calculations: paidCount and remainingCount match orders.paid boolean field
+  - Test month filtering: only orders/payments in specified month are included (date range: >= startDate AND < nextMonth)
+  - Test pagination: limit and offset work correctly, total count is accurate
+  - Test edge cases: users with no orders, users with no payments, users with overpayments, users with mixed ordered_for and regular orders
+  - Test result structure: all fields present (userId, fullname, username, month, ordersCount, ordersTotal, paidCount, paidTotal, remainingCount, remainingTotal, overpaidTotal)
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
+
+- [x] 3. Fix N+1 query problem in buildPaymentStatsQuery
+
+  - [ ] 3.1 Implement optimized SQL query with JOINs and aggregations
+    - Replace loop-based approach with single SQL query using CTEs (WITH clauses)
+    - Create user_orders CTE: LEFT JOIN orders to users, apply filters (deleted_at IS NULL, date range), use GROUP BY with aggregate functions
+    - Implement ordered_for payment responsibility logic in SQL using CASE expression: `CASE WHEN orders.ordered_for IS NOT NULL THEN orders.ordered_for ELSE orders.user_id END = users.id`
+    - Calculate ordersCount using COUNT(DISTINCT orders.id)
+    - Calculate ordersTotal using SUM(CASE WHEN payment_condition THEN orders.price ELSE 0 END)
+    - Calculate paidCount using COUNT(CASE WHEN payment_condition AND orders.paid = true THEN 1 END)
+    - Calculate remainingCount using COUNT(CASE WHEN payment_condition AND (orders.paid = false OR orders.paid IS NULL) THEN 1 END)
+    - Create user_payments CTE: LEFT JOIN payments to users, apply date range filter, use SUM(payments.amount) for paidTotal
+    - Join user_orders and user_payments CTEs on user_id
+    - Calculate remainingTotal using GREATEST(0, ordersTotal - paidTotal)
+    - Calculate overpaidTotal using CASE WHEN paidTotal > ordersTotal THEN paidTotal - ordersTotal ELSE 0 END
+    - Apply ORDER BY fullname, LIMIT, and OFFSET for pagination
+    - Implement via PostgreSQL function called with Supabase .rpc() or use raw SQL execution
+    - Keep separate query for total count (users with role='user')
+    - Preserve cache behavior: cache key `payments:admin:{month}`, TTL 5 minutes
+    - _Bug_Condition: isBugCondition(input) where queryCount >= (1 + 2 * userCount) AND queryCount > 3 AND usesLoopBasedApproach_
+    - _Expected_Behavior: queryCount <= 2 AND responseTime < 500ms AND queryCount does NOT depend on input.limit_
+    - _Preservation: All business logic from Preservation Requirements (payment responsibility, soft delete, paid field, month filtering, pagination, cache, result structure)_
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
+
+  - [ ] 3.2 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Query Count Reduction
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior (query count <= 2, response time < 500ms)
+    - Run bug condition exploration test from step 1
+    - Verify query count is now <= 2 for all user counts (10, 50, 100)
+    - Verify response time is now < 500ms for limit=100
+    - Verify query count does NOT depend on limit parameter
+    - **EXPECTED OUTCOME**: Test PASSES (confirms N+1 bug is fixed)
+    - _Requirements: 2.1, 2.3, 2.4_
+
+  - [ ] 3.3 Verify preservation tests still pass
+    - **Property 2: Preservation** - Business Logic Equivalence
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - Verify all business logic produces identical results to original implementation
+    - Verify payment responsibility logic (ordered_for) works correctly
+    - Verify soft delete filtering works correctly
+    - Verify paid field calculations work correctly
+    - Verify month filtering works correctly
+    - Verify pagination works correctly
+    - Verify edge cases work correctly (no orders, no payments, overpayments, mixed orders)
+    - Verify result structure contains all required fields
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all tests still pass after fix (no regressions)
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
