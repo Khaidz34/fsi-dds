@@ -656,3 +656,32 @@
     border-radius: 0.75rem;
   }
 }
+
+/* iPhone Safari Safe Area Insets - Fix for obscured order button */
+@supports (padding: max(0px)) {
+  /* Apply safe area insets to fixed bottom elements on mobile */
+  @media (max-width: 768px) {
+    /* Target the order button container that uses fixed bottom-0 positioning */
+    .fixed.bottom-0 {
+      padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 1rem));
+    }
+    
+    /* Ensure the inner content respects the safe area */
+    .fixed.bottom-0 > div {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
+}
+
+/* Additional safe area support for iOS devices with notches */
+@media (max-width: 768px) {
+  /* Ensure order button is always above Safari's toolbar */
+  .order-button-safe-area {
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+  }
+  
+  /* Apply to any fixed bottom navigation or action bars */
+  .mobile-bottom-action-bar {
+    padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+  }
+}
