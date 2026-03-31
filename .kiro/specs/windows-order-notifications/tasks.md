@@ -14,7 +14,7 @@
 - [x] 1.2.2 Implement notification content formatting
 - [x] 1.2.3 Add notification click handler (focus window + navigate)
 - [x] 1.2.4 Implement auto-close after 10 seconds
-- [ ] 1.2.5 Add duplicate notification prevention
+- [x] 1.2.5 Add duplicate notification prevention
 
 ### Task 1.3: Add Translation Keys
 - [x] 1.3.1 Add Vietnamese notification translations to TRANSLATIONS object
@@ -45,14 +45,14 @@
 - [x] 3.1.2 Fetch dish details (names in all languages) when creating order
 - [x] 3.1.3 Fetch customer details (fullname) when creating order
 - [x] 3.1.4 Include dish names and customer name in SSE notification payload
-- [ ] 3.1.5 Test SSE payload includes all required fields
+- [x] 3.1.5 Test SSE payload includes all required fields
 
 ## Phase 4: Frontend Integration
 
 ### Task 4.1: Integrate useNotifications in App Component
 - [x] 4.1.1 Import useNotifications hook in `src/App.tsx`
 - [x] 4.1.2 Call useNotifications with user and language
-- [ ] 4.1.3 Display permission status in UI (optional)
+- [x] 4.1.3 Display permission status in UI (optional)
 - [x] 4.1.4 Test notification display on order creation
 
 ## Phase 5: Testing

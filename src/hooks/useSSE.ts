@@ -81,7 +81,7 @@ export function useSSE(
     try {
       console.log('🔌 Establishing SSE connection for user:', userId);
       
-      const url = `${API_BASE_URL}/api/sse/connect?token=${encodeURIComponent(token)}`;
+      const url = `${API_BASE_URL}/api/sse/payments?token=${encodeURIComponent(token)}`;
       const eventSource = new EventSource(url);
       
       eventSourceRef.current = eventSource;

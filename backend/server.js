@@ -977,7 +977,8 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         dish2Name: dish2?.name_vi,
         dish2NameEn: dish2?.name_en,
         dish2NameJa: dish2?.name_ja,
-        customerName: customer?.fullname
+        customerName: customer?.fullname,
+        orderedFor: orderedFor
       }
     });
 
@@ -999,6 +1000,39 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
           dish2NameEn: dish2?.name_en,
           dish2NameJa: dish2?.name_ja,
           customerName: customer?.fullname
+        }
+      });
+    }
+
+    // Broadcast notification to all admin and staff users
+    const { data: adminStaffUsers } = await supabase
+      .from('users')
+      .select('id')
+      .in('role', ['admin', 'staff']);
+
+    if (adminStaffUsers && adminStaffUsers.length > 0) {
+      console.log(`📢 Broadcasting order notification to ${adminStaffUsers.length} admin/staff users`);
+      adminStaffUsers.forEach(user => {
+        // Skip if already notified above
+        if (user.id !== orderedFor && user.id !== req.user.id) {
+          sendSSENotification(user.id, {
+            type: 'order_created',
+            userId: user.id,
+            data: {
+              orderId: order.id,
+              price: order.price,
+              month: currentMonth,
+              orderedFor: orderedFor,
+              timestamp: Date.now(),
+              dish1Name: dish1?.name_vi,
+              dish1NameEn: dish1?.name_en,
+              dish1NameJa: dish1?.name_ja,
+              dish2Name: dish2?.name_vi,
+              dish2NameEn: dish2?.name_en,
+              dish2NameJa: dish2?.name_ja,
+              customerName: customer?.fullname
+            }
+          });
         }
       });
     }
