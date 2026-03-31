@@ -937,6 +937,30 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
     }
 
+    // Fetch dish details for notifications
+    const { data: dish1 } = await supabase
+      .from('dishes')
+      .select('name_vi, name_en, name_ja')
+      .eq('id', dish1Id)
+      .single();
+
+    let dish2 = null;
+    if (dish2Id) {
+      const { data: dish2Data } = await supabase
+        .from('dishes')
+        .select('name_vi, name_en, name_ja')
+        .eq('id', dish2Id)
+        .single();
+      dish2 = dish2Data;
+    }
+
+    // Fetch customer details
+    const { data: customer } = await supabase
+      .from('users')
+      .select('fullname')
+      .eq('id', orderedFor)
+      .single();
+
     // Send SSE notification to the user whose payment is affected
     const currentMonth = new Date().toISOString().slice(0, 7);
     sendSSENotification(orderedFor, {
@@ -946,7 +970,14 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         orderId: order.id,
         price: order.price,
         month: currentMonth,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        dish1Name: dish1?.name_vi,
+        dish1NameEn: dish1?.name_en,
+        dish1NameJa: dish1?.name_ja,
+        dish2Name: dish2?.name_vi,
+        dish2NameEn: dish2?.name_en,
+        dish2NameJa: dish2?.name_ja,
+        customerName: customer?.fullname
       }
     });
 
@@ -960,7 +991,14 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
           price: order.price,
           month: currentMonth,
           orderedFor: orderedFor,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          dish1Name: dish1?.name_vi,
+          dish1NameEn: dish1?.name_en,
+          dish1NameJa: dish1?.name_ja,
+          dish2Name: dish2?.name_vi,
+          dish2NameEn: dish2?.name_en,
+          dish2NameJa: dish2?.name_ja,
+          customerName: customer?.fullname
         }
       });
     }

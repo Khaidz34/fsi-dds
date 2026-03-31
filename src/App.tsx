@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 import { 
   Utensils, 
@@ -61,6 +61,7 @@ import { useOrders } from './hooks/useOrders';
 import { useUsers } from './hooks/useUsers';
 import { useAdminPayments } from './hooks/useAdminPayments';
 import { useFeedback } from './hooks/useFeedback';
+import { useNotifications } from './hooks/useNotifications';
 import { Login } from './components/Login';
 import { FusionSliceGame } from './components/FusionSliceGame';
 import PaymentDashboard from './components/PaymentDashboard';
@@ -555,7 +556,7 @@ const FallingFood = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
 };
 
 export default function App() {
-  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout, token } = useAuth();
   
   const [theme, setTheme] = useState<'fusion' | 'corporate'>('corporate'); // Default to corporate
   const [currentLang, setCurrentLang] = useState<Language>('vi');
@@ -590,6 +591,18 @@ export default function App() {
   const { userPayments, paymentHistory, markAsPaid } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
+  
+  // Notifications - navigate to orders when notification clicked
+  const handleNotificationClick = useCallback(() => {
+    setActiveTab('orders');
+  }, []);
+  
+  const { permissionStatus, isSupported: notificationsSupported } = useNotifications(
+    user,
+    token,
+    currentLang,
+    handleNotificationClick
+  );
   
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
