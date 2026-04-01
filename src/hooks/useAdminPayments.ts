@@ -66,7 +66,8 @@ export const useAdminPayments = (month?: string) => {
 
   const fetchPaymentHistory = async () => {
     try {
-      const data = await paymentsAPI.getHistory(currentMonth);
+      // Get full payment history (all months), not just current month
+      const data = await paymentsAPI.getHistory();
       setPaymentHistory(data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Lỗi khi tải lịch sử thanh toán';

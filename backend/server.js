@@ -1623,6 +1623,7 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
       
       query = query.gte('created_at', startDate).lt('created_at', nextMonth);
     }
+    // If no month specified, return ALL payments (full history)
 
     const { data: payments, error } = await query;
 
