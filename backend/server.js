@@ -1615,12 +1615,13 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
 
     if (month) {
       // Proper date range: from start of month to start of next month
-      const startDate = `${month}-01T00:00:00Z`;
+      const startDate = `${month}-01T00:00:00+00:00`;
       const [year, monthNum] = month.split('-');
       const monthIndex = parseInt(monthNum) - 1;
       const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
-      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00Z`;
+      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00+00:00`;
       
+      console.log(`📅 Date range: ${startDate} to ${nextMonth}`);
       query = query.gte('created_at', startDate).lt('created_at', nextMonth);
     }
     // If no month specified, return ALL payments (full history)
