@@ -1598,14 +1598,13 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
 // Get payment history
 app.get('/api/payments/history', authenticateToken, async (req, res) => {
   try {
-    const { month } = req.query;
-    
     // Only admin can view all payment history
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
     
-    let query = supabase
+    // Always return ALL payments, ignore month parameter to avoid date parsing issues
+    const { data: payments, error } = await supabase
       .from('payments')
       .select(`
         *,
@@ -1613,44 +1612,12 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
       `)
       .order('created_at', { ascending: false });
 
-    if (month) {
-      try {
-        // Proper date range: from start of month to start of next month
-        const startDate = `${month}-01T00:00:00+00:00`;
-        const [year, monthNum] = month.split('-');
-        const monthIndex = parseInt(monthNum) - 1;
-        const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
-        const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00+00:00`;
-        
-        console.log(`📅 Date range: ${startDate} to ${nextMonth}`);
-        query = query.gte('created_at', startDate).lt('created_at', nextMonth);
-      } catch (dateError) {
-        console.error('❌ Date parsing error:', dateError);
-        // If date parsing fails, return all payments instead of error
-      }
-    }
-    // If no month specified, return ALL payments (full history)
-
-    const { data: payments, error } = await query;
-
     if (error) {
       console.error('Payment history query error:', error);
-      // If query fails, try without date filter
-      const { data: allPayments, error: fallbackError } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          user:user_id (id, fullname)
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (fallbackError) {
-        return res.status(500).json({ error: 'Lỗi database' });
-      }
-      
-      return res.json(allPayments || []);
+      return res.status(500).json({ error: 'Lỗi database' });
     }
 
+    console.log(`✅ Returned ${payments?.length || 0} payments`);
     res.json(payments || []);
   } catch (error) {
     console.error('Payment history error:', error);
