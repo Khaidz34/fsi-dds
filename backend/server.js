@@ -1614,9 +1614,14 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (month) {
-      const startDate = `${month}-01`;
-      const endDate = `${month}-31`;
-      query = query.gte('created_at', startDate).lte('created_at', endDate);
+      // Proper date range: from start of month to start of next month
+      const startDate = `${month}-01T00:00:00`;
+      const [year, monthNum] = month.split('-');
+      const monthIndex = parseInt(monthNum) - 1;
+      const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
+      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00`;
+      
+      query = query.gte('created_at', startDate).lt('created_at', nextMonth);
     }
 
     const { data: payments, error } = await query;
