@@ -1263,8 +1263,8 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     // Try optimized SQL query using CTEs to eliminate N+1 query problem
     const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats', {
       p_month: month,
-      p_start_date: `${startDate}T00:00:00`,
-      p_next_month: `${nextMonth}T00:00:00`,
+      p_start_date: `${startDate}T00:00:00Z`,
+      p_next_month: `${nextMonth}T00:00:00Z`,
       p_limit: validLimit,
       p_offset: validOffset
     });
@@ -1369,16 +1369,16 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     .select('id, price, paid, user_id, ordered_for')
     .or(`user_id.eq.${userId},ordered_for.eq.${userId}`)
     .is('deleted_at', null)
-    .gte('created_at', `${startDate}T00:00:00`)
-    .lt('created_at', `${nextMonth}T00:00:00`);
+    .gte('created_at', `${startDate}T00:00:00Z`)
+    .lt('created_at', `${nextMonth}T00:00:00Z`);
   
   // Get user's payments for the month - use proper date range
   const { data: payments, error: paymentsError } = await supabase
     .from('payments')
     .select('amount')
     .eq('user_id', userId)
-    .gte('created_at', `${startDate}T00:00:00`)
-    .lt('created_at', `${nextMonth}T00:00:00`);
+    .gte('created_at', `${startDate}T00:00:00Z`)
+    .lt('created_at', `${nextMonth}T00:00:00Z`);
   
   if (ordersError) {
     console.error(`❌ Orders error for user ${userId}:`, ordersError);
@@ -1615,11 +1615,11 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
 
     if (month) {
       // Proper date range: from start of month to start of next month
-      const startDate = `${month}-01T00:00:00`;
+      const startDate = `${month}-01T00:00:00Z`;
       const [year, monthNum] = month.split('-');
       const monthIndex = parseInt(monthNum) - 1;
       const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
-      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00`;
+      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01T00:00:00Z`;
       
       query = query.gte('created_at', startDate).lt('created_at', nextMonth);
     }
@@ -1825,8 +1825,8 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       .eq('user_id', userId)
       .eq('paid', false)
       .is('deleted_at', null)
-      .gte('created_at', `${startDate}T00:00:00`)
-      .lt('created_at', `${nextMonth}T00:00:00`)
+      .gte('created_at', `${startDate}T00:00:00Z`)
+      .lt('created_at', `${nextMonth}T00:00:00Z`)
       .order('created_at', { ascending: true });
     
     if (fetchError) {
