@@ -96,12 +96,12 @@ export const useAdminPayments = (month?: string) => {
       fetchUserPayments();
       fetchPaymentHistory();
       
-      // Use polling instead of SSE for more reliability
+      // Use polling with longer interval to reduce server load
       const pollInterval = setInterval(() => {
         console.log('🔄 Polling admin payments...');
         fetchUserPayments();
         fetchPaymentHistory();
-      }, 3000); // Poll every 3 seconds
+      }, 10000); // Poll every 10 seconds (reduced from 3 seconds)
 
       return () => {
         clearInterval(pollInterval);
