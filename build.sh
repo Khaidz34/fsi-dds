@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+echo "=== Force Clear Cache ==="
+rm -rf node_modules backend/node_modules .cache
+
 echo "=== Building Frontend ==="
 npm install
 npm run build
