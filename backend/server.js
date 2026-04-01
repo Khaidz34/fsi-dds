@@ -1271,7 +1271,69 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
 
   if (statsError) {
     console.error('❌ Error calling get_payment_stats RPC:', statsError);
-    throw statsError;
+    console.log('⚠️  Falling back to direct query (function may not be deployed)');
+    
+    // Fallback: Use direct query if function doesn't exist
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, fullname, username')
+      .eq('role', 'user')
+      .order('fullname')
+      .range(validOffset, validOffset + validLimit - 1);
+
+    if (usersError) {
+      console.error('❌ Fallback query failed:', usersError);
+      throw usersError;
+    }
+
+    // For each user, calculate stats
+    const userStats = await Promise.all(users.map(async (user) => {
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('id, price, paid')
+        .or(`user_id.eq.${user.id},ordered_for.eq.${user.id}`)
+        .gte('created_at', `${startDate}T00:00:00`)
+        .lt('created_at', `${nextMonth}T00:00:00`)
+        .is('deleted_at', null);
+
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('created_at', `${startDate}T00:00:00`)
+        .lt('created_at', `${nextMonth}T00:00:00`);
+
+      const ordersTotal = (orders || []).reduce((sum, o) => sum + (o.price || 0), 0);
+      const paidTotal = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const paidCount = (orders || []).filter(o => o.paid).length;
+      const remainingCount = (orders || []).filter(o => !o.paid).length;
+
+      return {
+        userId: user.id,
+        fullname: user.fullname,
+        username: user.username,
+        month,
+        ordersCount: orders?.length || 0,
+        ordersTotal,
+        paidCount,
+        paidTotal,
+        remainingCount,
+        remainingTotal: Math.max(0, ordersTotal - paidTotal),
+        overpaidTotal: Math.max(0, paidTotal - ordersTotal)
+      };
+    }));
+
+    const { count: totalCount } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'user');
+
+    return {
+      data: userStats,
+      total: totalCount || 0,
+      limit: validLimit,
+      offset: validOffset
+    };
   }
 
   // Get total count
