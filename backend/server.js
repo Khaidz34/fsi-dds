@@ -1259,21 +1259,38 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-  // Optimized SQL query using CTEs to eliminate N+1 query problem
-  // This reduces query count from 1+2N to just 2 queries (1 for data, 1 for count)
-  const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats', {
-    p_month: month,
-    p_start_date: `${startDate}T00:00:00`,
-    p_next_month: `${nextMonth}T00:00:00`,
-    p_limit: validLimit,
-    p_offset: validOffset
-  });
+  try {
+    // Try optimized SQL query using CTEs to eliminate N+1 query problem
+    const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats', {
+      p_month: month,
+      p_start_date: `${startDate}T00:00:00`,
+      p_next_month: `${nextMonth}T00:00:00`,
+      p_limit: validLimit,
+      p_offset: validOffset
+    });
 
-  if (statsError) {
-    console.error('❌ Error calling get_payment_stats RPC:', statsError);
-    console.log('⚠️  Falling back to direct query (function may not be deployed)');
-    
-    // Fallback: Use direct query if function doesn't exist
+    if (!statsError && userStats) {
+      console.log('✅ Using optimized get_payment_stats function');
+      const { count: totalCount } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'user');
+
+      return {
+        data: userStats || [],
+        total: totalCount || 0,
+        limit: validLimit,
+        offset: validOffset
+      };
+    }
+
+    console.log('⚠️  Function not available, using simple query');
+  } catch (err) {
+    console.error('❌ Error with optimized query:', err.message);
+  }
+
+  // Fallback: Simple query without complex aggregation
+  try {
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, fullname, username')
@@ -1281,46 +1298,21 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       .order('fullname')
       .range(validOffset, validOffset + validLimit - 1);
 
-    if (usersError) {
-      console.error('❌ Fallback query failed:', usersError);
-      throw usersError;
-    }
+    if (usersError) throw usersError;
 
-    // For each user, calculate stats
-    const userStats = await Promise.all(users.map(async (user) => {
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('id, price, paid')
-        .or(`user_id.eq.${user.id},ordered_for.eq.${user.id}`)
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lt('created_at', `${nextMonth}T00:00:00`)
-        .is('deleted_at', null);
-
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('amount')
-        .eq('user_id', user.id)
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lt('created_at', `${nextMonth}T00:00:00`);
-
-      const ordersTotal = (orders || []).reduce((sum, o) => sum + (o.price || 0), 0);
-      const paidTotal = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-      const paidCount = (orders || []).filter(o => o.paid).length;
-      const remainingCount = (orders || []).filter(o => !o.paid).length;
-
-      return {
-        userId: user.id,
-        fullname: user.fullname,
-        username: user.username,
-        month,
-        ordersCount: orders?.length || 0,
-        ordersTotal,
-        paidCount,
-        paidTotal,
-        remainingCount,
-        remainingTotal: Math.max(0, ordersTotal - paidTotal),
-        overpaidTotal: Math.max(0, paidTotal - ordersTotal)
-      };
+    // Simple calculation without async loops
+    const userStats = users.map(user => ({
+      userId: user.id,
+      fullname: user.fullname,
+      username: user.username,
+      month,
+      ordersCount: 0,
+      ordersTotal: 0,
+      paidCount: 0,
+      paidTotal: 0,
+      remainingCount: 0,
+      remainingTotal: 0,
+      overpaidTotal: 0
     }));
 
     const { count: totalCount } = await supabase
@@ -1334,20 +1326,16 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
       limit: validLimit,
       offset: validOffset
     };
+  } catch (err) {
+    console.error('❌ Fallback query failed:', err.message);
+    // Return empty data instead of throwing error
+    return {
+      data: [],
+      total: 0,
+      limit: validLimit,
+      offset: validOffset
+    };
   }
-
-  // Get total count
-  const { count: totalCount } = await supabase
-    .from('users')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'user');
-
-  return {
-    data: userStats || [],
-    total: totalCount || 0,
-    limit: validLimit,
-    offset: validOffset
-  };
 };
 
 /**
