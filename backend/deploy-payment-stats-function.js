@@ -23,7 +23,7 @@ async function deployFunction() {
   
   try {
     // Read the SQL file
-    const sqlPath = path.join(__dirname, '..', 'CREATE-PAYMENT-STATS-FUNCTION.sql');
+    const sqlPath = path.join(__dirname, '..', 'DROP-AND-CREATE-PAYMENT-STATS.sql');
     const sql = fs.readFileSync(sqlPath, 'utf8');
     
     console.log('📄 SQL file loaded successfully');
@@ -38,9 +38,9 @@ async function deployFunction() {
       console.log('\n📝 MANUAL DEPLOYMENT REQUIRED:\n');
       console.log('1. Open your Supabase Dashboard');
       console.log('2. Navigate to SQL Editor');
-      console.log('3. Copy the content from: CREATE-PAYMENT-STATS-FUNCTION.sql');
+      console.log('3. Copy the content from: DROP-AND-CREATE-PAYMENT-STATS.sql');
       console.log('4. Paste and run in SQL Editor');
-      console.log('5. Then run: node test-payment-stats-function.js\n');
+      console.log('5. Then run: node test-cumulative-debt-bug.js\n');
       process.exit(1);
     }
     
@@ -64,8 +64,8 @@ async function deployFunction() {
     console.log(`✅ Function test successful! Returned ${testData?.length || 0} results`);
     console.log('\n🎉 Deployment complete!\n');
     console.log('Next steps:');
-    console.log('1. Run: node test-n-plus-one-bug.js (should now PASS)');
-    console.log('2. Run: node test-n-plus-one-preservation.js (should still PASS)\n');
+    console.log('1. Run: node test-cumulative-debt-bug.js (should now PASS)');
+    console.log('2. Run: node test-cumulative-debt-preservation.js (should still PASS)\n');
     
     process.exit(0);
     
@@ -74,9 +74,9 @@ async function deployFunction() {
     console.log('\n📝 MANUAL DEPLOYMENT REQUIRED:\n');
     console.log('1. Open your Supabase Dashboard');
     console.log('2. Navigate to SQL Editor');
-    console.log('3. Copy the content from: CREATE-PAYMENT-STATS-FUNCTION.sql');
+    console.log('3. Copy the content from: DROP-AND-CREATE-PAYMENT-STATS.sql');
     console.log('4. Paste and run in SQL Editor');
-    console.log('5. Then run: node test-payment-stats-function.js\n');
+    console.log('5. Then run: node test-cumulative-debt-bug.js\n');
     process.exit(1);
   }
 }

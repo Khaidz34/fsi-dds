@@ -1350,18 +1350,15 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     return cached;
   }
 
-  const startDate = `${month}-01`;
-  // Get last day of month - JavaScript months are 0-indexed
+  // Calculate next month for upper bound filter
   const [year, monthNum] = month.split('-');
   const monthIndex = parseInt(monthNum) - 1; // Convert 1-indexed to 0-indexed
-  const lastDay = new Date(parseInt(year), monthIndex + 1, 0).getDate();
-  
-  console.log(`💰 User payment stats: userId=${userId}, month=${month}, year=${year}, monthNum=${monthNum}, monthIndex=${monthIndex}, lastDay=${lastDay}`);
-  
-  // Get user's orders for the month - use proper date range
   const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
   
+  console.log(`💰 User payment stats: userId=${userId}, month=${month}, calculating cumulative debt up to ${nextMonth}`);
+  
+  // Get user's cumulative orders (from all time up to selected month)
   // FIX: Use OR filter to include orders placed BY user AND orders placed FOR user
   console.log(`🔍 Querying orders with OR filter: user_id.eq.${userId},ordered_for.eq.${userId}`);
   const { data: orders, error: ordersError } = await supabase
@@ -1369,15 +1366,13 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     .select('id, price, paid, user_id, ordered_for')
     .or(`user_id.eq.${userId},ordered_for.eq.${userId}`)
     .is('deleted_at', null)
-    .gte('created_at', `${startDate}T00:00:00Z`)
     .lt('created_at', `${nextMonth}T00:00:00Z`);
   
-  // Get user's payments for the month - use proper date range
+  // Get user's cumulative payments (from all time up to selected month)
   const { data: payments, error: paymentsError } = await supabase
     .from('payments')
     .select('amount')
     .eq('user_id', userId)
-    .gte('created_at', `${startDate}T00:00:00Z`)
     .lt('created_at', `${nextMonth}T00:00:00Z`);
   
   if (ordersError) {

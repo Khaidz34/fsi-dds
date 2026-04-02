@@ -1,6 +1,7 @@
--- PostgreSQL function to calculate payment stats with optimized query
--- This eliminates the N+1 query problem by using CTEs and JOINs
+-- Step 1: Drop the old function with wrong return type
+DROP FUNCTION IF EXISTS get_payment_stats(text, timestamp without time zone, timestamp without time zone, integer, integer);
 
+-- Step 2: Create the corrected function with INTEGER userId (not UUID)
 CREATE OR REPLACE FUNCTION get_payment_stats(
   p_month TEXT,
   p_start_date TIMESTAMP,
@@ -22,7 +23,7 @@ RETURNS TABLE (
   "overpaidTotal" NUMERIC
 )
 LANGUAGE plpgsql
-AS $$$
+AS $$
 BEGIN
   RETURN QUERY
   WITH user_orders AS (
