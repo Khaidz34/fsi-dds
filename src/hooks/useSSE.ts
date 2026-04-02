@@ -66,6 +66,12 @@ export function useSSE(
     return delay;
   }, []);
 
+  // Store callbacks in refs to avoid recreating connect function
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
   const connect = useCallback(() => {
     // Don't connect if already connecting or no user/token
     if (!userId || !token || isReconnectingRef.current) {
@@ -103,18 +109,18 @@ export function useSSE(
           // Route to appropriate handler
           switch (data.type) {
             case 'order_created':
-              if (options.onOrderCreated) {
-                options.onOrderCreated(data);
+              if (optionsRef.current.onOrderCreated) {
+                optionsRef.current.onOrderCreated(data);
               }
               break;
             case 'order_deleted':
-              if (options.onOrderDeleted) {
-                options.onOrderDeleted(data);
+              if (optionsRef.current.onOrderDeleted) {
+                optionsRef.current.onOrderDeleted(data);
               }
               break;
             case 'payment_marked':
-              if (options.onPaymentMarked) {
-                options.onPaymentMarked(data);
+              if (optionsRef.current.onPaymentMarked) {
+                optionsRef.current.onPaymentMarked(data);
               }
               break;
             default:
@@ -133,8 +139,8 @@ export function useSSE(
         setError(errorObj);
         setIsConnected(false);
 
-        if (options.onError) {
-          options.onError(errorObj);
+        if (optionsRef.current.onError) {
+          optionsRef.current.onError(errorObj);
         }
 
         // Close the connection
@@ -165,11 +171,11 @@ export function useSSE(
       setError(errorObj);
       setIsConnected(false);
       
-      if (options.onError) {
-        options.onError(errorObj);
+      if (optionsRef.current.onError) {
+        optionsRef.current.onError(errorObj);
       }
     }
-  }, [userId, token, options, calculateBackoffDelay]);
+  }, [userId, token, calculateBackoffDelay]);
 
   const reconnect = useCallback(() => {
     console.log('🔄 Manual reconnection requested');
@@ -201,7 +207,7 @@ export function useSSE(
       setIsConnected(false);
       isReconnectingRef.current = false;
     };
-  }, [userId, token, connect]);
+  }, [userId, token]); // Removed 'connect' from dependencies to prevent loop
 
   return {
     isConnected,
