@@ -489,6 +489,48 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
   res.json(userWithoutPassword);
 });
 
+// Reset password endpoint
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { username, newPassword } = req.body;
+
+    if (!username || !newPassword) {
+      return res.status(400).json({ error: 'Username và mật khẩu mới là bắt buộc' });
+    }
+
+    // Check if user exists
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (fetchError || !user) {
+      return res.status(404).json({ error: 'Tài khoản không tồn tại' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Reset password error:', updateError);
+      return res.status(500).json({ error: 'Lỗi cập nhật mật khẩu' });
+    }
+
+    res.json({ message: 'Mật khẩu đã được cập nhật thành công' });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // Test endpoint without database
 app.get('/api/test', (req, res) => {
   res.json({
