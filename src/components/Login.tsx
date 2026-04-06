@@ -478,14 +478,14 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
             }`}>
               FSI DDS
             </h1>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="h-px w-12 bg-gradient-to-r from-transparent via-app-accent to-transparent" />
-              <p className="text-xs text-app-accent font-bold tracking-[0.3em] uppercase">
+            <div className="flex items-center gap-3 mb-1 justify-center">
+              <div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent via-app-accent to-transparent" />
+              <p className="text-xs text-app-accent font-bold tracking-[0.2em] sm:tracking-[0.3em] uppercase whitespace-nowrap">
                 {currentLang === 'vi' ? 'Digital Data Solutions' : 
                  currentLang === 'en' ? 'Digital Data Solutions' : 
                  'デジタルデータソリューション'}
               </p>
-              <div className="h-px w-12 bg-gradient-to-r from-transparent via-app-accent to-transparent" />
+              <div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent via-app-accent to-transparent" />
             </div>
             <p className="text-[10px] text-app-ink/50 font-medium">
               {currentLang === 'vi' ? 'Hệ Thống Đặt Cơm Nội Bộ' : 
