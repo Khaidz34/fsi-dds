@@ -999,11 +999,27 @@ export default function App() {
       return;
     }
 
+    // Filter orders for today only
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayOrders = orders.filter(order => {
+      const orderDate = new Date(order.created_at);
+      orderDate.setHours(0, 0, 0, 0);
+      return orderDate.getTime() === today.getTime();
+    });
+
+    if (todayOrders.length === 0) {
+      alert('Không có đơn hàng nào hôm nay để xuất');
+      return;
+    }
+
     // Debug log
-    console.log('📋 Export menu - Orders data:');
-    orders.forEach((order, idx) => {
+    console.log('📋 Export menu - Today\'s Orders data:');
+    todayOrders.forEach((order, idx) => {
       console.log(`Order ${idx + 1}:`, {
         id: order.id,
+        date: order.created_at,
         receiver: order.receiver?.fullname,
         dish1: order.dish1 ? { name: order.dish1.name, sort_order: order.dish1.sort_order } : null,
         dish2: order.dish2 ? { name: order.dish2.name, sort_order: order.dish2.sort_order } : null,
@@ -1024,7 +1040,7 @@ export default function App() {
     // Create export format: Number. Name 1+2 (Notes)
     const exportLines: string[] = [];
 
-    orders.forEach((order, index) => {
+    todayOrders.forEach((order, index) => {
       const userName = order.receiver?.fullname || 'N/A';
       
       // Get dish positions (sort_order) and add 1 to get menu number
