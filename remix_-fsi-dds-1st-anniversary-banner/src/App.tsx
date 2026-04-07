@@ -121,55 +121,7 @@ export default function App() {
                 <div className="flex items-center gap-2 md:gap-4 justify-self-start">
                   {/* High-fidelity SVG recreation of the new logo */}
                   <div className="relative w-12 h-12 md:w-20 md:h-20 lg:w-24 lg:h-24">
-                    <svg viewBox="0 0 120 100" className="w-full h-full drop-shadow-[0_8px_16px_rgba(0,0,0,0.4)]">
-                      <defs>
-                        <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#00f2fe" />
-                          <stop offset="50%" stopColor="#008080" />
-                          <stop offset="100%" stopColor="#004d4d" />
-                        </linearGradient>
-                        <filter id="logoGlow">
-                          <feGaussianBlur stdDeviation="2" result="blur" />
-                          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                        </filter>
-                      </defs>
-                      <g transform="translate(60, 50) rotate(-15)">
-                        {/* Anniversary Glow */}
-                        {isAnniversary && (
-                          <motion.circle 
-                            r="45" 
-                            fill="#00f2fe" 
-                            className="opacity-20"
-                            initial={{ scale: 0.8 }}
-                            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
-                            transition={{ duration: 3, repeat: Infinity }}
-                          />
-                        )}
-                        {/* Left Loop */}
-                        <path 
-                          d="M -5 -35 C -45 -35, -55 -10, -55 0 C -55 10, -45 35, -5 35 C -20 25, -25 10, -25 0 C -25 -10, -20 -25, -5 -35 Z" 
-                          fill="url(#tealGrad)"
-                          filter="url(#logoGlow)"
-                        />
-                        {/* Right Loop */}
-                        <path 
-                          d="M 5 -35 C 45 -35, 55 -10, 55 0 C 55 10, 45 35, 5 35 C 20 25, 25 10, 25 0 C 25 -10, 20 -25, 5 -35 Z" 
-                          fill="url(#tealGrad)"
-                          filter="url(#logoGlow)"
-                        />
-                        {/* Inner highlights for 3D effect */}
-                        <path 
-                          d="M -5 -30 C -35 -30, -45 -10, -45 0 C -45 10, -35 30, -5 30 C -15 20, -20 10, -20 0 C -20 -10, -15 -20, -5 -30 Z" 
-                          fill="white" 
-                          className="opacity-10"
-                        />
-                        <path 
-                          d="M 5 -30 C 35 -30, 45 -10, 45 0 C 45 10, 35 30, 5 30 C 15 20, 20 10, 20 0 C 20 -10, 15 -20, 5 -30 Z" 
-                          fill="white" 
-                          className="opacity-10"
-                        />
-                      </g>
-                    </svg>
+                 
                   </div>
                   
                   <div className="flex flex-col">
