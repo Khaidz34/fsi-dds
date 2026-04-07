@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface AnniversaryBannerProps {
   onClose?: () => void;
@@ -186,7 +186,6 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             {/* Center: Anniversary Message */}
             <div className="text-center space-y-1 md:space-y-2 relative z-10 justify-self-center">
               <div className="flex items-center justify-center gap-2 text-teal-100 text-[7px] md:text-[10px] lg:text-xs font-bold uppercase tracking-[0.4em] drop-shadow-sm">
-                <Sparkles className="w-3 h-3 md:w-4 h-4" />
                 Kỷ niệm 1 năm thành lập
               </div>
               
@@ -195,7 +194,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 <span className="text-teal-200 uppercase tracking-widest flex items-center justify-center gap-1 md:gap-2">
                   NHẬT 
                   <span className="relative inline-block">
-                    <span className="text-white italic font-serif text-xl md:text-3xl lg:text-5xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">1</span>
+                    <span className="text-white italic font-serif text-4xl md:text-6xl lg:text-8xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">1</span>
                     <span className="absolute -inset-1 bg-teal-400/20 blur-xl rounded-full -z-10"></span>
                   </span>
                   TUỔI
