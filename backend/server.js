@@ -2267,8 +2267,8 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
       });
     }
 
-    // Update database
-    const { data: updated, error } = await supabase
+    // Try to update first
+    let { data: updated, error } = await supabase
       .from('banner_settings')
       .update({
         banner_type: bannerType,
@@ -2279,9 +2279,31 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
       .select()
       .single();
 
-    if (error) {
+    // If table doesn't exist or no record, try to insert
+    if (error || !updated) {
+      console.log('Creating banner_settings record...');
+      const { data: inserted, error: insertError } = await supabase
+        .from('banner_settings')
+        .insert({
+          id: 1,
+          banner_type: bannerType,
+          updated_at: new Date().toISOString(),
+          updated_by: req.user.id
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Database error creating banner settings:', insertError);
+        return res.status(500).json({ error: 'Database error', details: insertError.message });
+      }
+
+      updated = inserted;
+    }
+
+    if (error && !updated) {
       console.error('Database error updating banner settings:', error);
-      return res.status(500).json({ error: 'Database error' });
+      return res.status(500).json({ error: 'Database error', details: error.message });
     }
 
     // Invalidate cache immediately
@@ -2302,7 +2324,7 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error updating banner settings:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
