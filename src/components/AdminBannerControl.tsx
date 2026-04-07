@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { useAdminBannerControl } from '../hooks/useAdminBannerControl';
 
 interface AdminBannerControlProps {
-  user?: { role: string };
+  user?: { role?: string; id?: number; username?: string };
 }
 
 export const AdminBannerControl: React.FC<AdminBannerControlProps> = ({ user }) => {
@@ -16,7 +16,11 @@ export const AdminBannerControl: React.FC<AdminBannerControlProps> = ({ user }) 
 
   // Only show for admin users
   if (!user || user.role !== 'admin') {
-    return null;
+    return (
+      <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
+        <p className="text-sm text-yellow-800">⚠️ Bạn không có quyền quản lý banner</p>
+      </div>
+    );
   }
 
   const handleBannerChange = async (type: 'game' | 'anniversary') => {
