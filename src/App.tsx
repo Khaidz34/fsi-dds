@@ -657,6 +657,9 @@ export default function App() {
   // Game state
   const [showFusionSliceGame, setShowFusionSliceGame] = useState(false);
 
+  // Banner visibility state
+  const [showBanner, setShowBanner] = useState(true);
+
   // Edit order state
   const [showEditOrderModal, setShowEditOrderModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
@@ -1667,9 +1670,11 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Banner Display */}
-                <div className="w-full">
-                  <BannerDisplay />
-                </div>
+                {showBanner && (
+                  <div className="w-full">
+                    <BannerDisplay onClose={() => setShowBanner(false)} />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Chart Section */}

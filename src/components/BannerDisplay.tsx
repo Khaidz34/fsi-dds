@@ -1,7 +1,7 @@
 import React from 'react';
 import { useBannerSettings } from '../hooks/useBannerSettings';
 import { AnniversaryBanner } from './AnniversaryBanner';
-import { FusionSliceGame } from './FusionSliceGame';
+import { GameBannerPreview } from './GameBannerPreview';
 
 interface BannerDisplayProps {
   onClose?: () => void;
@@ -22,8 +22,8 @@ export const BannerDisplay: React.FC<BannerDisplayProps> = ({ onClose }) => {
   }
 
   if (error) {
-    console.warn('Banner display error, showing game banner:', error);
-    return <FusionSliceGame />;
+    console.warn('Banner display error, showing game banner preview:', error);
+    return <GameBannerPreview onClose={onClose} />;
   }
 
   try {
@@ -32,10 +32,10 @@ export const BannerDisplay: React.FC<BannerDisplayProps> = ({ onClose }) => {
         return <AnniversaryBanner onClose={onClose} />;
       case 'game':
       default:
-        return <FusionSliceGame />;
+        return null;
     }
   } catch (err) {
     console.error('Banner render error:', err);
-    return <FusionSliceGame />;
+    return null;
   }
 };

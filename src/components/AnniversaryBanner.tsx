@@ -213,14 +213,6 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             </div>
           </div>
 
-          {/* Anniversary Badge */}
-          <div className="absolute -bottom-4 -left-4 w-20 h-20 md:w-28 md:h-28 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-teal-500 -rotate-12 hidden md:flex">
-            <div className="text-center">
-              <div className="text-teal-600 font-black text-2xl md:text-3xl leading-none">1st</div>
-              <div className="text-teal-800 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter">Year</div>
-            </div>
-          </div>
-
           {/* Close button (if onClose provided) */}
           {onClose && (
             <button
