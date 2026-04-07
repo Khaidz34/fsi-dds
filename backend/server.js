@@ -2226,15 +2226,15 @@ app.get('/api/banner/settings', async (req, res) => {
       return res.json(fallback);
     }
 
-    // Format response
+    // Format response - create new object to avoid frozen object issues
     const response = {
-      bannerType: settings.banner_type,
-      updatedAt: settings.updated_at,
-      updatedBy: settings.updated_by
+      bannerType: settings.banner_type || 'game',
+      updatedAt: settings.updated_at || new Date().toISOString(),
+      updatedBy: settings.updated_by || null
     };
 
-    // Update cache
-    bannerCache.data = response;
+    // Update cache with new object
+    bannerCache.data = { ...response };
     bannerCache.timestamp = Date.now();
 
     res.json(response);
@@ -2310,14 +2310,14 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
     // Log the change
     console.log(`✅ Banner updated to "${bannerType}"`);
 
-    // Format response
-    const response = {
+    // Format response - create new object
+    const responseData = {
       success: true,
-      bannerType: record.banner_type,
-      updatedAt: record.updated_at
+      bannerType: record.banner_type || bannerType,
+      updatedAt: record.updated_at || new Date().toISOString()
     };
 
-    res.json(response);
+    res.json(responseData);
   } catch (error) {
     console.error('Error updating banner settings:', error);
     res.status(500).json({ error: 'Server error', details: error.message });
