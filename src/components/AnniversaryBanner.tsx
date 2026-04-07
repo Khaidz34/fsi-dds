@@ -7,14 +7,17 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 
 // Try to import motion, fallback to simple div if not available
-let motion: any = { div: 'div' };
+let motion: any = null;
 try {
   const framerMotion = require('framer-motion');
   motion = framerMotion.motion;
 } catch (e) {
-  // Fallback: create simple motion-like object
+  // Fallback: create simple motion-like object with React components
   motion = {
-    div: React.forwardRef((props: any, ref: any) => <div ref={ref} {...props} />),
+    div: React.forwardRef((props: any, ref: any) => {
+      const { initial, animate, transition, ...rest } = props;
+      return <div ref={ref} {...rest} />;
+    }),
   };
 }
 
@@ -161,7 +164,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                   </defs>
                   <g transform="translate(60, 50) rotate(-15)">
                     {/* Anniversary Glow */}
-                    {isAnniversary && (
+                    {isAnniversary && motion.circle ? (
                       <motion.circle 
                         r="45" 
                         fill="#00f2fe" 
@@ -170,7 +173,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                         animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
                         transition={{ duration: 3, repeat: Infinity }}
                       />
-                    )}
+                    ) : null}
                     {/* Left Loop */}
                     <path 
                       d="M -5 -35 C -45 -35, -55 -10, -55 0 C -55 10, -45 35, -5 35 C -20 25, -25 10, -25 0 C -25 -10, -20 -25, -5 -35 Z" 
