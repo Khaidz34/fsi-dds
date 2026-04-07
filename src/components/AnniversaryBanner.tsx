@@ -131,7 +131,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
               {/* FSI DDS Logo */}
               <div className="relative w-12 h-12 md:w-20 md:h-20 lg:w-24 lg:h-24">
                 <img 
-                  src="/fsi-dds-logo.png" 
+                  src="/logo.svg" 
                   alt="FSI DDS Logo" 
                   className="w-full h-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.4)]"
                 />
