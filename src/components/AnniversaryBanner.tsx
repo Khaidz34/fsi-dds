@@ -129,11 +129,12 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             {/* Left: Company Branding */}
             <div className="flex items-center gap-2 md:gap-4 justify-self-start">
               {/* FSI DDS Logo */}
-              <div className="relative w-12 h-12 md:w-20 md:h-20 lg:w-24 lg:h-24">
+              <div className="relative w-16 h-12 md:w-28 md:h-20 lg:w-32 lg:h-24 flex-shrink-0">
                 <img 
                   src="/logo.svg" 
                   alt="FSI DDS Logo" 
                   className="w-full h-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.4)]"
+                  style={{ imageRendering: 'crisp-edges' }}
                 />
               </div>
               
