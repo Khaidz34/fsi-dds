@@ -2269,46 +2269,21 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
 
     // Try to update first
     console.log(`Attempting to update banner_settings to "${bannerType}"...`);
+    
+    // Direct update without RLS
     let { data: updated, error } = await supabase
       .from('banner_settings')
       .update({
         banner_type: bannerType,
-        updated_at: new Date().toISOString(),
-        updated_by: null
+        updated_at: new Date().toISOString()
       })
       .eq('id', 1)
       .select();
 
     console.log('Update response:', { updated, error });
 
-    // If update failed or returned no data, try insert
-    if (error || !updated || updated.length === 0) {
-      console.log('Update failed or no data returned. Attempting insert...');
-      const { data: inserted, error: insertError } = await supabase
-        .from('banner_settings')
-        .insert({
-          id: 1,
-          banner_type: bannerType,
-          updated_at: new Date().toISOString(),
-          updated_by: null
-        })
-        .select();
-
-      console.log('Insert response:', { inserted, insertError });
-
-      if (insertError) {
-        console.error('Database error creating banner settings:', insertError);
-        return res.status(500).json({ 
-          error: 'Database error', 
-          details: insertError.message,
-          code: insertError.code 
-        });
-      }
-
-      updated = inserted;
-    }
-
-    if (error && (!updated || updated.length === 0)) {
+    // If update failed, log error and return
+    if (error) {
       console.error('Database error updating banner settings:', error);
       return res.status(500).json({ 
         error: 'Database error', 
@@ -2320,19 +2295,26 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
     // Get the first record if it's an array
     const record = Array.isArray(updated) ? updated[0] : updated;
 
+    if (!record) {
+      console.error('No record returned after update');
+      return res.status(500).json({ 
+        error: 'Database error', 
+        details: 'No record returned after update'
+      });
+    }
+
     // Invalidate cache immediately
     bannerCache.data = null;
     bannerCache.timestamp = 0;
 
     // Log the change
-    console.log(`✅ Banner updated to "${bannerType}" by user ${req.user.id} (${req.user.username})`);
+    console.log(`✅ Banner updated to "${bannerType}"`);
 
     // Format response
     const response = {
       success: true,
       bannerType: record.banner_type,
-      updatedAt: record.updated_at,
-      updatedBy: record.updated_by
+      updatedAt: record.updated_at
     };
 
     res.json(response);
