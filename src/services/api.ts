@@ -266,3 +266,24 @@ export const adminAPI = {
       method: 'POST'
     })
 };
+
+// Banner API
+export const bannerAPI = {
+  getSettings: () =>
+    apiCall<{
+      bannerType: 'game' | 'anniversary';
+      updatedAt: string;
+      updatedBy: number | null;
+    }>('/banner/settings'),
+
+  updateSettings: (bannerType: 'game' | 'anniversary') =>
+    apiCall<{
+      success: boolean;
+      bannerType: 'game' | 'anniversary';
+      updatedAt: string;
+      updatedBy: number;
+    }>('/banner/settings', {
+      method: 'POST',
+      body: JSON.stringify({ bannerType })
+    })
+};

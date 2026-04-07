@@ -2188,6 +2188,124 @@ app.delete('/api/dishes/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// =====================================================
+// Banner Management Routes
+// =====================================================
+
+// Banner settings cache
+const bannerCache = {
+  data: null,
+  timestamp: 0,
+  ttl: 60000 // 60 seconds
+};
+
+// GET /api/banner/settings - Get current banner configuration (public endpoint)
+app.get('/api/banner/settings', async (req, res) => {
+  try {
+    // Check cache first
+    if (bannerCache.data && Date.now() - bannerCache.timestamp < bannerCache.ttl) {
+      console.log('📦 Returning cached banner settings');
+      return res.json(bannerCache.data);
+    }
+
+    // Query database
+    const { data: settings, error } = await supabase
+      .from('banner_settings')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      console.error('Database error fetching banner settings:', error);
+      // Fallback to default game banner
+      const fallback = {
+        bannerType: 'game',
+        updatedAt: new Date().toISOString(),
+        updatedBy: null
+      };
+      return res.json(fallback);
+    }
+
+    // Format response
+    const response = {
+      bannerType: settings.banner_type,
+      updatedAt: settings.updated_at,
+      updatedBy: settings.updated_by
+    };
+
+    // Update cache
+    bannerCache.data = response;
+    bannerCache.timestamp = Date.now();
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching banner settings:', error);
+    // Fallback to default game banner
+    res.json({
+      bannerType: 'game',
+      updatedAt: new Date().toISOString(),
+      updatedBy: null
+    });
+  }
+});
+
+// POST /api/banner/settings - Update banner configuration (admin only)
+app.post('/api/banner/settings', authenticateToken, async (req, res) => {
+  try {
+    // Check admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { bannerType } = req.body;
+
+    // Validate banner type
+    if (!bannerType || !['game', 'anniversary'].includes(bannerType)) {
+      return res.status(400).json({
+        error: 'Invalid banner type',
+        message: 'Banner type must be "game" or "anniversary"'
+      });
+    }
+
+    // Update database
+    const { data: updated, error } = await supabase
+      .from('banner_settings')
+      .update({
+        banner_type: bannerType,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user.id
+      })
+      .eq('id', 1)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error updating banner settings:', error);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Invalidate cache immediately
+    bannerCache.data = null;
+    bannerCache.timestamp = 0;
+
+    // Log the change
+    console.log(`✅ Banner updated to "${bannerType}" by user ${req.user.id} (${req.user.username})`);
+
+    // Format response
+    const response = {
+      success: true,
+      bannerType: updated.banner_type,
+      updatedAt: updated.updated_at,
+      updatedBy: updated.updated_by
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error updating banner settings:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Admin cleanup markdown
 app.post('/api/admin/cleanup-markdown', authenticateToken, async (req, res) => {
   try {

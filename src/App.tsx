@@ -64,6 +64,8 @@ import { useFeedback } from './hooks/useFeedback';
 import { useNotifications } from './hooks/useNotifications';
 import { Login } from './components/Login';
 import { FusionSliceGame } from './components/FusionSliceGame';
+import { BannerDisplay } from './components/BannerDisplay';
+import { AdminBannerControl } from './components/AdminBannerControl';
 import PaymentDashboard from './components/PaymentDashboard';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI } from './services/api';
@@ -1664,7 +1666,10 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-
+                {/* Banner Display */}
+                <div className="w-full">
+                  <BannerDisplay />
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Chart Section */}
@@ -1743,6 +1748,9 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
+                {/* Banner Management Control */}
+                <AdminBannerControl user={user} />
+
                 {/* Admin Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <StatCard 
