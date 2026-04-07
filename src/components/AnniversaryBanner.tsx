@@ -203,7 +203,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
               </h1>
               
               <p className="text-teal-50 text-[6px] md:text-[9px] lg:text-xs font-semibold opacity-80 tracking-[0.1em]">
-                Khôi phục niềm tin - Bảo vệ tương lai
+                MÔT NĂM DỰNG NỀN - VỮNG BỀN PHÁT TRIỂN
               </p>
             </div>
 
