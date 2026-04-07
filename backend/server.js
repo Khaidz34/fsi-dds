@@ -2273,7 +2273,7 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
       .update({
         banner_type: bannerType,
         updated_at: new Date().toISOString(),
-        updated_by: req.user.id
+        updated_by: null
       })
       .eq('id', 1)
       .select()
@@ -2288,7 +2288,7 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
           id: 1,
           banner_type: bannerType,
           updated_at: new Date().toISOString(),
-          updated_by: req.user.id
+          updated_by: null
         })
         .select()
         .single();
