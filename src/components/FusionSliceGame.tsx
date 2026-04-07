@@ -14,7 +14,6 @@ import {
   Flame,
   Home
 } from 'lucide-react';
-import { AnimatePresence } from '../framer-motion-mock';
 
 // --- Types ---
 interface Sliceable {
@@ -436,7 +435,7 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
   }, [score, highScore]);
 
   return (
-    <div className="fixed inset-0 bg-slate-950 z-[100] flex flex-col">
+    <div className="relative aspect-[4/1] w-full bg-slate-950 flex flex-col overflow-hidden rounded-2xl border border-slate-700 shadow-lg">
       {/* Header with close button */}
       <div className="flex items-center justify-between p-4 bg-black/20 backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center gap-3">
@@ -479,13 +478,7 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
             </div>
             <div className="flex gap-1.5 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
               {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  animate={{ 
-                    scale: i < lives ? [1, 1.2, 1] : 0.8,
-                    opacity: i < lives ? 1 : 0.2
-                  }}
-                >
+                <div key={i}>
                   <Heart className={i < lives ? "text-red-500 fill-current" : "text-slate-600"} size={20} />
                 </div>
               ))}
@@ -495,74 +488,62 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
         </div>
 
         {/* Game Screens */}
-        <AnimatePresence>
-          {gameState === 'START' && (
-            <div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-800 via-purple-800 to-rose-800 p-8 text-center"
-            >
-              <div 
-                initial={{ y: 50 }} animate={{ y: 0 }}
-                className="mb-12 relative z-10"
-              >
-                <h1 className="text-6xl font-black text-white tracking-tighter leading-none">
-                  FUSION<br/>
-                  <span className="text-orange-500 text-7xl">SLICE</span>
-                </h1>
-                <p className="text-slate-400 font-bold tracking-[0.3em] uppercase text-[10px] mt-4">Viet-Nippon Blade</p>
-              </div>
-
-              <button
-                onClick={resetGame}
-                className="group relative bg-white text-black px-12 py-6 rounded-full font-black text-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 overflow-hidden z-10"
-              >
-                <span className="relative z-10 flex items-center gap-3">
-                  <Play fill="currentColor" size={32} />
-                  PLAY NOW
-                </span>
-              </button>
+        {gameState === 'START' && (
+          <div 
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-800 via-purple-800 to-rose-800 p-8 text-center"
+          >
+            <div className="mb-12 relative z-10">
+              <h1 className="text-6xl font-black text-white tracking-tighter leading-none">
+                FUSION<br/>
+                <span className="text-orange-500 text-7xl">SLICE</span>
+              </h1>
+              <p className="text-slate-400 font-bold tracking-[0.3em] uppercase text-[10px] mt-4">Viet-Nippon Blade</p>
             </div>
-          )}
 
-          {gameState === 'GAMEOVER' && (
-            <div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-rose-900/95 backdrop-blur-md p-8 text-center text-white"
+            <button
+              onClick={resetGame}
+              className="group relative bg-white text-black px-12 py-6 rounded-full font-black text-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 overflow-hidden z-10"
             >
-              <h2 className="text-5xl font-black mb-8 tracking-tighter italic uppercase">Blade Broken</h2>
-              
-              <div className="bg-white/10 backdrop-blur-xl p-10 rounded-[3rem] mb-10 border-2 border-white/20 w-full max-w-md shadow-2xl">
-                <p className="text-red-300 text-[10px] font-black uppercase tracking-widest mb-2">Final Score</p>
-                <p className="text-7xl font-black">{score}</p>
-                <p className="text-red-400 text-[10px] mt-4 font-bold">Best: {highScore}</p>
-              </div>
+              <span className="relative z-10 flex items-center gap-3">
+                <Play fill="currentColor" size={32} />
+                PLAY NOW
+              </span>
+            </button>
+          </div>
+        )}
 
-              <button
-                onClick={resetGame}
-                className="bg-white text-red-950 px-12 py-6 rounded-full font-black text-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-4"
-              >
-                <RotateCcw size={32} />
-                RETRY
-              </button>
+        {gameState === 'GAMEOVER' && (
+          <div 
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-rose-900/95 backdrop-blur-md p-8 text-center text-white"
+          >
+            <h2 className="text-5xl font-black mb-8 tracking-tighter italic uppercase">Blade Broken</h2>
+            
+            <div className="bg-white/10 backdrop-blur-xl p-10 rounded-[3rem] mb-10 border-2 border-white/20 w-full max-w-md shadow-2xl">
+              <p className="text-red-300 text-[10px] font-black uppercase tracking-widest mb-2">Final Score</p>
+              <p className="text-7xl font-black">{score}</p>
+              <p className="text-red-400 text-[10px] mt-4 font-bold">Best: {highScore}</p>
             </div>
-          )}
-        </AnimatePresence>
+
+            <button
+              onClick={resetGame}
+              className="bg-white text-red-950 px-12 py-6 rounded-full font-black text-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-4"
+            >
+              <RotateCcw size={32} />
+              RETRY
+            </button>
+          </div>
+        )}
 
         {/* BOOM Feedback */}
-        <AnimatePresence>
-          {showBoom && (
-            <div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: [0, 1.5, 1], rotate: 0 }}
-              exit={{ scale: 0, opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
-            >
-              <span className="text-7xl font-black text-orange-500 drop-shadow-[0_0_30px_rgba(255,69,0,0.8)] italic">
-                BOOM!
-              </span>
-            </div>
-          )}
-        </AnimatePresence>
+        {showBoom && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
+          >
+            <span className="text-7xl font-black text-orange-500 drop-shadow-[0_0_30px_rgba(255,69,0,0.8)] italic">
+              BOOM!
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
