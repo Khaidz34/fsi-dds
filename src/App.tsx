@@ -62,6 +62,7 @@ import { useUsers } from './hooks/useUsers';
 import { useAdminPayments } from './hooks/useAdminPayments';
 import { useFeedback } from './hooks/useFeedback';
 import { useNotifications } from './hooks/useNotifications';
+import { useBannerSettings } from './hooks/useBannerSettings';
 import { Login } from './components/Login';
 import { FusionSliceGame } from './components/FusionSliceGame';
 import { BannerDisplay } from './components/BannerDisplay';
@@ -605,6 +606,9 @@ export default function App() {
     currentLang,
     handleNotificationClick
   );
+
+  // Banner settings
+  const { bannerType } = useBannerSettings();
   
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
@@ -713,6 +717,11 @@ export default function App() {
   useEffect(() => {
     document.documentElement.className = theme === 'corporate' ? 'theme-corporate' : '';
   }, [theme]);
+
+  // Reset banner visibility when banner type changes
+  useEffect(() => {
+    setShowBanner(true);
+  }, [bannerType]);
 
   useEffect(() => {
     // Simulate loading
