@@ -4,8 +4,19 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { Sparkles, Loader2 } from 'lucide-react';
+
+// Try to import motion, fallback to simple div if not available
+let motion: any = { div: 'div' };
+try {
+  const framerMotion = require('framer-motion');
+  motion = framerMotion.motion;
+} catch (e) {
+  // Fallback: create simple motion-like object
+  motion = {
+    div: React.forwardRef((props: any, ref: any) => <div ref={ref} {...props} />),
+  };
+}
 
 interface AnniversaryBannerProps {
   onClose?: () => void;
@@ -49,7 +60,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
       setIsLoading(true);
       
       // Check if Gemini API key is configured
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
       if (!apiKey) {
         console.warn('Gemini API key not configured, using gradient fallback');
         setIsLoading(false);
