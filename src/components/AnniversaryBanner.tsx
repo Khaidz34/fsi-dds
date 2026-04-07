@@ -6,21 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 
-// Try to import motion, fallback to simple div if not available
-let motion: any = null;
-try {
-  const framerMotion = require('framer-motion');
-  motion = framerMotion.motion;
-} catch (e) {
-  // Fallback: create simple motion-like object with React components
-  motion = {
-    div: React.forwardRef((props: any, ref: any) => {
-      const { initial, animate, transition, ...rest } = props;
-      return <div ref={ref} {...rest} />;
-    }),
-  };
-}
-
 interface AnniversaryBannerProps {
   onClose?: () => void;
 }
@@ -121,12 +106,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">Đang thiết kế banner...</p>
         </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-          className="relative h-full w-full"
-        >
+        <div className="relative h-full w-full">
           {/* Deep Teal Gradient Base */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#004d4d] via-[#003333] to-[#001a1a]"></div>
 
@@ -163,17 +143,6 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                     </filter>
                   </defs>
                   <g transform="translate(60, 50) rotate(-15)">
-                    {/* Anniversary Glow */}
-                    {isAnniversary && motion.circle ? (
-                      <motion.circle 
-                        r="45" 
-                        fill="#00f2fe" 
-                        className="opacity-20"
-                        initial={{ scale: 0.8 }}
-                        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
-                        transition={{ duration: 3, repeat: Infinity }}
-                      />
-                    ) : null}
                     {/* Left Loop */}
                     <path 
                       d="M -5 -35 C -45 -35, -55 -10, -55 0 C -55 10, -45 35, -5 35 C -20 25, -25 10, -25 0 C -25 -10, -20 -25, -5 -35 Z" 
@@ -216,22 +185,12 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
 
             {/* Center: Anniversary Message */}
             <div className="text-center space-y-1 md:space-y-2 relative z-10 justify-self-center">
-              <motion.div 
-                initial={{ y: -10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-center justify-center gap-2 text-teal-100 text-[7px] md:text-[10px] lg:text-xs font-bold uppercase tracking-[0.4em] drop-shadow-sm"
-              >
+              <div className="flex items-center justify-center gap-2 text-teal-100 text-[7px] md:text-[10px] lg:text-xs font-bold uppercase tracking-[0.4em] drop-shadow-sm">
                 <Sparkles className="w-3 h-3 md:w-4 h-4" />
                 Kỷ niệm 1 năm thành lập
-              </motion.div>
+              </div>
               
-              <motion.h1 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-lg md:text-2xl lg:text-4xl font-black tracking-tight leading-none text-white drop-shadow-lg"
-              >
+              <h1 className="text-lg md:text-2xl lg:text-4xl font-black tracking-tight leading-none text-white drop-shadow-lg">
                 MỪNG SINH <br />
                 <span className="text-teal-200 uppercase tracking-widest flex items-center justify-center gap-1 md:gap-2">
                   NHẬT 
@@ -241,33 +200,24 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                   </span>
                   TUỔI
                 </span>
-              </motion.h1>
+              </h1>
               
-              <motion.p 
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="text-teal-50 text-[6px] md:text-[9px] lg:text-xs font-semibold opacity-80 tracking-[0.1em]"
-              >
+              <p className="text-teal-50 text-[6px] md:text-[9px] lg:text-xs font-semibold opacity-80 tracking-[0.1em]">
                 Khôi phục niềm tin - Bảo vệ tương lai
-              </motion.p>
+              </p>
             </div>
 
             {/* Right: Countdown Timer or Anniversary Message */}
             <div className="flex flex-col items-end gap-2 md:gap-4 justify-self-end">
               {isAnniversary ? (
-                <motion.div 
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-right"
-                >
+                <div className="text-right">
                   <span className="text-xs md:text-lg font-black text-white uppercase tracking-[0.4em] block animate-pulse">
                     SỰ KIỆN ĐANG DIỄN RA
                   </span>
                   <div className="mt-2 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-900 px-4 py-1 rounded-full text-[10px] md:text-sm font-black uppercase tracking-[0.3em] shadow-lg">
                     HAPPY ANNIVERSARY!
                   </div>
-                </motion.div>
+                </div>
               ) : (
                 <>
                   <span className="text-[8px] md:text-xs font-bold text-teal-300 uppercase tracking-[0.3em] opacity-60">
@@ -317,7 +267,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
               </svg>
             </button>
           )}
-        </motion.div>
+        </div>
       )}
     </div>
   );
