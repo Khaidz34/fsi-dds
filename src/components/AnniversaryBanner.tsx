@@ -164,7 +164,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 CHÚC MỪNG
               </h1>
               
-              <div className="text-teal-200 uppercase flex items-center justify-center leading-none" style={{ 
+              <div className="text-teal-200 uppercase flex items-center justify-center leading-none whitespace-nowrap" style={{ 
                 fontFamily: 'Montserrat, sans-serif', 
                 fontWeight: 900,
                 letterSpacing: '0.025em',
