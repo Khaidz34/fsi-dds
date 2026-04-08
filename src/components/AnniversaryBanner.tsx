@@ -126,7 +126,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           {/* Top Tagline */}
           <div className="absolute top-12 md:top-16 left-0 right-0 text-center">
             <p className="text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '25px', marginTop:'-20px' }}>
-              MỘT NĂM DỰNG NỀN - VỮNG BỀN PHÁT TRIỂN
+              MỘT NĂM DỰNG NỀN - VỮNG BỀN BỨT PHÁ
             </p>
           </div>
 
