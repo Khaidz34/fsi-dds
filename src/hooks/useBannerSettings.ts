@@ -10,7 +10,7 @@ interface BannerSettings {
 
 /**
  * Hook to fetch and manage banner settings
- * Fetches banner settings on mount and polls every 60 seconds
+ * Fetches banner settings on mount only (no auto-refresh)
  */
 export const useBannerSettings = (): BannerSettings => {
   const [bannerType, setBannerType] = useState<'game' | 'anniversary' | null>(null);
@@ -34,13 +34,8 @@ export const useBannerSettings = (): BannerSettings => {
   }, []);
 
   useEffect(() => {
-    // Initial fetch
+    // Initial fetch only
     fetchSettings();
-
-    // Poll every 60 seconds
-    const intervalId = setInterval(fetchSettings, 60000);
-
-    return () => clearInterval(intervalId);
   }, [fetchSettings]);
 
   return {
