@@ -162,7 +162,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 lineHeight: 1
               }}>
                 <span className="text-xl md:text-4xl lg:text-5xl font-black">SINH NHẬT</span>
-                <span className="relative inline-block mx-0.5 md:mx-1" style={{ transform: 'translateY(-0.5em)' }}>
+                <span className="relative inline-block mx-0.5 md:mx-1" style={{ transform: 'translateY(-1em)' }}>
                   <span className="text-white italic font-serif text-5xl md:text-8xl lg:text-9xl drop-shadow-[0_0_40px_rgba(255,255,255,0.9)] leading-none" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold' }}>1</span>
                   <span className="absolute -inset-3 bg-teal-400/30 blur-3xl rounded-full -z-10"></span>
                 </span>
