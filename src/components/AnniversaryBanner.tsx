@@ -154,19 +154,20 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 CHÚC MỪNG
               </h1>
               
-              <div className="text-teal-200 uppercase flex items-center justify-center leading-none whitespace-nowrap" style={{ 
+              <div className="text-teal-200 uppercase flex items-center justify-center whitespace-nowrap" style={{ 
                 fontFamily: 'Montserrat, sans-serif', 
                 fontWeight: 900,
                 letterSpacing: '0.025em',
                 gap: 'calc(0.25rem * 2)',
-                lineHeight: 1
+                lineHeight: 1.2,
+                alignItems: 'baseline'
               }}>
-                <span className="text-xl md:text-4xl lg:text-5xl font-black">SINH NHẬT</span>
-                <span className="relative inline-block mx-0.5 md:mx-1" style={{ transform: 'translateY(-1em)' }}>
-                  <span className="text-white italic font-serif text-5xl md:text-8xl lg:text-9xl drop-shadow-[0_0_40px_rgba(255,255,255,0.9)] leading-none" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold' }}>1</span>
+                <span className="text-xl md:text-4xl lg:text-5xl font-black" style={{ lineHeight: 1.2 }}>SINH NHẬT</span>
+                <span className="relative inline-block mx-0.5 md:mx-1" style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                  <span className="text-white italic font-serif text-5xl md:text-8xl lg:text-9xl drop-shadow-[0_0_40px_rgba(255,255,255,0.9)]" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold', lineHeight: 1.2, display: 'inline-block' }}>1</span>
                   <span className="absolute -inset-3 bg-teal-400/30 blur-3xl rounded-full -z-10"></span>
                 </span>
-                <span className="text-xl md:text-4xl lg:text-5xl font-black">TUỔI</span>
+                <span className="text-xl md:text-4xl lg:text-5xl font-black" style={{ lineHeight: 1.2 }}>TUỔI</span>
               </div>
             </div>
 
