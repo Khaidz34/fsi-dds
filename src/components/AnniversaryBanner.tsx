@@ -135,27 +135,6 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             
             {/* Left: Company Branding */}
             <div className="flex items-center gap-2 md:gap-3 justify-self-start">
-              {/* FSI DDS Logo */}
-              <div className="relative w-12 h-10 md:w-20 md:h-16 lg:w-28 lg:h-24 flex-shrink-0">
-                <img 
-                  src="/logo.svg" 
-                  alt="FSI DDS Logo" 
-                  className="w-full h-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
-                  style={{ imageRendering: 'crisp-edges' }}
-                />
-              </div>
-              
-              <div className="flex flex-col gap-0.5">
-                <span className="text-lg md:text-3xl lg:text-5xl font-black text-white leading-none tracking-wide" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
-                  FSI DDS
-                </span>
-                <span className="text-[7px] md:text-[10px] lg:text-sm font-black text-teal-300 uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}>
-                  DIGITAL DATA SOLUTIONS
-                </span>
-                <span className="text-[6px] md:text-[9px] lg:text-xs font-bold text-white/70 uppercase tracking-wide" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}>
-                  BY FSI VIETNAM & DDS JAPAN
-                </span>
-              </div>
             </div>
 
             {/* Center: Anniversary Message */}
@@ -172,7 +151,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 lineHeight: 1
               }}>
                 <span className="text-xl md:text-4xl lg:text-5xl font-black">SINH NHẬT</span>
-                <span className="relative inline-block mx-0.5 md:mx-1">
+                <span className="relative inline-block mx-0.5 md:mx-1" style={{ transform: 'translateY(-0.2em)' }}>
                   <span className="text-white italic font-serif text-5xl md:text-8xl lg:text-9xl drop-shadow-[0_0_40px_rgba(255,255,255,0.9)] leading-none" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold' }}>1</span>
                   <span className="absolute -inset-3 bg-teal-400/30 blur-3xl rounded-full -z-10"></span>
                 </span>
@@ -221,17 +200,6 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           </div>
 
           {/* Close button (if onClose provided) */}
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="absolute top-2 right-2 md:top-3 md:right-3 bg-white/10 hover:bg-white/20 text-white rounded-full p-1.5 md:p-2 transition-colors z-20"
-              aria-label="Close banner"
-            >
-              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
         </div>
       )}
     </div>
