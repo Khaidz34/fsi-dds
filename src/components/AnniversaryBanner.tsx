@@ -153,16 +153,16 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
 
             {/* Center: Anniversary Message */}
             <div className="text-center space-y-0 md:space-y-1 relative z-10 justify-self-center">
-              <div className="flex items-center justify-center gap-2 text-teal-100 text-[7px] md:text-[10px] lg:text-xs font-bold uppercase tracking-[0.4em] drop-shadow-sm">
-                Kỷ niệm 1 năm thành lập
+              <div className="flex items-center justify-center gap-2 text-teal-100 text-[7px] md:text-[10px] lg:text-xs font-bold uppercase tracking-[0.4em] drop-shadow-sm" style={{ fontFamily: 'Montserrat' }}>
+                Một năm dựng nền - vững bền phát triển
               </div>
               
-              <h1 className="text-base md:text-xl lg:text-3xl font-black tracking-tight leading-tight text-white drop-shadow-lg">
-                MỪNG SINH
+              <h1 className="text-base md:text-xl lg:text-3xl font-black tracking-tight leading-tight text-white drop-shadow-lg" style={{ fontFamily: 'Montserrat' }}>
+                CHÚC MỪNG
               </h1>
               
-              <div className="text-teal-200 uppercase tracking-widest flex items-center justify-center gap-0 md:gap-1 leading-none">
-                <span className="text-2xl md:text-4xl lg:text-6xl font-black">NHẬT</span>
+              <div className="text-teal-200 uppercase tracking-widest flex items-center justify-center gap-0 md:gap-1 leading-none" style={{ fontFamily: 'Montserrat' }}>
+                <span className="text-2xl md:text-4xl lg:text-6xl font-black">SINH NHẬT</span>
                 <span className="relative inline-block">
                   <span className="text-white italic font-serif text-6xl md:text-8xl lg:text-9xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] leading-none">1</span>
                   <span className="absolute -inset-1 bg-teal-400/20 blur-xl rounded-full -z-10"></span>
@@ -170,7 +170,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 <span className="text-2xl md:text-4xl lg:text-6xl font-black">TUỔI</span>
               </div>
               
-              <p className="text-teal-50 text-[6px] md:text-[9px] lg:text-xs font-semibold opacity-80 tracking-[0.1em] mt-1">
+              <p className="text-teal-50 text-[6px] md:text-[9px] lg:text-xs font-semibold opacity-80 tracking-[0.1em] mt-1" style={{ fontFamily: 'Montserrat' }}>
                 MÔT NĂM DỰNG NỀN - VỮNG BỀN PHÁT TRIỂN
               </p>
             </div>
