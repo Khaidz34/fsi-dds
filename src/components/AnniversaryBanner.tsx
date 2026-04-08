@@ -124,8 +124,8 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_30%,rgba(0,128,128,0.4)_0%,transparent_50%)]"></div>
 
           {/* Top Tagline */}
-          <div className="absolute top-2 md:top-4 left-0 right-0 text-center">
-            <p className="text-[8px] md:text-xs lg:text-base text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
+          <div className="absolute top-6 md:top-8 left-0 right-0 text-center">
+            <p className="text-xs md:text-sm lg:text-lg text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
               MỘT NĂM DỰNG NỀN - VỮNG BỀN PHÁT TRIỂN
             </p>
           </div>
@@ -134,7 +134,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           <div className="absolute inset-0 grid grid-cols-3 items-center gap-4 px-3 md:px-6 lg:px-10 pt-8 md:pt-10">
             
             {/* Left: Company Branding */}
-            <div className="flex items-center gap-2 md:gap-3 justify-self-start">
+            <div className="flex items-center gap-2 md:gap-3 justify-self-end pr-4 md:pr-8">
               <div className="flex flex-col gap-0.5">
                 <span className="text-lg md:text-3xl lg:text-5xl font-black text-white leading-none tracking-wide" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
                   FSI DDS
@@ -149,8 +149,8 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             </div>
 
             {/* Center: Anniversary Message */}
-            <div className="text-center space-y-0.5 md:space-y-1 relative z-10 justify-self-center">
-              <h1 className="text-2xl md:text-5xl lg:text-6xl font-black text-white drop-shadow-2xl tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
+            <div className="text-center space-y-0 md:space-y-0 relative z-10 justify-self-center">
+              <h1 className="text-lg md:text-2xl lg:text-3xl font-black text-white drop-shadow-2xl tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
                 CHÚC MỪNG
               </h1>
               
