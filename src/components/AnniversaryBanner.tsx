@@ -18,7 +18,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
 
   // Countdown timer effect
   useEffect(() => {
-    const targetDate = new Date('2026-04-10T00:00:00').getTime();
+    const targetDate = new Date('2026-04-10T17:00:00').getTime();
     
     const interval = setInterval(() => {
       const now = new Date().getTime();
@@ -125,7 +125,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
 
           {/* Top Tagline */}
           <div className="absolute top-12 md:top-16 left-0 right-0 text-center">
-            <p className="text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '32px' }}>
+            <p className="text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '25px', marginTop:'-20px' }}>
               MỘT NĂM DỰNG NỀN - VỮNG BỀN PHÁT TRIỂN
             </p>
           </div>
@@ -150,7 +150,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
 
             {/* Center: Anniversary Message */}
             <div className="text-center space-y-0 md:space-y-0 relative z-10 justify-self-center">
-              <h1 className="font-black text-white drop-shadow-2xl tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '36px', lineHeight: 1, marginBottom: '-8px' }}>
+              <h1 className="font-black text-white drop-shadow-2xl tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '50px', lineHeight: 1, marginBottom: '-30px' }}>
                 CHÚC MỪNG
               </h1>
               
