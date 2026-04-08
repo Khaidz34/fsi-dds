@@ -135,6 +135,17 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             
             {/* Left: Company Branding */}
             <div className="flex items-center gap-2 md:gap-3 justify-self-start">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-lg md:text-3xl lg:text-5xl font-black text-white leading-none tracking-wide" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
+                  FSI DDS
+                </span>
+                <span className="text-[7px] md:text-[10px] lg:text-sm font-black text-teal-300 uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800 }}>
+                  DIGITAL DATA SOLUTIONS
+                </span>
+                <span className="text-[6px] md:text-[9px] lg:text-xs font-bold text-white/70 uppercase tracking-wide" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 700 }}>
+                  BY FSI VIETNAM & DDS JAPAN
+                </span>
+              </div>
             </div>
 
             {/* Center: Anniversary Message */}
@@ -151,7 +162,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                 lineHeight: 1
               }}>
                 <span className="text-xl md:text-4xl lg:text-5xl font-black">SINH NHẬT</span>
-                <span className="relative inline-block mx-0.5 md:mx-1" style={{ transform: 'translateY(-0.2em)' }}>
+                <span className="relative inline-block mx-0.5 md:mx-1" style={{ transform: 'translateY(-0.5em)' }}>
                   <span className="text-white italic font-serif text-5xl md:text-8xl lg:text-9xl drop-shadow-[0_0_40px_rgba(255,255,255,0.9)] leading-none" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold' }}>1</span>
                   <span className="absolute -inset-3 bg-teal-400/30 blur-3xl rounded-full -z-10"></span>
                 </span>
