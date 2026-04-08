@@ -124,8 +124,8 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_30%,rgba(0,128,128,0.4)_0%,transparent_50%)]"></div>
 
           {/* Top Tagline */}
-          <div className="absolute top-6 md:top-8 left-0 right-0 text-center">
-            <p className="text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '24px' }}>
+          <div className="absolute top-12 md:top-16 left-0 right-0 text-center">
+            <p className="text-white font-black uppercase tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '32px' }}>
               MỘT NĂM DỰNG NỀN - VỮNG BỀN PHÁT TRIỂN
             </p>
           </div>
@@ -134,7 +134,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           <div className="absolute inset-0 grid grid-cols-3 items-center gap-4 px-3 md:px-6 lg:px-10 pt-8 md:pt-10">
             
             {/* Left: Company Branding */}
-            <div className="flex items-center gap-2 md:gap-3" style={{ marginLeft: '60px',marginTop: '10px' }}>
+            <div className="flex items-center gap-2 md:gap-3" style={{ marginLeft: '120px',marginTop: '10px' }}>
               <div className="flex flex-col gap-0.5" style={{ marginTop: '3px' }}>
                 <span className="text-lg md:text-4xl lg:text-5xl font-black text-white leading-none tracking-wide" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900 }}>
                   FSI DDS
@@ -150,7 +150,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
 
             {/* Center: Anniversary Message */}
             <div className="text-center space-y-0 md:space-y-0 relative z-10 justify-self-center">
-              <h1 className="font-black text-white drop-shadow-2xl tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '50px', lineHeight: 1, marginBottom: '-4px' }}>
+              <h1 className="font-black text-white drop-shadow-2xl tracking-wider" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 900, fontSize: '36px', lineHeight: 1, marginBottom: '-8px' }}>
                 CHÚC MỪNG
               </h1>
               
@@ -164,7 +164,7 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
               }}>
                 <span className="font-black" style={{ lineHeight: 1.2, fontSize: '56px' }}>SINH NHẬT</span>
                 <span className="relative inline-block mx-0.5 md:mx-1" style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-                  <span className="text-white italic font-serif drop-shadow-[0_0_40px_rgba(255,255,255,0.9)]" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold', lineHeight: 1.2, display: 'inline-block', fontSize: '100px' }}>1</span>
+                  <span className="text-white italic font-serif drop-shadow-[0_0_40px_rgba(255,255,255,0.9)]" style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold', lineHeight: 1.2, display: 'inline-block', fontSize: '120px' }}>1</span>
                   <span className="absolute -inset-3 bg-teal-400/30 blur-3xl rounded-full -z-10"></span>
                 </span>
                 <span className="font-black" style={{ lineHeight: 1.2, fontSize: '56px' }}>TUỔI</span>
