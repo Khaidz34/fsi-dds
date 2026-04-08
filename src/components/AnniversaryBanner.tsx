@@ -124,19 +124,19 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_30%,rgba(0,128,128,0.4)_0%,transparent_50%)]"></div>
 
           {/* Top Tagline */}
-          <div className="absolute top-2 md:top-3 left-0 right-0 text-center">
-            <p className="text-[6px] md:text-[8px] lg:text-xs text-teal-100 font-bold uppercase tracking-[0.5em]" style={{ fontFamily: 'Montserrat', letterSpacing: '0.15em' }}>
+          <div className="absolute top-2 md:top-4 left-0 right-0 text-center">
+            <p className="text-[7px] md:text-[10px] lg:text-sm text-white/90 font-bold uppercase" style={{ fontFamily: 'Montserrat', letterSpacing: '0.25em' }}>
               Một năm dựng nền - vững bền phát triển
             </p>
           </div>
 
           {/* Content Layout */}
-          <div className="absolute inset-0 grid grid-cols-3 items-center px-3 md:px-6 lg:px-10 pt-6 md:pt-8">
+          <div className="absolute inset-0 grid grid-cols-3 items-center px-4 md:px-8 lg:px-12 pt-8 md:pt-10">
             
             {/* Left: Company Branding */}
-            <div className="flex items-center gap-1 md:gap-2 justify-self-start">
+            <div className="flex items-center gap-2 md:gap-3 justify-self-start">
               {/* FSI DDS Logo */}
-              <div className="relative w-10 h-8 md:w-16 md:h-12 lg:w-20 lg:h-16 flex-shrink-0">
+              <div className="relative w-12 h-10 md:w-20 md:h-16 lg:w-24 lg:h-20 flex-shrink-0">
                 <img 
                   src="/logo.svg" 
                   alt="FSI DDS Logo" 
@@ -146,31 +146,31 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
               </div>
               
               <div className="flex flex-col">
-                <span className="text-sm md:text-2xl lg:text-3xl font-black tracking-[0.05em] text-white leading-none" style={{ fontFamily: 'Montserrat', letterSpacing: '0.02em' }}>
+                <span className="text-base md:text-3xl lg:text-4xl font-black text-white leading-none" style={{ fontFamily: 'Montserrat', letterSpacing: '0.05em' }}>
                   FSI DDS
                 </span>
-                <span className="text-[5px] md:text-[8px] font-bold text-teal-300 uppercase tracking-[0.15em] mt-0.5" style={{ fontFamily: 'Montserrat', letterSpacing: '0.08em' }}>
+                <span className="text-[6px] md:text-[9px] lg:text-xs font-bold text-teal-300 uppercase mt-1" style={{ fontFamily: 'Montserrat', letterSpacing: '0.12em' }}>
                   Digital Data Solutions
                 </span>
-                <span className="text-[4px] md:text-[6px] font-semibold text-teal-100/70 uppercase tracking-[0.1em] mt-0.5" style={{ fontFamily: 'Montserrat', letterSpacing: '0.05em' }}>
+                <span className="text-[5px] md:text-[7px] lg:text-[10px] font-semibold text-teal-100/70 uppercase mt-0.5" style={{ fontFamily: 'Montserrat', letterSpacing: '0.08em' }}>
                   by FSI Vietnam & DDS Japan
                 </span>
               </div>
             </div>
 
             {/* Center: Anniversary Message */}
-            <div className="text-center space-y-0 relative z-10 justify-self-center">
-              <h1 className="text-lg md:text-3xl lg:text-4xl font-black tracking-[0.08em] text-white drop-shadow-lg" style={{ fontFamily: 'Montserrat', letterSpacing: '0.08em' }}>
+            <div className="text-center space-y-1 relative z-10 justify-self-center">
+              <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white drop-shadow-lg" style={{ fontFamily: 'Montserrat', letterSpacing: '0.2em' }}>
                 CHÚC MỪNG
               </h1>
               
-              <div className="text-teal-200 uppercase tracking-[0.06em] flex items-center justify-center gap-0 md:gap-0.5 leading-none" style={{ fontFamily: 'Montserrat', letterSpacing: '0.04em' }}>
-                <span className="text-xl md:text-3xl lg:text-5xl font-black">SINH NHẬT</span>
-                <span className="relative inline-block">
-                  <span className="text-white italic font-serif text-5xl md:text-7xl lg:text-8xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] leading-none">1</span>
-                  <span className="absolute -inset-1 bg-teal-400/20 blur-xl rounded-full -z-10"></span>
+              <div className="text-teal-200 uppercase flex items-center justify-center gap-1 md:gap-2 leading-none" style={{ fontFamily: 'Montserrat', letterSpacing: '0.15em' }}>
+                <span className="text-2xl md:text-4xl lg:text-6xl font-black">SINH NHẬT</span>
+                <span className="relative inline-block mx-1 md:mx-2">
+                  <span className="text-white italic font-serif text-6xl md:text-8xl lg:text-9xl drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] leading-none">1</span>
+                  <span className="absolute -inset-2 bg-teal-400/20 blur-xl rounded-full -z-10"></span>
                 </span>
-                <span className="text-xl md:text-3xl lg:text-5xl font-black">TUỔI</span>
+                <span className="text-2xl md:text-4xl lg:text-6xl font-black">TUỔI</span>
               </div>
             </div>
 
@@ -178,19 +178,19 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
             <div className="flex flex-col items-end gap-1 md:gap-2 justify-self-end">
               {isAnniversary ? (
                 <div className="text-right">
-                  <span className="text-xs md:text-sm font-black text-white uppercase tracking-[0.3em] block animate-pulse" style={{ fontFamily: 'Montserrat', letterSpacing: '0.1em' }}>
+                  <span className="text-xs md:text-base font-black text-white uppercase block animate-pulse" style={{ fontFamily: 'Montserrat', letterSpacing: '0.15em' }}>
                     SỰ KIỆN ĐANG DIỄN RA
                   </span>
-                  <div className="mt-1 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-900 px-3 py-0.5 rounded-full text-[8px] md:text-xs font-black uppercase tracking-[0.2em] shadow-lg" style={{ fontFamily: 'Montserrat', letterSpacing: '0.08em' }}>
+                  <div className="mt-2 bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-900 px-4 py-1 rounded-full text-[9px] md:text-sm font-black uppercase shadow-lg" style={{ fontFamily: 'Montserrat', letterSpacing: '0.12em' }}>
                     HAPPY ANNIVERSARY!
                   </div>
                 </div>
               ) : (
                 <>
-                  <span className="text-[7px] md:text-[9px] font-bold text-teal-300 uppercase tracking-[0.2em] opacity-70" style={{ fontFamily: 'Montserrat', letterSpacing: '0.08em' }}>
+                  <span className="text-[8px] md:text-[11px] font-bold text-teal-300 uppercase opacity-80" style={{ fontFamily: 'Montserrat', letterSpacing: '0.12em' }}>
                     Sự kiện bắt đầu sau
                   </span>
-                  <div className="flex gap-0.5 md:gap-2">
+                  <div className="flex gap-1 md:gap-2">
                     {[
                       { value: timeLeft.days, label: 'Ngày' },
                       { value: timeLeft.hours, label: 'Giờ' },
@@ -198,12 +198,12 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
                       { value: timeLeft.seconds, label: 'Giây' }
                     ].map((item, idx) => (
                       <div key={idx} className="flex flex-col items-center">
-                        <div className="bg-teal-950/80 border border-teal-400/30 rounded-lg w-6 h-6 md:w-10 md:h-10 flex items-center justify-center shadow-inner backdrop-blur-sm">
-                          <span className="text-white text-xs md:text-lg font-black tabular-nums">
+                        <div className="bg-teal-950/80 border border-teal-400/30 rounded-lg w-7 h-7 md:w-12 md:h-12 flex items-center justify-center shadow-inner backdrop-blur-sm">
+                          <span className="text-white text-sm md:text-2xl font-black tabular-nums">
                             {item.value.toString().padStart(2, '0')}
                           </span>
                         </div>
-                        <span className="text-[4px] md:text-[7px] font-bold text-teal-300 uppercase tracking-[0.15em] mt-0.5" style={{ fontFamily: 'Montserrat', letterSpacing: '0.06em' }}>
+                        <span className="text-[5px] md:text-[8px] font-bold text-teal-300 uppercase mt-1" style={{ fontFamily: 'Montserrat', letterSpacing: '0.08em' }}>
                           {item.label}
                         </span>
                       </div>
@@ -218,10 +218,10 @@ export const AnniversaryBanner: React.FC<AnniversaryBannerProps> = ({ onClose })
           {onClose && (
             <button
               onClick={onClose}
-              className="absolute top-2 right-2 md:top-3 md:right-3 bg-white/10 hover:bg-white/20 text-white rounded-full p-1.5 md:p-2 transition-colors"
+              className="absolute top-2 right-2 md:top-3 md:right-3 bg-white/10 hover:bg-white/20 text-white rounded-full p-1.5 md:p-2 transition-colors z-20"
               aria-label="Close banner"
             >
-              <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
