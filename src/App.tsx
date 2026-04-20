@@ -2887,7 +2887,6 @@ export default function App() {
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {userPayments
-                          .filter(payment => payment.remainingTotal > 0)
                           .map((payment) => (
                             <div key={payment.userId} className="bg-gradient-to-br from-[#FDF4E3] to-[#F5E6D3] rounded-3xl border-2 border-[#E5D4B8] p-6 shadow-lg hover:shadow-xl transition-shadow">
                               <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#E5D4B8]">
