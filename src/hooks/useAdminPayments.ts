@@ -65,11 +65,14 @@ export const useAdminPayments = (month?: string) => {
       
       if (user?.role === 'admin') {
         const offset = loadMore ? userPayments.length : 0;
+        console.log('📡 Fetching payments from API, offset:', offset, 'skipDebounce:', skipDebounce);
         const response = await paymentsAPI.getAll(currentMonth, 20, offset);
         
         // Handle response with pagination
         const data = response?.data || [];
         const paginationInfo = response?.pagination;
+        
+        console.log('📊 Received', data.length, 'users with debt from API');
         
         if (loadMore) {
           setUserPayments(prev => [...prev, ...data]);
@@ -104,14 +107,17 @@ export const useAdminPayments = (month?: string) => {
 
   const markAsPaid = async (userId: number, amount: number) => {
     try {
+      console.log('🔄 markAsPaid called for user:', userId, 'amount:', amount);
       setIsLoading(true);
       await paymentsAPI.markPaid(userId, currentMonth, amount);
+      console.log('✅ Payment marked successfully, refreshing data...');
       // Refresh data after marking as paid - skip debounce to ensure immediate update
       await fetchUserPayments(false, true);
       await fetchPaymentHistory();
+      console.log('✅ Data refreshed, new userPayments count:', userPayments.length);
       return true;
     } catch (err) {
-      console.error('Mark as paid error:', err);
+      console.error('❌ Mark as paid error:', err);
       throw err;
     } finally {
       setIsLoading(false);
