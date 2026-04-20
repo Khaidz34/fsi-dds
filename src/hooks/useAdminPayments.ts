@@ -26,17 +26,27 @@ export interface PaymentHistory {
   username: string;
 }
 
+export interface PaginationInfo {
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  totalPages: number;
+}
+
 export const useAdminPayments = (month?: string) => {
   const { user } = useAuth();
   const [userPayments, setUserPayments] = useState<UserPaymentInfo[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
 
   const currentMonth = month || new Date().toISOString().slice(0, 7);
 
-  const fetchUserPayments = async () => {
+  const fetchUserPayments = async (loadMore: boolean = false) => {
     try {
       // Debounce: don't fetch more than once per 1 second
       const now = Date.now();
@@ -46,14 +56,30 @@ export const useAdminPayments = (month?: string) => {
       }
       setLastUpdateTime(now);
 
-      setIsLoading(true);
+      if (loadMore) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
       
       if (user?.role === 'admin') {
-        const response = await paymentsAPI.getAll(currentMonth);
-        // Handle both old format (array) and new format (object with data property)
-        const data = Array.isArray(response) ? response : response?.data || [];
-        setUserPayments(data);
+        const offset = loadMore ? userPayments.length : 0;
+        const response = await paymentsAPI.getAll(currentMonth, 20, offset);
+        
+        // Handle response with pagination
+        const data = response?.data || [];
+        const paginationInfo = response?.pagination;
+        
+        if (loadMore) {
+          setUserPayments(prev => [...prev, ...data]);
+        } else {
+          setUserPayments(data);
+        }
+        
+        if (paginationInfo) {
+          setPagination(paginationInfo);
+        }
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Lỗi khi tải thông tin thanh toán';
@@ -61,6 +87,7 @@ export const useAdminPayments = (month?: string) => {
       setError(errorMsg);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
@@ -91,6 +118,12 @@ export const useAdminPayments = (month?: string) => {
     }
   };
 
+  const loadMore = () => {
+    if (pagination?.hasMore && !isLoadingMore) {
+      fetchUserPayments(true);
+    }
+  };
+
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchUserPayments();
@@ -112,9 +145,12 @@ export const useAdminPayments = (month?: string) => {
   return {
     userPayments,
     paymentHistory,
+    pagination,
     isLoading,
+    isLoadingMore,
     error,
     markAsPaid,
+    loadMore,
     refetch: () => {
       fetchUserPayments();
       fetchPaymentHistory();

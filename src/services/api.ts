@@ -220,8 +220,13 @@ export const statsAPI = {
 
 // Payments API
 export const paymentsAPI = {
-  getAll: (month?: string) =>
-    apiCall<any[]>(`/payments${month ? `?month=${month}` : ''}`),
+  getAll: (month?: string, limit?: number, offset?: number) => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month);
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    return apiCall<any>(`/payments${params.toString() ? `?${params.toString()}` : ''}`);
+  },
   
   getMy: (month?: string) =>
     apiCall<any>(`/payments/my${month ? `?month=${month}` : ''}`),

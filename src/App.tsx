@@ -591,7 +591,7 @@ export default function App() {
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users } = useUsers();
-  const { userPayments, paymentHistory, markAsPaid } = useAdminPayments();
+  const { userPayments, paymentHistory, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
   
@@ -2884,42 +2884,66 @@ export default function App() {
                   <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.payments}</h3>
                   
                   {userPayments && userPayments.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {userPayments
-                        .filter(payment => payment.remainingTotal > 0)
-                        .map((payment) => (
-                          <div key={payment.userId} className="bg-gradient-to-br from-[#FDF4E3] to-[#F5E6D3] rounded-3xl border-2 border-[#E5D4B8] p-6 shadow-lg hover:shadow-xl transition-shadow">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#E5D4B8]">
-                              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#DA251D] shadow-md">
-                                <UserIcon size={28} />
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {userPayments
+                          .filter(payment => payment.remainingTotal > 0)
+                          .map((payment) => (
+                            <div key={payment.userId} className="bg-gradient-to-br from-[#FDF4E3] to-[#F5E6D3] rounded-3xl border-2 border-[#E5D4B8] p-6 shadow-lg hover:shadow-xl transition-shadow">
+                              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#E5D4B8]">
+                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#DA251D] shadow-md">
+                                  <UserIcon size={28} />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-bold text-lg text-[#1C1917]">{payment.fullname}</p>
+                                </div>
                               </div>
-                              <div className="flex-1">
-                                <p className="font-bold text-lg text-[#1C1917]">{payment.fullname}</p>
+                              <div className="space-y-4 mb-6">
+                                <div className="bg-white/60 rounded-2xl p-4">
+                                  <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Đã thanh toán</p>
+                                  <p className="text-2xl font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</p>
+                                </div>
+                                <div className="bg-white/60 rounded-2xl p-4">
+                                  <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Số nợ</p>
+                                  <p className="text-2xl font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</p>
+                                </div>
                               </div>
+                              <button
+                                onClick={() => {
+                                  setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
+                                  setShowPaymentConfirm(true);
+                                }}
+                                disabled={isProcessingPayment}
+                                className="w-full bg-[#DA251D] text-white py-3 rounded-2xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                              >
+                                {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+                              </button>
                             </div>
-                            <div className="space-y-4 mb-6">
-                              <div className="bg-white/60 rounded-2xl p-4">
-                                <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Đã thanh toán</p>
-                                <p className="text-2xl font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</p>
-                              </div>
-                              <div className="bg-white/60 rounded-2xl p-4">
-                                <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/60 mb-1">Số nợ</p>
-                                <p className="text-2xl font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
-                                setShowPaymentConfirm(true);
-                              }}
-                              disabled={isProcessingPayment}
-                              className="w-full bg-[#DA251D] text-white py-3 rounded-2xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
-                            >
-                              {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
-                            </button>
-                          </div>
-                        ))}
-                    </div>
+                          ))}
+                      </div>
+                      
+                      {/* Load More Button */}
+                      {pagination && pagination.hasMore && (
+                        <div className="mt-8 text-center">
+                          <button
+                            onClick={loadMore}
+                            disabled={isLoadingMore}
+                            className="bg-[#DA251D] text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg inline-flex items-center gap-2"
+                          >
+                            {isLoadingMore ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                Đang tải...
+                              </>
+                            ) : (
+                              <>
+                                Xem thêm ({pagination.total - userPayments.length} người còn lại)
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-gray-400 mb-4">
