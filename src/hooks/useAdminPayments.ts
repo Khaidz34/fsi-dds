@@ -46,11 +46,11 @@ export const useAdminPayments = (month?: string) => {
 
   const currentMonth = month || new Date().toISOString().slice(0, 7);
 
-  const fetchUserPayments = async (loadMore: boolean = false) => {
+  const fetchUserPayments = async (loadMore: boolean = false, skipDebounce: boolean = false) => {
     try {
-      // Debounce: don't fetch more than once per 1 second
+      // Debounce: don't fetch more than once per 1 second (unless skipDebounce is true)
       const now = Date.now();
-      if (now - lastUpdateTime < 1000) {
+      if (!skipDebounce && now - lastUpdateTime < 1000) {
         console.log('⏱️  Debouncing payment fetch (too soon)');
         return;
       }
@@ -106,8 +106,8 @@ export const useAdminPayments = (month?: string) => {
     try {
       setIsLoading(true);
       await paymentsAPI.markPaid(userId, currentMonth, amount);
-      // Refresh data after marking as paid
-      await fetchUserPayments();
+      // Refresh data after marking as paid - skip debounce to ensure immediate update
+      await fetchUserPayments(false, true);
       await fetchPaymentHistory();
       return true;
     } catch (err) {
