@@ -1879,7 +1879,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     const { data: unpaidOrders, error: fetchError } = await supabase
       .from('orders')
       .select('id, created_at')
-      .eq('user_id', userId)
+      .eq('ordered_for', userId)  // ✅ ĐÚNG - Tìm orders mà user là người nhận
       .eq('paid', false)
       .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00Z`)
