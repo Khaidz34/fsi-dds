@@ -1302,8 +1302,8 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
 
   try {
-    // Try optimized SQL query using CTEs to eliminate N+1 query problem
-    const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats', {
+    // Try optimized SQL query - DEBT ONLY version
+    const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats_debt_only', {
       p_month: month,
       p_start_date: `${startDate}T00:00:00Z`,
       p_next_month: `${nextMonth}T00:00:00Z`,
@@ -1312,15 +1312,49 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
     });
 
     if (!statsError && userStats) {
-      console.log('✅ Using optimized get_payment_stats function');
-      const { count: totalCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'user');
+      console.log('✅ Using optimized get_payment_stats_debt_only function');
+      
+      // Get total count of users with debt
+      const { data: totalCount, error: countError } = await supabase.rpc('get_debt_users_count', {
+        p_month: month,
+        p_start_date: `${startDate}T00:00:00Z`,
+        p_next_month: `${nextMonth}T00:00:00Z`
+      });
 
       return {
         data: userStats || [],
         total: totalCount || 0,
+        limit: validLimit,
+        offset: validOffset
+      };
+    }
+
+    console.log('⚠️  Debt-only function not available, trying original function');
+    
+    // Fallback to original function
+    const { data: allUserStats, error: allStatsError } = await supabase.rpc('get_payment_stats', {
+      p_month: month,
+      p_start_date: `${startDate}T00:00:00Z`,
+      p_next_month: `${nextMonth}T00:00:00Z`,
+      p_limit: 1000, // Get all users first
+      p_offset: 0
+    });
+
+    if (!allStatsError && allUserStats) {
+      console.log('✅ Using original get_payment_stats function with client-side filtering');
+      
+      // Filter users with debt
+      const usersWithDebt = allUserStats.filter(user => user.remainingTotal > 0);
+      
+      // Sort by debt amount (highest first)
+      usersWithDebt.sort((a, b) => b.remainingTotal - a.remainingTotal);
+      
+      // Apply pagination
+      const paginatedData = usersWithDebt.slice(validOffset, validOffset + validLimit);
+      
+      return {
+        data: paginatedData,
+        total: usersWithDebt.length,
         limit: validLimit,
         offset: validOffset
       };
