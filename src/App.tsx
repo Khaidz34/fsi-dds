@@ -41,7 +41,8 @@ import {
   Menu,
   Palette,
   Sword,
-  Play
+  Play,
+  Sparkles
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -1901,41 +1902,41 @@ export default function App() {
                   <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-white/10 blur-[80px] rounded-full animate-zen-float" />
                   
                   <div className="relative z-10 w-full">
-                    {/* Game Integration - Fusion Slice */}
-                    <div className="w-full h-[250px] bg-gradient-to-br from-indigo-900 via-purple-900 to-rose-900 rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl">
-                      {/* Game Header */}
-                      <div className="relative p-4 bg-black/20 backdrop-blur-sm border-b border-white/10">
+                    {/* Mystical Website Integration */}
+                    <div className="w-full h-[250px] bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-900 rounded-2xl overflow-hidden border-4 border-purple-500/30 shadow-2xl">
+                      {/* Header */}
+                      <div className="relative p-4 bg-black/20 backdrop-blur-sm border-b border-purple-500/30">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center">
-                              <Sword size={20} className="text-white" />
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
+                              <Sparkles size={20} className="text-white animate-pulse" />
                             </div>
                             <div>
                               <h3 className="text-xl font-black text-white tracking-tight">
-                                FUSION SLICE
+                                HUYỀN HỌC
                               </h3>
-                              <p className="text-xs text-white/60 font-bold tracking-widest uppercase">
-                                Viet-Nippon Blade Game
+                              <p className="text-xs text-purple-300 font-bold tracking-widest uppercase">
+                                Khám Phá Bí Ẩn
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                            <Zap size={14} className="text-yellow-400" />
-                            <span className="text-white font-bold text-xs">Mini Game</span>
+                          <div className="flex items-center gap-2 bg-purple-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                            <Sparkles size={14} className="text-purple-400 animate-pulse" />
+                            <span className="text-white font-bold text-xs">Thuật Số</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Game Preview/Demo Area */}
-                      <div className="relative h-[180px] bg-gradient-to-br from-indigo-800 via-purple-800 to-rose-800 flex items-center justify-center overflow-hidden">
+                      {/* Preview Area */}
+                      <div className="relative h-[180px] bg-gradient-to-br from-purple-800 via-indigo-800 to-purple-800 flex items-center justify-center overflow-hidden">
                         {/* Background Decor */}
                         <div className="absolute inset-0 opacity-10 pointer-events-none">
-                          <div className="absolute top-1/4 left-1/4 text-4xl animate-bounce">🥖</div>
-                          <div className="absolute bottom-1/4 right-1/4 text-4xl animate-bounce" style={{animationDelay: '0.5s'}}>🍣</div>
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl opacity-5 rotate-12">🍜</div>
+                          <div className="absolute top-1/4 left-1/4 text-4xl animate-bounce">✨</div>
+                          <div className="absolute bottom-1/4 right-1/4 text-4xl animate-bounce" style={{animationDelay: '0.5s'}}>🔮</div>
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl opacity-5 rotate-12">🌙</div>
                         </div>
 
-                        {/* Game Preview Content */}
+                        {/* Preview Content */}
                         <div className="relative z-10 text-center">
                           <div
                             initial={{ scale: 0.8, opacity: 0 }}
@@ -1944,23 +1945,23 @@ export default function App() {
                             className="mb-4"
                           >
                             <p className="text-white/80 text-sm max-w-md mx-auto leading-relaxed">
-                              Thử thách kỹ năng blade master của bạn!
+                              Khám phá thế giới huyền bí và thuật số học!
                             </p>
                           </div>
 
                           <button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setShowFusionSliceGame(true)}
-                            className="bg-gradient-to-r from-orange-500 to-red-600 text-white px-6 py-3 rounded-2xl font-black text-base uppercase tracking-wider hover:shadow-2xl transition-all flex items-center gap-2 mx-auto"
+                            onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}
+                            className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-base uppercase tracking-wider hover:shadow-2xl transition-all flex items-center gap-2 mx-auto"
                           >
-                            <Play size={20} fill="currentColor" />
-                            Chơi ngay
-                            <Flame size={18} className="animate-pulse" />
+                            <Sparkles size={20} className="animate-pulse" />
+                            Khám phá ngay
+                            <Sparkles size={18} className="animate-pulse" />
                           </button>
                         </div>
 
-                        {/* Animated Slice Effect */}
+                        {/* Animated Effect */}
                         <div
                           initial={{ pathLength: 0, opacity: 0 }}
                           animate={{ pathLength: 1, opacity: [0, 1, 0] }}
@@ -1970,11 +1971,11 @@ export default function App() {
                           <svg className="w-full h-full">
                             <path
                               d="M 50 250 Q 200 100 350 200"
-                              stroke="rgba(255,255,255,0.6)"
+                              stroke="rgba(168,85,247,0.6)"
                               strokeWidth="4"
                               fill="none"
                               strokeLinecap="round"
-                              filter="drop-shadow(0 0 10px rgba(96,165,250,0.8))"
+                              filter="drop-shadow(0 0 10px rgba(168,85,247,0.8))"
                             />
                           </svg>
                         </div>
