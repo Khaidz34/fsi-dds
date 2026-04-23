@@ -12,7 +12,8 @@ import {
   RotateCcw,
   Zap,
   Flame,
-  Home
+  Home,
+  Sparkles
 } from 'lucide-react';
 
 // --- Types ---
@@ -445,15 +446,26 @@ export const FusionSliceGame: React.FC<{ onClose?: () => void }> = ({ onClose })
             Viet-Nippon Blade
           </span>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-white transition-colors"
+        <div className="flex items-center gap-2">
+          <a
+            href="https://thuatso.onrender.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-purple-600/80 hover:bg-purple-500/90 px-4 py-2 rounded-full text-white transition-colors shadow-lg hover:shadow-purple-500/50"
           >
-            <Home size={16} />
-            <span className="text-sm font-bold">Về FSI DDS</span>
-          </button>
-        )}
+            <Sparkles size={16} className="animate-pulse" />
+            <span className="text-sm font-bold">Huyền Học</span>
+          </a>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-white transition-colors"
+            >
+              <Home size={16} />
+              <span className="text-sm font-bold">Về FSI DDS</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Game Container */}
