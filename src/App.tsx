@@ -1909,8 +1909,19 @@ export default function App() {
                         <div className="absolute inset-0 bg-black/10" />
                       </div>
 
-                      {/* Content - Only Button */}
-                      <div className="relative z-10 h-full flex items-center justify-center">
+                      {/* Content - Title and Button */}
+                      <div className="relative z-10 h-full flex flex-col items-center justify-center gap-6">
+                        {/* Title */}
+                        <div className="text-center">
+                          <h2 className="text-white text-6xl font-serif mb-2 drop-shadow-lg">
+                            HUYỀN CƠ
+                          </h2>
+                          <h3 className="text-amber-400 text-5xl font-serif italic drop-shadow-lg">
+                            BẤT TỰ
+                          </h3>
+                        </div>
+                        
+                        {/* Button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
