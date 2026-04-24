@@ -1909,8 +1909,8 @@ export default function App() {
                         <div className="absolute inset-0 bg-black/10" />
                       </div>
 
-                      {/* Content - Title and Button */}
-                      <div className="relative z-10 h-full flex flex-col items-center justify-center gap-6">
+                      {/* Content - Title, Description and Button */}
+                      <div className="relative z-10 h-full flex flex-col items-center justify-center gap-4">
                         {/* Title */}
                         <div className="text-center">
                           <h2 className="text-white text-6xl font-serif mb-2 drop-shadow-lg">
@@ -1920,6 +1920,11 @@ export default function App() {
                             BẤT TỰ
                           </h3>
                         </div>
+                        
+                        {/* Description */}
+                        <p className="text-white/90 text-lg font-serif text-center max-w-2xl drop-shadow-md">
+                          Giải mã vận mệnh qua tinh hoa Bát Tự truyền thống.
+                        </p>
                         
                         {/* Button */}
                         <button
