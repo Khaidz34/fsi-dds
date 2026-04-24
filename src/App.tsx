@@ -1889,21 +1889,8 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                {/* Promotional Banner */}
-                <div 
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="relative overflow-hidden rounded-[2.5rem] crimson-gradient p-8 md:p-12 shadow-2xl shadow-[#DA251D]/20"
-                >
-                  <div className="absolute top-0 left-0 w-full h-full lotus-pattern opacity-30" />
-                  <div className="absolute bottom-0 right-10 w-48 h-32 fuji-pattern opacity-60" />
-                  <div className="absolute -top-10 -left-10 w-64 h-64 dongson-pattern opacity-20" />
-                  <div className="absolute bottom-0 right-0 w-full h-1/2 seigaiha-pattern opacity-10" />
-                  <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-white/10 blur-[80px] rounded-full animate-zen-float" />
-                  
-                  <div className="relative z-10 w-full">
-                    {/* Mystical Website Integration - Asian Style */}
-                    <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
+                {/* Mystical Website Integration - Asian Style */}
+                <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
                       {/* Background Images with Blend */}
                       <div className="absolute inset-0">
                         {/* Background 1 - Full width */}
@@ -1970,8 +1957,6 @@ export default function App() {
                       <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-amber-400/30 rotate-45 pointer-events-none" />
                       <div className="absolute top-4 left-4 w-8 h-8 border-2 border-amber-400/20 rotate-45 pointer-events-none" />
                     </div>
-                  </div>
-                </div>
 
                 {/* Menu List */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-32 lg:pb-64">
