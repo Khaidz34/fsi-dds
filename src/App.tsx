@@ -1924,7 +1924,6 @@ export default function App() {
                           </h3>
                           <p className="text-white/80 text-sm max-w-md leading-relaxed font-serif font-semibold italic" style={{fontWeight: 600}}>
                             Giải mã vận mệnh qua tinh hoa Bát Tự truyền thống.
-                            Có vũ trụ nhân mạnh và minh trí trong tương lai.
                           </p>
                         </div>
                         
