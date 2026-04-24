@@ -1904,20 +1904,24 @@ export default function App() {
                   <div className="relative z-10 w-full">
                     {/* Mystical Website Integration - Asian Style */}
                     <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
-                      {/* Background Images */}
+                      {/* Background Images with Blend */}
                       <div className="absolute inset-0">
-                        {/* Background 1 - Left side */}
+                        {/* Background 1 - Full width */}
                         <div 
-                          className="absolute left-0 top-0 w-1/2 h-full bg-cover bg-center"
+                          className="absolute inset-0 bg-cover bg-center"
                           style={{backgroundImage: 'url(/Background1.png)'}}
                         />
-                        {/* Background 2 - Right side */}
+                        {/* Background 2 - Overlay with gradient mask */}
                         <div 
-                          className="absolute right-0 top-0 w-1/2 h-full bg-cover bg-center"
-                          style={{backgroundImage: 'url(/Background2.jpg)'}}
+                          className="absolute inset-0 bg-cover bg-center"
+                          style={{
+                            backgroundImage: 'url(/Background2.jpg)',
+                            maskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)',
+                            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)'
+                          }}
                         />
-                        {/* Overlay gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-black/60" />
+                        {/* Dark overlay for text readability */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70" />
                       </div>
 
                       {/* Content */}
