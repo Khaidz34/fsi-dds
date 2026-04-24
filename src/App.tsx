@@ -1902,84 +1902,69 @@ export default function App() {
                   <div className="absolute top-[-20%] right-[-5%] w-64 h-64 bg-white/10 blur-[80px] rounded-full animate-zen-float" />
                   
                   <div className="relative z-10 w-full">
-                    {/* Mystical Website Integration */}
-                    <div className="w-full h-[250px] bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-900 rounded-2xl overflow-hidden border-4 border-purple-500/30 shadow-2xl">
-                      {/* Header */}
-                      <div className="relative p-4 bg-black/20 backdrop-blur-sm border-b border-purple-500/30">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
-                              <Sparkles size={20} className="text-white animate-pulse" />
-                            </div>
-                            <div>
-                              <h3 className="text-xl font-black text-white tracking-tight">
-                                HUYỀN HỌC
-                              </h3>
-                              <p className="text-xs text-purple-300 font-bold tracking-widest uppercase">
-                                Khám Phá Bí Ẩn
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 bg-purple-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                            <Sparkles size={14} className="text-purple-400 animate-pulse" />
-                            <span className="text-white font-bold text-xs">Thuật Số</span>
-                          </div>
-                        </div>
+                    {/* Mystical Website Integration - Asian Style */}
+                    <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
+                      {/* Background Images */}
+                      <div className="absolute inset-0">
+                        {/* Background 1 - Left side */}
+                        <div 
+                          className="absolute left-0 top-0 w-1/2 h-full bg-cover bg-center"
+                          style={{backgroundImage: 'url(/Background1.png)'}}
+                        />
+                        {/* Background 2 - Right side */}
+                        <div 
+                          className="absolute right-0 top-0 w-1/2 h-full bg-cover bg-center"
+                          style={{backgroundImage: 'url(/Background2.jpg)'}}
+                        />
+                        {/* Overlay gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-black/60" />
                       </div>
 
-                      {/* Preview Area */}
-                      <div className="relative h-[180px] bg-gradient-to-br from-purple-800 via-indigo-800 to-purple-800 flex items-center justify-center overflow-hidden">
-                        {/* Background Decor */}
-                        <div className="absolute inset-0 opacity-10 pointer-events-none">
-                          <div className="absolute top-1/4 left-1/4 text-4xl animate-bounce">✨</div>
-                          <div className="absolute bottom-1/4 right-1/4 text-4xl animate-bounce" style={{animationDelay: '0.5s'}}>🔮</div>
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl opacity-5 rotate-12">🌙</div>
+                      {/* Content */}
+                      <div className="relative z-10 h-full flex items-center justify-between px-12">
+                        {/* Left Content */}
+                        <div className="flex-1">
+                          <p className="text-amber-400 text-sm tracking-[0.3em] mb-2 font-serif">
+                            — THIẾT KẾ MỆNH LÝ —
+                          </p>
+                          <h2 className="text-white text-5xl font-serif mb-2">
+                            HUYỀN CƠ
+                          </h2>
+                          <h3 className="text-amber-400 text-4xl font-serif italic mb-4">
+                            BẤT TỰ
+                          </h3>
+                          <p className="text-white/70 text-sm max-w-md leading-relaxed font-serif">
+                            Giải mã vận mệnh qua tính toán Mật truyền ở thế hệ,
+                            có tạo nhân mạnh và minh trí trong tương lai.
+                          </p>
+                          <p className="text-amber-400/60 text-xs mt-4 italic">
+                            thuatso.vn
+                          </p>
                         </div>
 
-                        {/* Preview Content */}
-                        <div className="relative z-10 text-center">
-                          <div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ duration: 0.5 }}
-                            className="mb-4"
+                        {/* Right Content */}
+                        <div className="flex flex-col items-end gap-4">
+                          <button
+                            onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}
+                            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-8 py-4 rounded-lg font-bold text-lg tracking-wider shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
                           >
-                            <p className="text-white/80 text-sm max-w-md mx-auto leading-relaxed">
-                              Khám phá thế giới huyền bí và thuật số học!
+                            LẬP LÁ SỐ NGAY
+                          </button>
+                          <div className="text-right">
+                            <p className="text-white/90 text-sm flex items-center gap-2">
+                              <Sparkles size={16} className="text-amber-400" />
+                              12,000+ MỆNH CHỦ
+                            </p>
+                            <p className="text-white/70 text-xs mt-1">
+                              KIẾN TẠO THỊNH VƯỢNG
                             </p>
                           </div>
-
-                          <button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}
-                            className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-base uppercase tracking-wider hover:shadow-2xl transition-all flex items-center gap-2 mx-auto"
-                          >
-                            <Sparkles size={20} className="animate-pulse" />
-                            Khám phá ngay
-                            <Sparkles size={18} className="animate-pulse" />
-                          </button>
-                        </div>
-
-                        {/* Animated Effect */}
-                        <div
-                          initial={{ pathLength: 0, opacity: 0 }}
-                          animate={{ pathLength: 1, opacity: [0, 1, 0] }}
-                          transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
-                          className="absolute inset-0 pointer-events-none"
-                        >
-                          <svg className="w-full h-full">
-                            <path
-                              d="M 50 250 Q 200 100 350 200"
-                              stroke="rgba(168,85,247,0.6)"
-                              strokeWidth="4"
-                              fill="none"
-                              strokeLinecap="round"
-                              filter="drop-shadow(0 0 10px rgba(168,85,247,0.8))"
-                            />
-                          </svg>
                         </div>
                       </div>
+
+                      {/* Decorative Elements */}
+                      <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-amber-400/30 rotate-45 pointer-events-none" />
+                      <div className="absolute top-4 left-4 w-8 h-8 border-2 border-amber-400/20 rotate-45 pointer-events-none" />
                     </div>
                   </div>
                 </div>
