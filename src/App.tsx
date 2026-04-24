@@ -1905,8 +1905,8 @@ export default function App() {
                             imageRendering: 'crisp-edges'
                           }}
                         />
-                        {/* Dark overlay to hide background elements */}
-                        <div className="absolute inset-0 bg-black/40" />
+                        {/* Light overlay for brightness */}
+                        <div className="absolute inset-0 bg-black/20" />
                       </div>
 
                       {/* Content - Left aligned text and right button */}
