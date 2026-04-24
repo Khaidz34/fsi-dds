@@ -1905,8 +1905,8 @@ export default function App() {
                             imageRendering: 'crisp-edges'
                           }}
                         />
-                        {/* Minimal overlay */}
-                        <div className="absolute inset-0 bg-black/10" />
+                        {/* Dark overlay to hide background elements */}
+                        <div className="absolute inset-0 bg-black/40" />
                       </div>
 
                       {/* Content - Left aligned text and right button */}
@@ -1941,7 +1941,6 @@ export default function App() {
                           </button>
                           <div className="text-right">
                             <p className="text-white/90 text-sm flex items-center gap-2 justify-end">
-                              <Sparkles size={16} className="text-amber-400" />
                             </p>
                             <p className="text-white/70 text-xs mt-1">
                               KIẾN TẠO THỊNH VƯỢNG
