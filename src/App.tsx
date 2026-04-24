@@ -1890,7 +1890,10 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Mystical Website Integration - Asian Style */}
-                <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
+                <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
+                      {/* Preload image for faster loading */}
+                      <link rel="preload" as="image" href="/Background3.png?v=2" />
+                      
                       {/* Background Image */}
                       <div className="absolute inset-0">
                         {/* Single background image - Background3.png */}
@@ -1902,55 +1905,22 @@ export default function App() {
                             imageRendering: 'crisp-edges'
                           }}
                         />
-                        {/* Lighter overlay for text readability */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/25 to-black/40" />
+                        {/* Minimal overlay */}
+                        <div className="absolute inset-0 bg-black/10" />
                       </div>
 
-                      {/* Content */}
-                      <div className="relative z-10 h-full flex items-center justify-between px-12">
-                        {/* Left Content */}
-                        <div className="flex-1">
-                          <p className="text-amber-400 text-sm tracking-[0.3em] mb-2 font-serif">
-                            — THIẾT KẾ MỆNH LÝ —
-                          </p>
-                          <h2 className="text-white text-5xl font-serif mb-2">
-                            HUYỀN CƠ
-                          </h2>
-                          <h3 className="text-amber-400 text-4xl font-serif italic mb-4">
-                            BẤT TỰ
-                          </h3>
-                          <p className="text-white/70 text-sm max-w-md leading-relaxed font-serif">
-                            Giải mã vận mệnh qua tính toán Mật truyền ở thế hệ,
-                            có tạo nhân mạnh và minh trí trong tương lai.
-                          </p>
-                          <p className="text-amber-400/60 text-xs mt-4 italic">
-                            thuatso.vn
-                          </p>
-                        </div>
-
-                        {/* Right Content */}
-                        <div className="flex flex-col items-end gap-4">
-                          <button
-                            onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}
-                            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-8 py-4 rounded-lg font-bold text-lg tracking-wider shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
-                          >
-                            LẬP LÁ SỐ NGAY
-                          </button>
-                          <div className="text-right">
-                            <p className="text-white/90 text-sm flex items-center gap-2">
-                              <Sparkles size={16} className="text-amber-400" />
-                              12,000+ MỆNH CHỦ
-                            </p>
-                            <p className="text-white/70 text-xs mt-1">
-                              KIẾN TẠO THỊNH VƯỢNG
-                            </p>
-                          </div>
-                        </div>
+                      {/* Content - Only Button */}
+                      <div className="relative z-10 h-full flex items-center justify-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open('https://thuatso.onrender.com/', '_blank');
+                          }}
+                          className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-12 py-5 rounded-xl font-bold text-2xl tracking-wider shadow-2xl hover:shadow-3xl transition-all transform hover:scale-110"
+                        >
+                          LẬP LÁ SỐ NGAY
+                        </button>
                       </div>
-
-                      {/* Decorative Elements */}
-                      <div className="absolute bottom-4 right-4 w-12 h-12 border-2 border-amber-400/30 rotate-45 pointer-events-none" />
-                      <div className="absolute top-4 left-4 w-8 h-8 border-2 border-amber-400/20 rotate-45 pointer-events-none" />
                     </div>
 
                 {/* Menu List */}
