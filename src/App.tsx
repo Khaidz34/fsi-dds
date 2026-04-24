@@ -1913,16 +1913,16 @@ export default function App() {
                       <div className="relative z-10 h-full flex items-center justify-between px-12">
                         {/* Left Content */}
                         <div className="flex-1">
-                          <p className="text-amber-400 text-xs tracking-[0.3em] mb-3 font-serif uppercase">
+                          <p className="text-amber-400 text-xs tracking-[0.3em] mb-3 font-serif font-bold uppercase">
                             — THIẾT KẾ MỆNH LÝ —
                           </p>
-                          <h2 className="text-white text-6xl font-serif mb-2 drop-shadow-lg">
+                          <h2 className="text-white text-6xl font-serif font-bold mb-2 drop-shadow-lg" style={{fontWeight: 700}}>
                             HUYỀN CƠ
                           </h2>
-                          <h3 className="text-amber-400 text-5xl font-serif italic mb-4 drop-shadow-lg">
+                          <h3 className="text-amber-400 text-5xl font-serif font-bold italic mb-4 drop-shadow-lg" style={{fontWeight: 700}}>
                             BẤT TỰ
                           </h3>
-                          <p className="text-white/80 text-sm max-w-md leading-relaxed font-serif italic">
+                          <p className="text-white/80 text-sm max-w-md leading-relaxed font-serif font-semibold italic" style={{fontWeight: 600}}>
                             Giải mã vận mệnh qua tinh hoa Bát Tự truyền thống.
                             Có vũ trụ nhân mạnh và minh trí trong tương lai.
                           </p>
@@ -1942,7 +1942,6 @@ export default function App() {
                           <div className="text-right">
                             <p className="text-white/90 text-sm flex items-center gap-2 justify-end">
                               <Sparkles size={16} className="text-amber-400" />
-                              12,000+ MỆNH CHỦ
                             </p>
                             <p className="text-white/70 text-xs mt-1">
                               KIẾN TẠO THỊNH VƯỢNG
