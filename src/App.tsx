@@ -1891,28 +1891,15 @@ export default function App() {
               >
                 {/* Mystical Website Integration - Asian Style */}
                 <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
-                      {/* Background Images with Blend */}
+                      {/* Background Image */}
                       <div className="absolute inset-0">
-                        {/* Background 1 - Full width with enhanced brightness and sharpness */}
+                        {/* Single background image - Background3.png */}
                         <div 
                           className="absolute inset-0 bg-center"
                           style={{
-                            backgroundImage: 'url(/Background1.png)',
+                            backgroundImage: 'url(/Background3.png)',
                             backgroundSize: '100% 100%',
-                            imageRendering: 'crisp-edges',
-                            filter: 'brightness(1.2) contrast(1.15) saturate(1.1)'
-                          }}
-                        />
-                        {/* Background 2 - Overlay with gradient mask and enhanced sharpness */}
-                        <div 
-                          className="absolute inset-0 bg-center"
-                          style={{
-                            backgroundImage: 'url(/Background2.jpg)',
-                            backgroundSize: '100% 100%',
-                            imageRendering: 'crisp-edges',
-                            maskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)',
-                            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)',
-                            filter: 'brightness(1.2) contrast(1.15) saturate(1.1)'
+                            imageRendering: 'crisp-edges'
                           }}
                         />
                         {/* Lighter overlay for text readability */}
