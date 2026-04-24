@@ -1897,7 +1897,7 @@ export default function App() {
                         <div 
                           className="absolute inset-0 bg-center"
                           style={{
-                            backgroundImage: 'url(/Background3.png)',
+                            backgroundImage: 'url(/Background3.png?v=2)',
                             backgroundSize: '100% 100%',
                             imageRendering: 'crisp-edges'
                           }}
