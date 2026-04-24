@@ -1893,22 +1893,26 @@ export default function App() {
                 <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative">
                       {/* Background Images with Blend */}
                       <div className="absolute inset-0">
-                        {/* Background 1 - Full width */}
+                        {/* Background 1 - Full width with enhanced brightness and sharpness */}
                         <div 
                           className="absolute inset-0 bg-cover bg-center"
-                          style={{backgroundImage: 'url(/Background1.png)'}}
+                          style={{
+                            backgroundImage: 'url(/Background1.png)',
+                            filter: 'brightness(1.2) contrast(1.15) saturate(1.1)'
+                          }}
                         />
-                        {/* Background 2 - Overlay with gradient mask */}
+                        {/* Background 2 - Overlay with gradient mask and enhanced sharpness */}
                         <div 
                           className="absolute inset-0 bg-cover bg-center"
                           style={{
                             backgroundImage: 'url(/Background2.jpg)',
                             maskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)',
-                            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)'
+                            WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 50%, transparent 100%)',
+                            filter: 'brightness(1.2) contrast(1.15) saturate(1.1)'
                           }}
                         />
-                        {/* Dark overlay for text readability */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70" />
+                        {/* Lighter overlay for text readability */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/25 to-black/40" />
                       </div>
 
                       {/* Content */}
