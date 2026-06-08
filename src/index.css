@@ -24,6 +24,26 @@
 }
 
 @layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    margin: 0;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  @supports (min-height: 100dvh) {
+    #root {
+      min-height: 100dvh;
+    }
+  }
+
   body {
     @apply bg-app-bg text-app-ink font-sans selection:bg-app-accent/20;
     transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out;
@@ -31,6 +51,7 @@
 
   /* Smooth transitions for all theme-related elements */
   * {
+    min-width: 0;
     transition-property: background-color, border-color, color, fill, stroke, box-shadow;
     transition-duration: 0.3s;
     transition-timing-function: ease-in-out;
@@ -356,6 +377,27 @@
   letter-spacing: 0.15em;
   margin-top: -2px;
 }
+
+.app-shell {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+@supports (min-height: 100dvh) {
+  .app-shell {
+    min-height: 100dvh;
+  }
+}
+
+.app-main,
+.app-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 /* Mobile Responsive Improvements */
 @media (max-width: 640px) {
   /* Fix viewport and prevent horizontal scroll */
@@ -367,7 +409,8 @@
   
   /* Ensure containers don't exceed viewport */
   .container, .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .max-w-2xl {
-    max-width: 100vw;
+    max-width: 100%;
+    width: 100%;
     padding-left: 1rem;
     padding-right: 1rem;
     margin-left: auto;
@@ -469,8 +512,18 @@
   }
   
   /* Fix container widths */
-  .container, [class*="max-w-"] {
-    max-width: 100vw !important;
+  .container,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl,
+  .max-w-4xl,
+  .max-w-3xl,
+  .max-w-2xl,
+  .max-w-xl,
+  .max-w-lg,
+  .max-w-md,
+  .max-w-sm {
+    max-width: 100% !important;
     width: 100% !important;
     margin-left: auto !important;
     margin-right: auto !important;
@@ -518,6 +571,78 @@
 
 /* Improve scrolling on mobile */
 @media (max-width: 768px) {
+  .app-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .app-main {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .app-content {
+    width: 100%;
+    max-width: 100%;
+    padding-left: clamp(0.75rem, 3.5vw, 1rem) !important;
+    padding-right: clamp(0.75rem, 3.5vw, 1rem) !important;
+  }
+
+  .bazi-mobile-hero {
+    height: clamp(220px, 58vw, 300px) !important;
+    max-width: 100%;
+    border-radius: 1rem;
+  }
+
+  .bazi-hero-content {
+    gap: clamp(0.5rem, 2vw, 1rem);
+    padding-left: clamp(1rem, 5vw, 2rem) !important;
+    padding-right: clamp(0.75rem, 3vw, 1.5rem) !important;
+  }
+
+  .bazi-hero-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .bazi-hero-title {
+    font-size: clamp(2.7rem, 12vw, 4.2rem) !important;
+    line-height: 0.82;
+    margin-bottom: 0.25rem !important;
+    overflow-wrap: normal;
+  }
+
+  .bazi-hero-subtitle {
+    font-size: clamp(2rem, 9.5vw, 3.2rem) !important;
+    line-height: 0.95;
+    margin-bottom: clamp(0.35rem, 2vw, 0.75rem) !important;
+    white-space: nowrap;
+  }
+
+  .bazi-hero-description {
+    max-width: min(58vw, 15rem) !important;
+    font-size: clamp(0.72rem, 2.7vw, 0.875rem) !important;
+    line-height: 1.35;
+  }
+
+  .bazi-hero-actions {
+    flex: 0 0 auto;
+    max-width: clamp(5.5rem, 27vw, 8rem);
+    gap: 0.5rem !important;
+  }
+
+  .bazi-hero-button {
+    width: clamp(5.25rem, 25vw, 7.25rem);
+    min-height: clamp(5.5rem, 26vw, 8rem);
+    padding: 0.75rem 0.5rem !important;
+    font-size: clamp(0.86rem, 3.5vw, 1.1rem) !important;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+  
   .overflow-y-auto {
     -webkit-overflow-scrolling: touch;
   }
@@ -658,31 +783,36 @@
   }
 }
 
-/* iPhone Safari Safe Area Insets - Fix for obscured order button */
-@supports (padding: max(0px)) {
-  /* Apply safe area insets to fixed bottom elements on mobile */
-  @media (max-width: 768px) {
-    /* Target the order button container that uses fixed bottom-0 positioning */
-    .fixed.bottom-0 {
-      padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 1rem));
-    }
-    
-    /* Ensure the inner content respects the safe area */
-    .fixed.bottom-0 > div {
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-    }
-  }
-}
-
-/* Additional safe area support for iOS devices with notches */
+/* iPhone Safari safe-area layout for fixed bottom controls */
 @media (max-width: 768px) {
-  /* Ensure order button is always above Safari's toolbar */
-  .order-button-safe-area {
-    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+  :root {
+    --mobile-bottom-nav-height: 88px;
+    --ios-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ios-safe-top: env(safe-area-inset-top, 0px);
   }
-  
-  /* Apply to any fixed bottom navigation or action bars */
-  .mobile-bottom-action-bar {
-    padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+
+  .mobile-bottom-nav {
+    min-height: calc(var(--mobile-bottom-nav-height) + var(--ios-safe-bottom));
+    padding-bottom: max(0.5rem, var(--ios-safe-bottom));
+    z-index: 50;
+  }
+
+  .mobile-order-action-sheet {
+    bottom: calc(var(--mobile-bottom-nav-height) + var(--ios-safe-bottom));
+    max-height: calc(100vh - var(--mobile-bottom-nav-height) - var(--ios-safe-bottom) - 1rem);
+    max-height: calc(100dvh - var(--mobile-bottom-nav-height) - var(--ios-safe-bottom) - var(--ios-safe-top) - 1rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+
+  .mobile-order-action-sheet > div {
+    padding-bottom: 0.75rem;
+  }
+
+  .mobile-order-primary {
+    position: sticky;
+    bottom: 0;
+    min-height: 48px;
   }
 }

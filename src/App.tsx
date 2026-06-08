@@ -1140,7 +1140,7 @@ export default function App() {
   }
 
   return (
-    <div className={`flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
+    <div className={`app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
@@ -1510,7 +1510,7 @@ export default function App() {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-app-ink/10 px-4 py-2 z-50">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-app-ink/10 px-4 py-2 z-50 mobile-bottom-nav">
         <div className="flex justify-around items-center">
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -1572,7 +1572,7 @@ export default function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0">
+      <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0">
         {/* Header - Hidden on mobile */}
         <header className="hidden lg:flex h-24 border-b border-app-ink/10 items-center justify-between px-10 shrink-0 bg-white/80 backdrop-blur-md z-20 silk-texture relative">
           {/* Theme transition overlay */}
@@ -1652,7 +1652,7 @@ export default function App() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 bg-[#FDFCF8] relative">
+        <div className="app-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 bg-[#FDFCF8] relative">
           {/* Tab transition overlay */}
           <AnimatePresence>
             {isLanguageChanging && (
@@ -1890,7 +1890,7 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Mystical Website Integration - Asian Style */}
-                <div className="w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
+                <div className="bazi-mobile-hero w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
                       {/* Preload image for faster loading */}
                       <link rel="preload" as="image" href="/Background3.png?v=2" />
                       
@@ -1910,31 +1910,31 @@ export default function App() {
                       </div>
 
                       {/* Content - Left aligned text and right button */}
-                      <div className="relative z-10 h-full flex items-center justify-between px-12">
+                       <div className="bazi-hero-content relative z-10 h-full flex items-center justify-between px-12">
                         {/* Left Content */}
-                        <div className="flex-1">
+                         <div className="bazi-hero-copy flex-1">
                           <p className="text-amber-400 text-xs tracking-[0.3em] mb-3 font-serif font-bold uppercase">
                             — THIẾT KẾ MỆNH LÝ —
                           </p>
-                          <h2 className="text-white text-6xl font-serif font-bold mb-2 drop-shadow-lg" style={{fontWeight: 700}}>
+                           <h2 className="bazi-hero-title text-white text-6xl font-serif font-bold mb-2 drop-shadow-lg" style={{fontWeight: 700}}>
                             HUYỀN CƠ
                           </h2>
-                          <h3 className="text-amber-400 text-5xl font-serif font-bold italic mb-4 drop-shadow-lg" style={{fontWeight: 700}}>
+                           <h3 className="bazi-hero-subtitle text-amber-400 text-5xl font-serif font-bold italic mb-4 drop-shadow-lg" style={{fontWeight: 700}}>
                             BẤT TỰ
                           </h3>
-                          <p className="text-white/80 text-sm max-w-md leading-relaxed font-serif font-semibold italic" style={{fontWeight: 600}}>
+                           <p className="bazi-hero-description text-white/80 text-sm max-w-md leading-relaxed font-serif font-semibold italic" style={{fontWeight: 600}}>
                             Giải mã vận mệnh qua tinh hoa Bát Tự truyền thống.
                           </p>
                         </div>
                         
                         {/* Right Content */}
-                        <div className="flex flex-col items-end gap-4">
+                         <div className="bazi-hero-actions flex flex-col items-end gap-4">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open('https://thuatso.onrender.com/', '_blank');
                             }}
-                            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-10 py-4 rounded-lg font-bold text-lg tracking-wider shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
+                            className="bazi-hero-button bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-10 py-4 rounded-lg font-bold text-lg tracking-wider shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
                           >
                             LẬP LÁ SỐ NGAY
                           </button>
@@ -1950,7 +1950,9 @@ export default function App() {
                     </div>
 
                 {/* Menu List */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-32 lg:pb-64">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:pb-64 ${
+                  selectedDishes.length > 0 ? 'pb-[22rem]' : 'pb-32'
+                }`}>
                   <AnimatePresence mode="wait">
                     {isLanguageChanging ? (
                       <div
@@ -2077,7 +2079,7 @@ export default function App() {
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-4 border-[#DA251D] shadow-2xl"
+                    className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t-4 border-[#DA251D] shadow-2xl mobile-order-action-sheet lg:z-50"
                   >
                     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 lg:py-4">
                       {/* Mobile: Compact View */}
@@ -2145,7 +2147,7 @@ export default function App() {
                         {/* Mobile action button */}
                         <button 
                           onClick={handleShowOrderSummary}
-                          className={`w-full text-white py-3 rounded-xl font-bold text-base transition-all shadow-lg flex items-center justify-center gap-2 ${
+                          className={`w-full text-white py-3 rounded-xl font-bold text-base transition-all shadow-lg flex items-center justify-center gap-2 mobile-order-primary ${
                             theme === 'corporate' 
                               ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
                               : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
