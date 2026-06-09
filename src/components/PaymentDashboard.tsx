@@ -8,10 +8,17 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  Utensils
+  Utensils,
+  QrCode,
+  Copy,
+  RefreshCw,
+  AlertCircle,
+  Building2
 } from 'lucide-react';
 import { usePayments } from '../hooks/usePayments';
 import { useMonthlyOrders } from '../hooks/useMonthlyOrders';
+import { useAuth } from '../contexts/AuthContext';
+import { paymentsAPI } from '../services/api';
 
 interface PaymentStats {
   month: string;
@@ -29,14 +36,35 @@ interface DayOrder {
   count: number;
 }
 
+interface AutoPaymentInfo {
+  userId: number;
+  month: string;
+  code: string;
+  amount: number;
+  remainingTotal: number;
+  isPaid: boolean;
+  bankConfigured: boolean;
+  bank: {
+    bankId: string;
+    accountNo: string;
+    accountName?: string;
+  } | null;
+  qrUrl?: string | null;
+}
+
 interface PaymentDashboardProps {
   translations: any;
 }
 
 const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  const { paymentStats, isLoading, isRefreshing } = usePayments(currentMonth);
+  const { user } = useAuth();
+  const { paymentStats, isLoading, isRefreshing, refetch } = usePayments(currentMonth);
   const { orders } = useMonthlyOrders(currentMonth);
+  const [autoPaymentInfo, setAutoPaymentInfo] = useState<AutoPaymentInfo | null>(null);
+  const [isAutoPaymentLoading, setIsAutoPaymentLoading] = useState(false);
+  const [autoPaymentError, setAutoPaymentError] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Tạo dữ liệu calendar từ orders thực tế
   const [monthlyOrders, setMonthlyOrders] = useState<DayOrder[]>([]);
@@ -59,6 +87,46 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
 
     setMonthlyOrders(calendarData);
   }, [orders, currentMonth]);
+
+  const loadAutoPaymentInfo = async () => {
+    if (!user || user.role === 'admin') {
+      setAutoPaymentInfo(null);
+      return;
+    }
+
+    try {
+      setIsAutoPaymentLoading(true);
+      setAutoPaymentError(null);
+      const info = await paymentsAPI.getAutoInfo(currentMonth);
+      setAutoPaymentInfo(info);
+    } catch (error) {
+      console.error('Auto payment info error:', error);
+      setAutoPaymentError(error instanceof Error ? error.message : 'Không tải được thông tin thanh toán tự động');
+    } finally {
+      setIsAutoPaymentLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAutoPaymentInfo();
+  }, [currentMonth, user?.id, user?.role, paymentStats?.remainingTotal]);
+
+  const handleRefreshAutoPayment = async () => {
+    await refetch();
+    await loadAutoPaymentInfo();
+  };
+
+  const copyToClipboard = async (value: string, field: string) => {
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField(null), 1600);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
+  };
 
   const generateCalendar = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1);
@@ -219,6 +287,135 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           </div>
         </div>
       </div>
+
+      {user?.role !== 'admin' && (
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
+                <QrCode className="text-blue-600" size={22} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Thanh toán tự động</h3>
+                <p className="text-sm text-gray-500">Quét mã VietQR để tự điền số tiền và nội dung chuyển khoản.</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleRefreshAutoPayment}
+              disabled={isAutoPaymentLoading || isRefreshing}
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw size={16} className={isAutoPaymentLoading || isRefreshing ? 'animate-spin' : ''} />
+              Cập nhật
+            </button>
+          </div>
+
+          {isAutoPaymentLoading && !autoPaymentInfo ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-7 h-7 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+            </div>
+          ) : autoPaymentError ? (
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+              <AlertCircle size={20} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Chưa tải được thông tin thanh toán</p>
+                <p className="text-sm mt-1">{autoPaymentError}</p>
+              </div>
+            </div>
+          ) : autoPaymentInfo?.isPaid ? (
+            <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-700">
+              <CheckCircle size={20} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Tháng này đã được thanh toán</p>
+                <p className="text-sm mt-1">Nếu vừa chuyển khoản, hãy bấm cập nhật sau khi ngân hàng gửi webhook về hệ thống.</p>
+              </div>
+            </div>
+          ) : autoPaymentInfo ? (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,260px)_1fr]">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center justify-center min-h-[260px]">
+                {autoPaymentInfo.qrUrl ? (
+                  <img
+                    src={autoPaymentInfo.qrUrl}
+                    alt="QR thanh toán"
+                    className="w-full max-w-[220px] rounded-lg bg-white"
+                  />
+                ) : (
+                  <div className="text-center px-4">
+                    <Building2 className="mx-auto text-gray-400 mb-3" size={36} />
+                    <p className="font-semibold text-gray-700">Chưa cấu hình tài khoản ngân hàng</p>
+                    <p className="text-sm text-gray-500 mt-1">Thêm biến môi trường AUTO_PAYMENT_BANK_ID và AUTO_PAYMENT_ACCOUNT_NO để hiện QR.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4 min-w-0">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <p className="text-xs uppercase font-bold text-gray-500">Số tiền cần thanh toán</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{autoPaymentInfo.amount.toLocaleString()}đ</p>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 p-4 min-w-0">
+                    <p className="text-xs uppercase font-bold text-gray-500">Nội dung chuyển khoản</p>
+                    <div className="mt-1 flex items-center gap-2 min-w-0">
+                      <p className="text-lg font-bold text-gray-900 truncate">{autoPaymentInfo.code}</p>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(autoPaymentInfo.code, 'code')}
+                        className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        title="Copy nội dung chuyển khoản"
+                      >
+                        <Copy size={16} className="text-gray-600" />
+                      </button>
+                    </div>
+                    {copiedField === 'code' && (
+                      <p className="text-xs text-green-600 mt-1">Đã copy</p>
+                    )}
+                  </div>
+                </div>
+
+                {autoPaymentInfo.bankConfigured && autoPaymentInfo.bank && (
+                  <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
+                    <div className="flex items-center justify-between gap-3 p-4">
+                      <span className="text-sm text-gray-500">Ngân hàng</span>
+                      <span className="font-semibold text-gray-900 text-right">{autoPaymentInfo.bank.bankId}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 p-4">
+                      <span className="text-sm text-gray-500">Số tài khoản</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-gray-900 truncate">{autoPaymentInfo.bank.accountNo}</span>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(autoPaymentInfo.bank?.accountNo || '', 'account')}
+                          className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          title="Copy số tài khoản"
+                        >
+                          <Copy size={16} className="text-gray-600" />
+                        </button>
+                      </div>
+                    </div>
+                    {autoPaymentInfo.bank.accountName && (
+                      <div className="flex items-center justify-between gap-3 p-4">
+                        <span className="text-sm text-gray-500">Chủ tài khoản</span>
+                        <span className="font-semibold text-gray-900 text-right">{autoPaymentInfo.bank.accountName}</span>
+                      </div>
+                    )}
+                    {copiedField === 'account' && (
+                      <div className="p-4 text-xs text-green-600">Đã copy số tài khoản</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                  Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền và nội dung <span className="font-bold">{autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận thanh toán.
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Calendar View */}
       <div

@@ -1509,6 +1509,489 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   return result;
 };
 
+// =====================================================
+// Automatic bank-transfer payment helpers
+// =====================================================
+
+const PAYMENT_MEAL_PRICE = Number(process.env.PAYMENT_MEAL_PRICE || 40000);
+const AUTO_PAYMENT_PREFIX = (process.env.AUTO_PAYMENT_PREFIX || 'FSI')
+  .toString()
+  .replace(/[^a-zA-Z0-9]/g, '')
+  .toUpperCase() || 'FSI';
+
+const isValidPaymentMonth = (month) => {
+  if (typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) return false;
+  const monthNumber = Number(month.slice(5, 7));
+  return monthNumber >= 1 && monthNumber <= 12;
+};
+
+const normalizePaymentMonth = (month) => {
+  const candidate = typeof month === 'string' ? month.trim() : '';
+  return isValidPaymentMonth(candidate) ? candidate : new Date().toISOString().slice(0, 7);
+};
+
+const getPaymentMonthBounds = (month) => {
+  const safeMonth = normalizePaymentMonth(month);
+  const [year, monthNum] = safeMonth.split('-').map(Number);
+  const nextMonthDate = new Date(year, monthNum, 1);
+  const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  return {
+    month: safeMonth,
+    startDate: `${safeMonth}-01`,
+    nextMonthDate: `${nextMonth}-01`
+  };
+};
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildAutoPaymentCode = (userId, month) => {
+  const safeMonth = normalizePaymentMonth(month).replace('-', '');
+  return `${AUTO_PAYMENT_PREFIX}${Number(userId)}M${safeMonth}`;
+};
+
+const parseAutoPaymentCode = (content = '') => {
+  const compactContent = String(content).replace(/\s+/g, '').toUpperCase();
+  const match = compactContent.match(new RegExp(`${escapeRegExp(AUTO_PAYMENT_PREFIX)}(\\d+)M(\\d{6})`, 'i'));
+
+  if (!match) return null;
+
+  const userId = Number(match[1]);
+  const monthDigits = match[2];
+  const month = `${monthDigits.slice(0, 4)}-${monthDigits.slice(4, 6)}`;
+
+  if (!Number.isInteger(userId) || userId <= 0 || !isValidPaymentMonth(month)) {
+    return null;
+  }
+
+  return {
+    userId,
+    month,
+    code: `${AUTO_PAYMENT_PREFIX}${userId}M${monthDigits}`
+  };
+};
+
+const parseMoneyAmount = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return 0;
+
+  let normalized = value.replace(/[^\d.,-]/g, '');
+  const hasComma = normalized.includes(',');
+  const hasDot = normalized.includes('.');
+
+  if (hasComma && hasDot) {
+    const lastComma = normalized.lastIndexOf(',');
+    const lastDot = normalized.lastIndexOf('.');
+    const decimalSeparator = lastComma > lastDot ? ',' : '.';
+    const thousandSeparator = decimalSeparator === ',' ? '.' : ',';
+    normalized = normalized
+      .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+      .replace(decimalSeparator, '.');
+  } else if (hasComma) {
+    const parts = normalized.split(',');
+    normalized = parts.length > 1 && parts[parts.length - 1].length === 3
+      ? normalized.replace(/,/g, '')
+      : normalized.replace(',', '.');
+  } else if (hasDot) {
+    const parts = normalized.split('.');
+    if (parts.length > 1 && parts[parts.length - 1].length === 3) {
+      normalized = normalized.replace(/\./g, '');
+    }
+  }
+
+  return Number(normalized);
+};
+
+const normalizeObjectKey = (key) => String(key).toLowerCase().replace(/[\s_-]/g, '');
+
+const findValueDeep = (value, candidateKeys, depth = 0) => {
+  if (!value || depth > 5) return undefined;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findValueDeep(item, candidateKeys, depth + 1);
+      if (found !== undefined && found !== null && found !== '') return found;
+    }
+    return undefined;
+  }
+
+  if (typeof value !== 'object') return undefined;
+
+  const normalizedCandidates = candidateKeys.map(normalizeObjectKey);
+  for (const [key, childValue] of Object.entries(value)) {
+    if (normalizedCandidates.includes(normalizeObjectKey(key)) && childValue !== undefined && childValue !== null && childValue !== '') {
+      return childValue;
+    }
+  }
+
+  for (const childValue of Object.values(value)) {
+    if (childValue && typeof childValue === 'object') {
+      const found = findValueDeep(childValue, candidateKeys, depth + 1);
+      if (found !== undefined && found !== null && found !== '') return found;
+    }
+  }
+
+  return undefined;
+};
+
+const extractAutoPaymentTransaction = (body = {}) => {
+  const amount = parseMoneyAmount(findValueDeep(body, [
+    'transferAmount',
+    'amount',
+    'creditAmount',
+    'inAmount',
+    'transactionAmount',
+    'money'
+  ]));
+
+  const description = findValueDeep(body, [
+    'transferContent',
+    'transactionContent',
+    'bankTransactionContent',
+    'description',
+    'content',
+    'memo',
+    'remark'
+  ]);
+
+  const transactionId = findValueDeep(body, [
+    'transactionId',
+    'referenceCode',
+    'referenceId',
+    'refNo',
+    'tid',
+    'id',
+    'code'
+  ]);
+
+  const direction = String(findValueDeep(body, [
+    'transferType',
+    'transactionType',
+    'direction',
+    'type'
+  ]) || '').toLowerCase();
+
+  const status = String(findValueDeep(body, [
+    'status',
+    'transactionStatus'
+  ]) || '').toLowerCase();
+
+  return {
+    amount,
+    description: description ? String(description) : '',
+    transactionId: transactionId ? String(transactionId) : '',
+    direction,
+    status
+  };
+};
+
+const isOutgoingAutoPayment = (transaction) => {
+  const direction = transaction.direction || '';
+  return ['out', 'debit', 'withdraw', 'withdrawal', 'moneyout'].some((keyword) => direction.includes(keyword));
+};
+
+const isFailedAutoPayment = (transaction) => {
+  const status = transaction.status || '';
+  return ['fail', 'failed', 'cancel', 'cancelled', 'error', 'reject'].some((keyword) => status.includes(keyword));
+};
+
+const buildVietQrUrl = ({ amount, code }) => {
+  const bankId = process.env.AUTO_PAYMENT_BANK_ID;
+  const accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO;
+
+  if (!bankId || !accountNo || !amount || amount <= 0) {
+    return null;
+  }
+
+  const template = process.env.AUTO_PAYMENT_QR_TEMPLATE || 'compact2';
+  const params = new URLSearchParams({
+    amount: String(Math.round(amount)),
+    addInfo: code
+  });
+
+  if (process.env.AUTO_PAYMENT_ACCOUNT_NAME) {
+    params.set('accountName', process.env.AUTO_PAYMENT_ACCOUNT_NAME);
+  }
+
+  return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(accountNo)}-${encodeURIComponent(template)}.png?${params.toString()}`;
+};
+
+const getAutoPaymentBankInfo = () => {
+  const bankId = process.env.AUTO_PAYMENT_BANK_ID || '';
+  const accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO || '';
+  const accountName = process.env.AUTO_PAYMENT_ACCOUNT_NAME || '';
+
+  if (!bankId || !accountNo) {
+    return null;
+  }
+
+  return { bankId, accountNo, accountName };
+};
+
+const isMissingOptionalPaymentSchema = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return message.includes('column') || message.includes('schema cache') || message.includes('relation') || message.includes('auto_payment_transactions');
+};
+
+const insertPaymentRecord = async ({ userId, amount, source, notes }) => {
+  const basePaymentData = {
+    user_id: userId,
+    amount,
+    status: 'completed'
+  };
+
+  const paymentDataWithMetadata = {
+    ...basePaymentData,
+    method: source === 'manual' ? 'cash' : 'transfer',
+    notes
+  };
+
+  let insertResult = await supabase
+    .from('payments')
+    .insert([paymentDataWithMetadata])
+    .select()
+    .single();
+
+  if (insertResult.error && isMissingOptionalPaymentSchema(insertResult.error)) {
+    console.warn('Auto payment metadata columns are not available, inserting minimal payment row');
+    insertResult = await supabase
+      .from('payments')
+      .insert([basePaymentData])
+      .select()
+      .single();
+  }
+
+  if (insertResult.error) {
+    throw insertResult.error;
+  }
+
+  return insertResult.data;
+};
+
+const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, userId, month, amount, description, rawPayload }) => {
+  if (!transactionId) {
+    return { supported: false, duplicate: false, event: null };
+  }
+
+  const eventData = {
+    provider: source,
+    transaction_id: transactionId.slice(0, 180),
+    payment_code: paymentCode,
+    user_id: userId,
+    month,
+    amount,
+    description: description ? description.slice(0, 1000) : null,
+    raw_payload: rawPayload,
+    status: 'processing'
+  };
+
+  const { data, error } = await supabase
+    .from('auto_payment_transactions')
+    .insert([eventData])
+    .select()
+    .single();
+
+  if (!error) {
+    return { supported: true, duplicate: false, event: data };
+  }
+
+  if (error.code === '23505') {
+    const { data: existingEvent } = await supabase
+      .from('auto_payment_transactions')
+      .select('id, payment_id, status')
+      .eq('provider', eventData.provider)
+      .eq('transaction_id', eventData.transaction_id)
+      .limit(1)
+      .single();
+
+    if (existingEvent?.payment_id) {
+      return { supported: true, duplicate: true, event: existingEvent };
+    }
+
+    return { supported: true, duplicate: false, event: existingEvent || null };
+  }
+
+  if (isMissingOptionalPaymentSchema(error)) {
+    console.warn('auto_payment_transactions table is not available; webhook duplicate protection is limited');
+    return { supported: false, duplicate: false, event: null };
+  }
+
+  throw error;
+};
+
+const updateAutoPaymentEvent = async (eventId, values) => {
+  if (!eventId) return;
+
+  const { error } = await supabase
+    .from('auto_payment_transactions')
+    .update(values)
+    .eq('id', eventId);
+
+  if (error && !isMissingOptionalPaymentSchema(error)) {
+    console.warn('Could not update auto payment event:', error.message);
+  }
+};
+
+const markOrdersPaidForPayment = async ({ userId, month, amount }) => {
+  const { startDate, nextMonthDate } = getPaymentMonthBounds(month);
+  const remainingAmount = Number(amount);
+
+  if (!Number.isFinite(remainingAmount) || remainingAmount <= 0) {
+    return { markedCount: 0, markedTotal: 0, orderIds: [] };
+  }
+
+  const { data: unpaidOrders, error } = await supabase
+    .from('orders')
+    .select('id, price, created_at, user_id, ordered_for')
+    .or(`ordered_for.eq.${userId},user_id.eq.${userId}`)
+    .eq('paid', false)
+    .is('deleted_at', null)
+    .gte('created_at', `${startDate}T00:00:00Z`)
+    .lt('created_at', `${nextMonthDate}T00:00:00Z`)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching unpaid orders for payment:', error);
+    throw error;
+  }
+
+  const payableOrders = (unpaidOrders || []).filter((order) => {
+    if (order.ordered_for) {
+      return order.ordered_for === userId;
+    }
+    return order.user_id === userId;
+  });
+
+  let availableAmount = remainingAmount;
+  const ordersToMarkPaid = [];
+  let markedTotal = 0;
+
+  for (const order of payableOrders) {
+    const orderPrice = Number(order.price || PAYMENT_MEAL_PRICE);
+    if (!Number.isFinite(orderPrice) || orderPrice <= 0) continue;
+    if (availableAmount + 0.001 < orderPrice) break;
+
+    ordersToMarkPaid.push(order);
+    availableAmount -= orderPrice;
+    markedTotal += orderPrice;
+  }
+
+  const orderIds = ordersToMarkPaid.map((order) => order.id);
+
+  if (orderIds.length === 0) {
+    return { markedCount: 0, markedTotal: 0, orderIds: [] };
+  }
+
+  const { data: updatedOrders, error: updateError } = await supabase
+    .from('orders')
+    .update({ paid: true })
+    .in('id', orderIds)
+    .select('id');
+
+  if (updateError) {
+    console.error('Error marking orders as paid:', updateError);
+    throw updateError;
+  }
+
+  return {
+    markedCount: updatedOrders?.length || 0,
+    markedTotal,
+    orderIds
+  };
+};
+
+const invalidatePaymentCaches = (userId, month, reason = 'payment_updated') => {
+  cache.invalidate(`payments:admin:${month}`, `${reason}:user_${userId}`);
+  cache.invalidate(`payments:user:${userId}:${month}`, reason);
+  cache.invalidate(`stats:dashboard:${month}`, reason);
+  cache.invalidate(`stats:user:${userId}:${month}`, reason);
+};
+
+const recordCompletedPayment = async ({ userId, month, amount, source = 'manual', paymentCode, transactionId, description, rawPayload, actorUserId }) => {
+  const safeMonth = normalizePaymentMonth(month);
+  const numericAmount = Number(amount);
+
+  if (!Number.isInteger(Number(userId)) || Number(userId) <= 0) {
+    const error = new Error('Invalid payment user');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    const error = new Error('Invalid payment amount');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const code = paymentCode || buildAutoPaymentCode(userId, safeMonth);
+  const notes = [
+    `source:${source}`,
+    `code:${code}`,
+    transactionId ? `transaction:${String(transactionId).slice(0, 180)}` : null,
+    description ? `description:${String(description).slice(0, 500)}` : null
+  ].filter(Boolean).join(' | ');
+
+  const payment = await insertPaymentRecord({
+    userId,
+    amount: numericAmount,
+    source,
+    notes
+  });
+
+  const paidOrders = await markOrdersPaidForPayment({
+    userId: Number(userId),
+    month: safeMonth,
+    amount: numericAmount
+  });
+
+  const notificationType = source === 'manual' ? 'payment_marked' : 'payment_auto_completed';
+  sendSSENotification(Number(userId), {
+    type: notificationType,
+    userId: Number(userId),
+    data: {
+      amount: numericAmount,
+      month: safeMonth,
+      paymentCode: code,
+      markedCount: paidOrders.markedCount,
+      timestamp: Date.now()
+    }
+  });
+
+  if (actorUserId && Number(actorUserId) !== Number(userId)) {
+    sendSSENotification(Number(actorUserId), {
+      type: notificationType,
+      userId: Number(userId),
+      data: {
+        amount: numericAmount,
+        month: safeMonth,
+        paymentCode: code,
+        markedCount: paidOrders.markedCount,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  invalidatePaymentCaches(Number(userId), safeMonth, source === 'manual' ? 'payment_marked' : 'payment_auto_completed');
+
+  return {
+    payment,
+    paidOrders,
+    rawPayload
+  };
+};
+
+const hasValidAutoPaymentSecret = (req) => {
+  const configuredSecret = process.env.AUTO_PAYMENT_WEBHOOK_SECRET;
+  if (!configuredSecret) return false;
+
+  const headerSecret = req.get('X-Auto-Payment-Secret');
+  const authHeader = req.get('Authorization') || '';
+  const bearerSecret = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const apiKeySecret = authHeader.startsWith('Apikey ') ? authHeader.slice(7) : '';
+
+  return headerSecret === configuredSecret || bearerSecret === configuredSecret || apiKeySecret === configuredSecret;
+};
+
 // Debug endpoint to check payment data
 app.get('/api/debug/payments', authenticateToken, async (req, res) => {
   try {
@@ -1709,6 +2192,137 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('My payments error:', error);
     res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get automatic bank-transfer info for the selected month
+app.get('/api/payments/auto-info', authenticateToken, async (req, res) => {
+  try {
+    const month = normalizePaymentMonth(req.query.month);
+    const requestedUserId = req.user.role === 'admin' && req.query.userId
+      ? Number(req.query.userId)
+      : Number(req.user.id);
+
+    if (!Number.isInteger(requestedUserId) || requestedUserId <= 0) {
+      return res.status(400).json({ error: 'User khong hop le' });
+    }
+
+    const stats = await getUserPaymentStats(supabase, requestedUserId, month);
+    const amount = Math.max(0, Number(stats.remainingTotal || 0));
+    const code = buildAutoPaymentCode(requestedUserId, month);
+    const bank = getAutoPaymentBankInfo();
+
+    res.json({
+      userId: requestedUserId,
+      month,
+      code,
+      amount,
+      remainingTotal: amount,
+      isPaid: amount <= 0,
+      bankConfigured: !!bank,
+      bank,
+      qrUrl: bank ? buildVietQrUrl({ amount, code }) : null
+    });
+  } catch (error) {
+    console.error('Auto payment info error:', error);
+    res.status(500).json({ error: 'Loi lay thong tin thanh toan tu dong' });
+  }
+});
+
+// Webhook endpoint for bank/API providers (SePay, Casso, Bank Hub, etc.)
+app.post('/api/payments/auto-webhook', async (req, res) => {
+  let reservedEvent = null;
+
+  try {
+    if (!process.env.AUTO_PAYMENT_WEBHOOK_SECRET) {
+      return res.status(503).json({ error: 'Auto payment webhook is not configured' });
+    }
+
+    if (!hasValidAutoPaymentSecret(req)) {
+      return res.status(401).json({ error: 'Invalid webhook secret' });
+    }
+
+    const transaction = extractAutoPaymentTransaction(req.body);
+
+    if (isOutgoingAutoPayment(transaction)) {
+      return res.json({ success: true, ignored: true, reason: 'outgoing_transaction' });
+    }
+
+    if (isFailedAutoPayment(transaction)) {
+      return res.json({ success: true, ignored: true, reason: 'failed_transaction' });
+    }
+
+    const paymentCode = parseAutoPaymentCode(transaction.description);
+
+    if (!paymentCode) {
+      return res.json({ success: true, ignored: true, reason: 'payment_code_not_found' });
+    }
+
+    if (!Number.isFinite(transaction.amount) || transaction.amount <= 0) {
+      return res.status(400).json({ error: 'Invalid transaction amount' });
+    }
+
+    const { data: targetUser, error: userError } = await supabase
+      .from('users')
+      .select('id, fullname')
+      .eq('id', paymentCode.userId)
+      .limit(1)
+      .single();
+
+    if (userError || !targetUser) {
+      return res.status(404).json({ error: 'Payment user not found' });
+    }
+
+    const eventReservation = await reserveAutoPaymentEvent({
+      source: 'bank-webhook',
+      transactionId: transaction.transactionId,
+      paymentCode: paymentCode.code,
+      userId: paymentCode.userId,
+      month: paymentCode.month,
+      amount: transaction.amount,
+      description: transaction.description,
+      rawPayload: req.body
+    });
+
+    reservedEvent = eventReservation.event;
+
+    if (eventReservation.duplicate) {
+      return res.json({
+        success: true,
+        duplicate: true,
+        paymentCode: paymentCode.code
+      });
+    }
+
+    const result = await recordCompletedPayment({
+      userId: paymentCode.userId,
+      month: paymentCode.month,
+      amount: transaction.amount,
+      source: 'bank-webhook',
+      paymentCode: paymentCode.code,
+      transactionId: transaction.transactionId,
+      description: transaction.description,
+      rawPayload: req.body
+    });
+
+    await updateAutoPaymentEvent(reservedEvent?.id, {
+      payment_id: result.payment.id,
+      status: 'completed'
+    });
+
+    res.json({
+      success: true,
+      paymentCode: paymentCode.code,
+      payment: result.payment,
+      markedOrders: result.paidOrders.markedCount
+    });
+  } catch (error) {
+    console.error('Auto payment webhook error:', error);
+    await updateAutoPaymentEvent(reservedEvent?.id, {
+      status: 'failed',
+      error_message: error.message
+    });
+    res.status(error.statusCode || 500).json({ error: 'Loi xu ly webhook thanh toan' });
   }
 });
 
