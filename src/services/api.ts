@@ -231,6 +231,13 @@ export const paymentsAPI = {
   getMy: (month?: string) =>
     apiCall<any>(`/payments/my${month ? `?month=${month}` : ''}`),
 
+  getMyHistory: (month?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month);
+    if (limit) params.append('limit', limit.toString());
+    return apiCall<any>(`/payments/my-history${params.toString() ? `?${params.toString()}` : ''}`);
+  },
+
   getAutoInfo: (month?: string, userId?: number) => {
     const params = new URLSearchParams();
     if (month) params.append('month', month);

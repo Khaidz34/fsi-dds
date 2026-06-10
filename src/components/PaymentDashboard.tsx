@@ -13,7 +13,8 @@ import {
   Copy,
   RefreshCw,
   AlertCircle,
-  Building2
+  Building2,
+  History
 } from 'lucide-react';
 import { usePayments } from '../hooks/usePayments';
 import { useMonthlyOrders } from '../hooks/useMonthlyOrders';
@@ -52,6 +53,27 @@ interface AutoPaymentInfo {
   qrUrl?: string | null;
 }
 
+interface AutoPaymentUsage {
+  supported: boolean;
+  month: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  usagePercent: number | null;
+  completed: number;
+  failed: number;
+  processing: number;
+}
+
+interface PaymentHistoryItem {
+  id: number;
+  amount: number;
+  status?: string | null;
+  method?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
 interface PaymentDashboardProps {
   translations: any;
 }
@@ -70,6 +92,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const [selectedPaymentAmount, setSelectedPaymentAmount] = useState(0);
   const [customPaymentAmount, setCustomPaymentAmount] = useState('');
   const [autoPaymentQrFailed, setAutoPaymentQrFailed] = useState(false);
+  const [autoPaymentUsage, setAutoPaymentUsage] = useState<AutoPaymentUsage | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
+  const [isPaymentHistoryLoading, setIsPaymentHistoryLoading] = useState(false);
 
   // Tạo dữ liệu calendar từ orders thực tế
   const [monthlyOrders, setMonthlyOrders] = useState<DayOrder[]>([]);
@@ -113,8 +138,43 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     }
   };
 
+  const loadAutoPaymentUsage = async () => {
+    if (!user || user.role === 'admin') {
+      setAutoPaymentUsage(null);
+      return;
+    }
+
+    try {
+      const usage = await paymentsAPI.getAutoUsage(currentMonth);
+      setAutoPaymentUsage(usage);
+    } catch (error) {
+      console.error('Auto payment usage error:', error);
+      setAutoPaymentUsage(null);
+    }
+  };
+
+  const loadPaymentHistory = async () => {
+    if (!user || user.role === 'admin') {
+      setPaymentHistory([]);
+      return;
+    }
+
+    try {
+      setIsPaymentHistoryLoading(true);
+      const response = await paymentsAPI.getMyHistory(currentMonth, 50);
+      setPaymentHistory(Array.isArray(response?.data) ? response.data : []);
+    } catch (error) {
+      console.error('My payment history error:', error);
+      setPaymentHistory([]);
+    } finally {
+      setIsPaymentHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAutoPaymentInfo();
+    loadAutoPaymentUsage();
+    loadPaymentHistory();
   }, [currentMonth, user?.id, user?.role, paymentStats?.remainingTotal]);
 
   useEffect(() => {
@@ -133,6 +193,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const handleRefreshAutoPayment = async () => {
     await refetch();
     await loadAutoPaymentInfo();
+    await loadAutoPaymentUsage();
+    await loadPaymentHistory();
   };
 
   const copyToClipboard = async (value: string, field: string) => {
@@ -145,6 +207,30 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     } catch (error) {
       console.error('Copy failed:', error);
     }
+  };
+
+  const getPaymentMethodLabel = (payment: PaymentHistoryItem) => {
+    if (payment.method === 'transfer') return 'Chuyển khoản';
+    if (payment.method === 'cash') return 'Admin xác nhận';
+    if (payment.notes?.includes('source:bank-webhook')) return 'Chuyển khoản';
+    if (payment.notes?.includes('source:manual')) return 'Admin xác nhận';
+    return 'Thanh toán';
+  };
+
+  const getPaymentCodeFromNotes = (notes?: string | null) => {
+    if (!notes) return null;
+    const match = notes.match(/code:([^|]+)/);
+    return match?.[1]?.trim() || null;
+  };
+
+  const formatPaymentDateTime = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Không rõ thời gian';
+
+    return `${date.toLocaleDateString('vi-VN')} ${date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`;
   };
 
   const getMaxAutoPaymentAmount = (info: AutoPaymentInfo) =>
@@ -304,6 +390,12 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const activeAutoPaymentAmount = normalizePaymentAmount(selectedPaymentAmount, maxAutoPaymentAmount);
   const autoPaymentAmountOptions = autoPaymentInfo ? getPaymentAmountOptions(autoPaymentInfo) : [];
   const currentAutoPaymentQrUrl = autoPaymentInfo ? getCurrentQrUrl(autoPaymentInfo) : null;
+  const autoPaymentUsagePercent = autoPaymentUsage?.usagePercent || 0;
+  const autoPaymentQuotaClass = autoPaymentUsagePercent >= 90
+    ? 'bg-red-500'
+    : autoPaymentUsagePercent >= 75
+      ? 'bg-orange-500'
+      : 'bg-blue-500';
 
   return (
     <div className="space-y-8">
@@ -425,6 +517,49 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               Cập nhật
             </button>
           </div>
+
+          {autoPaymentUsage && (
+            <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase font-bold text-blue-700">Lượt chuyển khoản tự động</p>
+                  <p className="text-2xl font-black text-gray-900 mt-1">
+                    {autoPaymentUsage.remaining !== null
+                      ? `${autoPaymentUsage.remaining.toLocaleString()} lượt còn lại`
+                      : `${autoPaymentUsage.used.toLocaleString()} lượt đã dùng`}
+                  </p>
+                  <p className="text-sm text-blue-800 mt-1">
+                    {autoPaymentUsage.supported
+                      ? autoPaymentUsage.limit
+                        ? `Hệ thống đã dùng ${autoPaymentUsage.used.toLocaleString()} / ${autoPaymentUsage.limit.toLocaleString()} lượt trong tháng ${autoPaymentUsage.month}.`
+                        : `Hệ thống đã nhận ${autoPaymentUsage.used.toLocaleString()} giao dịch trong tháng ${autoPaymentUsage.month}.`
+                      : 'Hệ thống chưa bật bảng đếm giao dịch tự động.'}
+                  </p>
+                </div>
+
+                {autoPaymentUsage.limit && (
+                  <div className="w-full sm:w-56">
+                    <div className="flex items-center justify-between text-xs font-bold text-blue-800 mb-2">
+                      <span>Đã dùng</span>
+                      <span>{autoPaymentUsagePercent}%</span>
+                    </div>
+                    <div className="h-3 bg-white rounded-full overflow-hidden border border-blue-100">
+                      <div
+                        className={`h-full rounded-full ${autoPaymentQuotaClass}`}
+                        style={{ width: `${autoPaymentUsagePercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {autoPaymentUsage.remaining === 0 && autoPaymentUsage.limit && (
+                <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+                  Gói tự động đã hết lượt trong tháng. Người dùng vẫn có thể chuyển khoản, nhưng hệ thống có thể cần admin kiểm tra/xác nhận thủ công.
+                </div>
+              )}
+            </div>
+          )}
 
           {isAutoPaymentLoading && !autoPaymentInfo ? (
             <div className="flex items-center justify-center py-8">
@@ -594,6 +729,66 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               </div>
             </div>
           ) : null}
+        </div>
+      )}
+
+      {user?.role !== 'admin' && (
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between gap-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center">
+                <History className="text-emerald-600" size={22} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Lịch sử thanh toán của tôi</h3>
+                <p className="text-sm text-gray-500">Các khoản đã ghi nhận trong tháng đang chọn.</p>
+              </div>
+            </div>
+
+            <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+              {currentMonth}
+            </span>
+          </div>
+
+          {isPaymentHistoryLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-7 h-7 border-4 border-gray-200 border-t-emerald-500 rounded-full animate-spin"></div>
+            </div>
+          ) : paymentHistory.length > 0 ? (
+            <div className="space-y-3">
+              {paymentHistory.map((payment) => {
+                const paymentCode = getPaymentCodeFromNotes(payment.notes);
+
+                return (
+                  <div
+                    key={payment.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-gray-200 p-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-gray-900">{getPaymentMethodLabel(payment)}</p>
+                        <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
+                          {payment.status || 'completed'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{formatPaymentDateTime(payment.created_at)}</p>
+                      {paymentCode && (
+                        <p className="text-xs text-blue-700 font-semibold mt-1">Mã: {paymentCode}</p>
+                      )}
+                    </div>
+
+                    <p className="text-xl font-black text-emerald-600 whitespace-nowrap">
+                      {Number(payment.amount || 0).toLocaleString()}đ
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
+              Chưa có thanh toán nào được ghi nhận trong tháng này.
+            </div>
+          )}
         </div>
       )}
 

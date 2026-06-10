@@ -2185,6 +2185,61 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
   }
 });
 
+// Get current user's payment history
+app.get('/api/payments/my-history', authenticateToken, async (req, res) => {
+  try {
+    const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
+
+    const buildPaymentHistoryQuery = (columns) => supabase
+      .from('payments')
+      .select(columns)
+      .eq('user_id', req.user.id)
+      .gte('created_at', `${startDate}T00:00:00Z`)
+      .lt('created_at', `${nextMonthDate}T00:00:00Z`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    let { data: payments, error } = await buildPaymentHistoryQuery('id, amount, status, method, notes, created_at');
+
+    if (error && isMissingOptionalPaymentSchema(error)) {
+      const fallbackResult = await buildPaymentHistoryQuery('id, amount, status, created_at');
+
+      payments = (fallbackResult.data || []).map((payment) => ({
+        ...payment,
+        method: null,
+        notes: null
+      }));
+      error = fallbackResult.error;
+
+      if (error && isMissingOptionalPaymentSchema(error)) {
+        const minimalResult = await buildPaymentHistoryQuery('id, amount, created_at');
+
+        payments = (minimalResult.data || []).map((payment) => ({
+          ...payment,
+          status: 'completed',
+          method: null,
+          notes: null
+        }));
+        error = minimalResult.error;
+      }
+    }
+
+    if (error) {
+      console.error('My payment history query error:', error);
+      return res.status(500).json({ error: 'Loi lay lich su thanh toan' });
+    }
+
+    res.json({
+      month,
+      data: payments || []
+    });
+  } catch (error) {
+    console.error('My payment history error:', error);
+    res.status(500).json({ error: 'Loi server' });
+  }
+});
+
 // Get my payments
 app.get('/api/payments/my', authenticateToken, async (req, res) => {
   try {
@@ -2204,10 +2259,6 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
 // Get automatic payment webhook usage for the selected month
 app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Khong co quyen truy cap' });
-    }
-
     const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
 
     const buildUsageResponse = ({ supported = true, used = 0, completed = 0, failed = 0, processing = 0 }) => {
