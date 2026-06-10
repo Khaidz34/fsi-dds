@@ -57,7 +57,7 @@ import {
 import { Language } from './types';
 import { OrderSummary } from './components/OrderSummary';
 import { useAuth } from './contexts/AuthContext';
-import { useMenu } from './hooks/useMenu';
+import { useMenu, type MenuDish } from './hooks/useMenu';
 import { useOrders } from './hooks/useOrders';
 import { useUsers } from './hooks/useUsers';
 import { useAdminPayments } from './hooks/useAdminPayments';
@@ -507,6 +507,10 @@ const getDishName = (dish: any, lang: Language): string => {
   }
 };
 
+const getDishDisplayName = (dish: any, lang: Language): string => {
+  return getDishName(dish, lang).replace(/^\s*\d+[.)]\s*/, '').trim();
+};
+
 const FallingPetals = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
   const items = useMemo(() => Array.from({ length: 20 }).map((_, i) => ({
     id: i,
@@ -705,6 +709,78 @@ export default function App() {
   const [isDashboardQrLoading, setIsDashboardQrLoading] = useState(false);
 
   const t = TRANSLATIONS[currentLang];
+
+  const maxSelectableDishes = 2;
+  const mealPriceText = '40,000đ';
+  const selectedDishDetails = useMemo<MenuDish[]>(() => {
+    if (!menu?.dishes?.length) return [];
+
+    return selectedDishes
+      .map(dishId => menu.dishes.find(dish => dish.id === dishId))
+      .filter((dish): dish is MenuDish => Boolean(dish));
+  }, [menu?.dishes, selectedDishes]);
+  const mobileOrderCopy = useMemo(() => {
+    const copies = {
+      vi: {
+        title: 'Chọn món hôm nay',
+        helper: 'Chạm vào món để chọn, kiểm tra lại ở thanh đặt món phía dưới.',
+        perMeal: 'Mỗi suất',
+        limit: 'Tối đa 2 món',
+        selected: 'Đã chọn',
+        empty: 'Chưa chọn món',
+        clear: 'Xóa tất cả',
+        removeDish: 'Xóa món',
+        chooseMore: 'Có thể chọn thêm món thứ 2',
+        orderFor: 'Đặt cho',
+        quickOptions: 'Tùy chọn nhanh',
+        noteHint: 'Ghi chú cho bếp',
+        loadingUsers: 'Đang tải danh sách...',
+        optionPrefix: 'Món'
+      },
+      en: {
+        title: "Today's meal",
+        helper: 'Tap dishes to choose, then review the tray at the bottom.',
+        perMeal: 'Per meal',
+        limit: 'Up to 2 dishes',
+        selected: 'Selected',
+        empty: 'No dish selected',
+        clear: 'Clear all',
+        removeDish: 'Remove dish',
+        chooseMore: 'You can choose one more dish',
+        orderFor: 'Order for',
+        quickOptions: 'Quick options',
+        noteHint: 'Kitchen note',
+        loadingUsers: 'Loading users...',
+        optionPrefix: 'Dish'
+      },
+      ja: {
+        title: '今日の食事',
+        helper: '料理をタップして選び、下の注文欄で確認してください。',
+        perMeal: '1食',
+        limit: '最大2品',
+        selected: '選択済み',
+        empty: '未選択',
+        clear: 'すべて削除',
+        removeDish: '削除',
+        chooseMore: 'もう1品選べます',
+        orderFor: '注文者',
+        quickOptions: 'クイック設定',
+        noteHint: '厨房メモ',
+        loadingUsers: '読み込み中...',
+        optionPrefix: '品'
+      }
+    };
+
+    return copies[currentLang];
+  }, [currentLang]);
+  const orderOptionItems = [
+    { key: 'extraRice', label: t.extraRice, checked: extraRice, onChange: setExtraRice },
+    { key: 'extraSoup', label: t.extraSoup, checked: extraSoup, onChange: setExtraSoup },
+    { key: 'chiliSauce', label: t.chiliSauce, checked: chiliSauce, onChange: setChiliSauce },
+    { key: 'fishSauce', label: t.fishSauce, checked: fishSauce, onChange: setFishSauce },
+    { key: 'chopsticks', label: t.chopsticks, checked: chopsticks, onChange: setChopsticks },
+    { key: 'lessRice', label: t.lessRice, checked: lessRice, onChange: setLessRice }
+  ];
 
   const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
@@ -2043,10 +2119,10 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-8"
+                className="space-y-4 sm:space-y-6 lg:space-y-8"
               >
                 {/* Mystical Website Integration - Asian Style */}
-                <div className="bazi-mobile-hero w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
+                <div className="bazi-mobile-hero hidden sm:block w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
                       {/* Preload image for faster loading */}
                       <link rel="preload" as="image" href="/Background3.png?v=2" />
                       
@@ -2105,9 +2181,39 @@ export default function App() {
                       </div>
                     </div>
 
+                <div className="lg:hidden bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
+                        <Utensils size={22} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-app-accent/70">{t.todayMenu}</p>
+                        <h3 className="text-xl font-black text-slate-950 leading-tight">{mobileOrderCopy.title}</h3>
+                        <p className="text-sm text-slate-500 mt-1 leading-snug">{mobileOrderCopy.helper}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.selected}</p>
+                      <p className="text-lg font-black text-app-accent">{selectedDishes.length}/{maxSelectableDishes}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.perMeal}</p>
+                      <p className="text-base font-black text-slate-950">{mealPriceText}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-bold text-slate-400">{t.selectedDishes}</p>
+                      <p className="text-base font-black text-slate-950">{mobileOrderCopy.limit}</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Menu List */}
-                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:pb-64 ${
-                  selectedDishes.length > 0 ? 'pb-[22rem]' : 'pb-32'
+                <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:pb-64 ${
+                  selectedDishes.length > 0 ? 'pb-[34rem] sm:pb-[24rem]' : 'pb-28'
                 }`}>
                   <AnimatePresence mode="wait">
                     {isLanguageChanging ? (
@@ -2150,12 +2256,12 @@ export default function App() {
                             transition: { duration: 0.2 }
                           }}
                           whileTap={{ scale: 0.98 }}
-                          className={`lacquer-card p-6 flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
+                          className={`mobile-dish-card lacquer-card p-3 sm:p-6 min-h-[72px] sm:min-h-[132px] flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
                             selectedDishes.includes(dish.id) 
-                              ? 'border-[#DA251D] ring-2 ring-[#DA251D]/20 bg-[#DA251D]/5' 
+                              ? 'border-app-accent ring-2 ring-app-accent/20 bg-app-accent/5' 
                               : selectedDishes.length >= 2 
-                                ? 'opacity-50 border-gray-200' 
-                                : 'hover:border-[#DA251D]/40 hover:shadow-lg'
+                                ? 'opacity-55 border-gray-200' 
+                                : 'hover:border-app-accent/40 hover:shadow-lg'
                           }`}
                           onClick={() => handleSelectDish(dish.id)}
                         >
@@ -2165,42 +2271,42 @@ export default function App() {
                               animate={{ scale: 1, opacity: 1 }}
                               className="absolute top-4 right-4 z-10"
                             >
-                              <div className="bg-[#DA251D] text-white p-1 rounded-full shadow-lg">
-                                <CheckCircle2 size={16} />
+                              <div className="bg-app-accent text-white p-1 rounded-full shadow-lg">
+                                <CheckCircle2 size={14} />
                               </div>
                             </div>
                           )}
                           
                           
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-1.5 sm:mb-4">
                               <h4 
                                 key={`${dish.id}-name-${currentLang}`}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.05 + 0.1 }}
-                                className={`text-lg font-display font-bold transition-colors duration-300 ${
+                                className={`mobile-dish-title text-[15px] sm:text-lg font-display font-bold leading-snug break-words pr-9 transition-colors duration-300 ${
                                   selectedDishes.includes(dish.id) 
-                                    ? 'text-[#DA251D]' 
+                                    ? 'text-app-accent' 
                                     : selectedDishes.length >= 2 
                                       ? 'text-gray-400' 
-                                      : 'text-[#1C1917] group-hover:text-[#DA251D]'
+                                      : 'text-[#1C1917] group-hover:text-app-accent'
                                 }`}
                               >
-                                {getDishName(dish, currentLang)}
+                                {getDishDisplayName(dish, currentLang)}
                               </h4>
                             </div>
                             
                             {/* Selection indicator */}
-                            <div className="flex items-center justify-between">
+                            <div className="mt-1 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2">
                                 {selectedDishes.includes(dish.id) && (
                                   <span 
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="text-xs bg-[#DA251D] text-white px-2 py-1 rounded-full font-bold"
+                                    className="text-[11px] bg-app-accent text-white px-2 py-1 rounded-full font-bold"
                                   >
-                                    Món {selectedDishes.indexOf(dish.id) + 1}
+                                    {mobileOrderCopy.optionPrefix} {selectedDishes.indexOf(dish.id) + 1}
                                   </span>
                                 )}
                               </div>
@@ -2208,8 +2314,10 @@ export default function App() {
                               {!selectedDishes.includes(dish.id) && selectedDishes.length < 2 && (
                                 <div 
                                   whileHover={{ scale: 1.1 }}
-                                  className="w-6 h-6 border-2 border-[#DA251D]/30 rounded-full group-hover:border-[#DA251D] transition-colors"
-                                />
+                                  className="w-8 h-8 border-2 border-app-accent/30 rounded-full group-hover:border-app-accent transition-colors flex items-center justify-center bg-white"
+                                >
+                                  <Plus size={15} className="text-app-accent/70" />
+                                </div>
                               )}
                             </div>
                           </div>
@@ -2240,76 +2348,135 @@ export default function App() {
                     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 lg:py-4">
                       {/* Mobile: Compact View */}
                       <div className="lg:hidden">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-base font-bold text-[#1C1917] flex items-center gap-2">
-                            <ShoppingBag size={18} className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} />
-                            {t.selectedDishes} ({selectedDishes.length}/2)
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#DA251D]">40,000đ</span>
-                            <button 
+                        <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-slate-200" />
+
+                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-app-accent/70">
+                              {mobileOrderCopy.selected}
+                            </p>
+                            <h4 className="text-base font-black text-slate-950 flex items-center gap-2">
+                              <ShoppingBag size={17} className="text-app-accent" />
+                              {selectedDishes.length}/{maxSelectableDishes} {t.selectedDishes}
+                            </h4>
+                            {selectedDishes.length === 1 && (
+                              <p className="text-xs text-slate-500 mt-0.5">{mobileOrderCopy.chooseMore}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="text-right">
+                              <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.perMeal}</p>
+                              <span className="text-sm font-black text-app-accent">{mealPriceText}</span>
+                            </div>
+                            <button
                               onClick={() => setSelectedDishes([])}
-                              className="text-sm text-red-500 hover:text-red-700 font-medium"
+                              className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center justify-center"
+                              aria-label={mobileOrderCopy.clear}
                             >
-                              <X size={16} />
+                              <X size={17} />
                             </button>
                           </div>
                         </div>
-                        
-                        {/* Compact dish list */}
-                        <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
-                          {selectedDishes.map((dishId, index) => {
-                            const dish = menu?.dishes?.find(d => d.id === dishId);
-                            return (
-                              <div key={dishId} className="flex items-center gap-2 bg-[#FDF4E3] rounded-lg px-3 py-2 border border-[#F5E6D3] flex-shrink-0">
-                                <div className="w-6 h-6 bg-[#DA251D] text-white rounded-full flex items-center justify-center font-bold text-xs">
+
+                        <div className="space-y-1.5 mb-2.5">
+                          {selectedDishDetails.map((dish, index) => (
+                            <div key={dish.id} className="flex items-start justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-7 h-7 bg-app-accent text-white rounded-full flex items-center justify-center font-black text-xs shrink-0">
                                   {index + 1}
                                 </div>
-                                <span className="font-medium text-[#1C1917] text-sm whitespace-nowrap">{dish?.name}</span>
-                                <button 
-                                  onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dishId))}
-                                  className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-colors"
-                                >
-                                  <X size={12} />
-                                </button>
+                                <span className="mobile-selected-dish-name font-bold text-slate-950 text-[13px] leading-snug">
+                                  {getDishDisplayName(dish, currentLang)}
+                                </span>
                               </div>
-                            );
-                          })}
+                              <button
+                                onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
+                                className="w-8 h-8 bg-white text-slate-500 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
+                                aria-label={mobileOrderCopy.removeDish}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                        
-                        {/* Mobile: Order for selection */}
+
+                        <div className="grid grid-cols-1 gap-3 mb-3">
+                          <label className="block">
+                            <span className="block text-xs font-black text-slate-500 mb-1.5">{mobileOrderCopy.orderFor}</span>
+                            <select
+                              value={orderForUserId || user?.id || ''}
+                              onChange={(e) => {
+                                const value = e.target.value ? Number(e.target.value) : null;
+                                console.log('Selected user ID:', value);
+                                setOrderForUserId(value);
+                              }}
+                              className="w-full min-h-12 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-base"
+                            >
+                              <option value={user?.id || ''}>{user?.fullname} {t.myself}</option>
+                              {allUsers.length > 0 ? (
+                                allUsers.filter(u => u.id !== user?.id).map(u => (
+                                  <option key={u.id} value={u.id}>{u.fullname}</option>
+                                ))
+                              ) : (
+                                <option disabled>{mobileOrderCopy.loadingUsers}</option>
+                              )}
+                            </select>
+                          </label>
+                        </div>
+
                         <div className="mb-3">
-                          <label className="block text-xs font-semibold text-[#1C1917] mb-1">Đặt món cho:</label>
-                          <select
-                            value={orderForUserId || user?.id || ''}
-                            onChange={(e) => {
-                              const value = e.target.value ? Number(e.target.value) : null;
-                              console.log('Selected user ID:', value);
-                              setOrderForUserId(value);
-                            }}
-                            className="w-full px-3 py-2 border-2 border-[#E5E1D1] rounded-lg focus:outline-none focus:border-[#DA251D] bg-white text-[#1C1917] font-medium text-sm"
-                          >
-                            <option value={user?.id || ''}>{user?.fullname} (Bản thân)</option>
-                            {allUsers.length > 0 ? (
-                              allUsers.filter(u => u.id !== user?.id).map(u => (
-                                <option key={u.id} value={u.id}>{u.fullname}</option>
-                              ))
-                            ) : (
-                              <option disabled>Đang tải danh sách...</option>
-                            )}
-                          </select>
+                          <p className="text-xs font-black text-slate-500 mb-2">{mobileOrderCopy.quickOptions}</p>
+                          <div className="mobile-order-option-grid grid grid-cols-2 gap-2">
+                            {orderOptionItems.map(option => (
+                              <label
+                                key={option.key}
+                                className={`min-h-11 rounded-xl border px-3 py-2 flex items-center gap-2 text-sm font-bold transition-colors ${
+                                  option.checked
+                                    ? 'border-app-accent bg-app-accent/10 text-app-accent'
+                                    : 'border-slate-200 bg-white text-slate-700'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={option.checked}
+                                  onChange={(e) => option.onChange(e.target.checked)}
+                                  className="w-4 h-4 rounded border-slate-300 text-app-accent focus:ring-app-accent"
+                                />
+                                <span className="min-w-0 leading-tight">{option.label}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                        
-                        {/* Mobile action button */}
+
+                        <details className="mobile-order-notes mb-16 rounded-xl border border-slate-200 bg-white">
+                          <summary className="min-h-11 px-3 py-2 flex items-center justify-between gap-3 cursor-pointer text-sm font-black text-slate-600">
+                            <span className="flex items-center gap-2">
+                              <FileText size={16} className="text-app-accent" />
+                              {mobileOrderCopy.noteHint}
+                            </span>
+                            <ChevronDown size={16} />
+                          </summary>
+                          <div className="px-3 pb-3">
+                            <textarea
+                              value={orderNotes}
+                              onChange={(e) => setOrderNotes(e.target.value)}
+                              placeholder={t.orderNotesPlaceholder}
+                              className="mobile-order-note w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent resize-none text-slate-950 text-base"
+                              rows={2}
+                            />
+                          </div>
+                        </details>
+
                         <button 
                           onClick={handleShowOrderSummary}
-                          className={`w-full text-white py-3 rounded-xl font-bold text-base transition-all shadow-lg flex items-center justify-center gap-2 mobile-order-primary ${
+                          className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 mobile-order-primary ${
                             theme === 'corporate' 
                               ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
                               : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
                           }`}
                         >
-                          <CheckCircle2 size={20} />
+                          <CheckCircle2 size={21} />
                           {t.orderNow}
                         </button>
                       </div>

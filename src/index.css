@@ -488,8 +488,106 @@
   
   /* Mobile dish cards */
   .mobile-dish-card {
-    min-height: 120px;
-    padding: 1rem;
+    min-height: 72px;
+    padding: 0.75rem;
+    touch-action: manipulation;
+  }
+
+  .mobile-dish-title,
+  .mobile-selected-dish-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mobile-dish-title {
+    -webkit-line-clamp: 2;
+  }
+
+  .mobile-selected-dish-name {
+    -webkit-line-clamp: 2;
+  }
+
+  .mobile-menu-dish-grid {
+    align-items: stretch;
+  }
+
+  .mobile-order-note {
+    min-height: 4.75rem;
+    font-size: 16px;
+  }
+
+  .mobile-order-notes summary {
+    list-style: none;
+  }
+
+  .mobile-order-notes summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .payment-dashboard {
+    --payment-mobile-radius: 1rem;
+  }
+
+  .payment-mobile-hero,
+  .payment-auto-card,
+  .payment-history-card,
+  .payment-calendar-card {
+    border-radius: var(--payment-mobile-radius);
+  }
+
+  .payment-mobile-hero-metrics,
+  .payment-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .payment-stat-card {
+    min-height: 76px;
+  }
+
+  .payment-stat-card svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .payment-stat-value {
+    overflow-wrap: anywhere;
+  }
+
+  .payment-refresh-button {
+    min-height: 44px;
+  }
+
+  .payment-qr-panel {
+    min-height: 188px;
+  }
+
+  .payment-amount-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .payment-amount-options button {
+    min-height: 42px;
+    padding: 0.5rem;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .payment-bank-card > div {
+    padding: 0.75rem;
+  }
+
+  .payment-calendar-grid {
+    gap: 0.25rem;
+  }
+
+  .payment-calendar-day > div {
+    padding: 0.25rem;
+  }
+
+  .payment-calendar-legend {
+    justify-content: flex-start;
   }
   
   /* Mobile stats cards */
@@ -533,6 +631,43 @@
   
   /* Single column layout for very small screens */
   .grid-cols-2 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+
+  .mobile-order-option-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .mobile-order-option-grid label {
+    min-height: 2.75rem;
+    padding: 0.5rem 0.625rem;
+  }
+
+  .payment-mobile-hero,
+  .payment-auto-card,
+  .payment-history-card,
+  .payment-calendar-card {
+    padding: 0.875rem !important;
+  }
+
+  .payment-mobile-hero-metrics,
+  .payment-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .payment-amount-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .payment-transfer-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+
+  .payment-calendar-header {
+    align-items: flex-start;
+  }
+
+  .payment-calendar-day {
+    height: 3rem;
+  }
   
   /* Smaller text on very small screens */
   .text-2xl { font-size: 1.25rem; }
@@ -799,20 +934,22 @@
 
   .mobile-order-action-sheet {
     bottom: calc(var(--mobile-bottom-nav-height) + var(--ios-safe-bottom));
-    max-height: calc(100vh - var(--mobile-bottom-nav-height) - var(--ios-safe-bottom) - 1rem);
-    max-height: calc(100dvh - var(--mobile-bottom-nav-height) - var(--ios-safe-bottom) - var(--ios-safe-top) - 1rem);
+    max-height: min(64vh, calc(100vh - var(--mobile-bottom-nav-height) - var(--ios-safe-bottom) - 1rem));
+    max-height: min(64dvh, calc(100dvh - var(--mobile-bottom-nav-height) - var(--ios-safe-bottom) - var(--ios-safe-top) - 1rem));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border-radius: 1.25rem 1.25rem 0 0;
   }
 
   .mobile-order-action-sheet > div {
-    padding-bottom: 0.75rem;
+    padding-bottom: max(0.75rem, var(--ios-safe-bottom));
   }
 
   .mobile-order-primary {
     position: sticky;
     bottom: 0;
     min-height: 48px;
+    z-index: 1;
   }
 }
