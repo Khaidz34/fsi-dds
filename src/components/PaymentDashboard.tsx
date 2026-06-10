@@ -396,6 +396,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     : autoPaymentUsagePercent >= 75
       ? 'bg-orange-500'
       : 'bg-blue-500';
+  const isAutoPaymentQuotaExhausted = !!(
+    autoPaymentUsage?.supported &&
+    autoPaymentUsage.limit &&
+    autoPaymentUsage.remaining === 0
+  );
 
   return (
     <div className="space-y-8">
@@ -502,8 +507,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 <QrCode className="text-blue-600" size={22} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Thanh toán tự động</h3>
-                <p className="text-sm text-gray-500">Quét mã VietQR để tự điền số tiền và nội dung chuyển khoản.</p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {isAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp qua TPBank' : 'Thanh toán tự động'}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {isAutoPaymentQuotaExhausted
+                    ? 'Hệ thống đã hết lượt tự động trong tháng. Chuyển khoản trực tiếp, admin sẽ xác nhận thủ công.'
+                    : 'Quét mã VietQR để tự điền số tiền và nội dung chuyển khoản.'}
+                </p>
               </div>
             </div>
 
@@ -555,7 +566,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
 
               {autoPaymentUsage.remaining === 0 && autoPaymentUsage.limit && (
                 <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
-                  Gói tự động đã hết lượt trong tháng. Người dùng vẫn có thể chuyển khoản, nhưng hệ thống có thể cần admin kiểm tra/xác nhận thủ công.
+                  Gói tự động đã hết lượt trong tháng. Giao diện đã chuyển sang thanh toán trực tiếp qua tài khoản TPBank; admin sẽ kiểm tra và xác nhận thủ công.
                 </div>
               )}
             </div>
@@ -578,7 +589,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <CheckCircle size={20} className="mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold">Tháng này đã được thanh toán</p>
-                <p className="text-sm mt-1">Nếu vừa chuyển khoản, hãy bấm cập nhật sau khi ngân hàng gửi webhook về hệ thống.</p>
+                <p className="text-sm mt-1">
+                  {isAutoPaymentQuotaExhausted
+                    ? 'Nếu vừa chuyển khoản trực tiếp, admin sẽ kiểm tra và xác nhận thủ công.'
+                    : 'Nếu vừa chuyển khoản, hãy bấm cập nhật sau khi ngân hàng gửi webhook về hệ thống.'}
+                </p>
               </div>
             </div>
           ) : autoPaymentInfo ? (
@@ -615,6 +630,15 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               </div>
 
               <div className="space-y-4 min-w-0">
+                {isAutoPaymentQuotaExhausted && (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+                    <p className="font-bold">Đang dùng chế độ thanh toán trực tiếp</p>
+                    <p className="mt-1">
+                      Vẫn quét QR hoặc chuyển khoản vào tài khoản TPBank bên dưới. Sau khi chuyển xong, admin sẽ đối chiếu tài khoản và xác nhận thanh toán thủ công.
+                    </p>
+                  </div>
+                )}
+
                 <div className="rounded-xl border border-gray-200 p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                     <div>
@@ -724,7 +748,15 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 )}
 
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-                  Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền đã chọn và nội dung <span className="font-bold">{autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận theo đúng số tiền ngân hàng gửi về.
+                  {isAutoPaymentQuotaExhausted ? (
+                    <>
+                      Quét mã này bằng app ngân hàng hoặc chuyển khoản trực tiếp vào tài khoản TPBank ở trên. Vui lòng giữ nội dung <span className="font-bold">{autoPaymentInfo.code}</span> để admin đối chiếu và xác nhận thủ công.
+                    </>
+                  ) : (
+                    <>
+                      Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền đã chọn và nội dung <span className="font-bold">{autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận theo đúng số tiền ngân hàng gửi về.
+                    </>
+                  )}
                 </div>
               </div>
             </div>

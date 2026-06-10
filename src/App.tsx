@@ -87,6 +87,15 @@ interface DashboardAutoPaymentInfo {
   qrUrl?: string | null;
 }
 
+interface DashboardAutoPaymentUsage {
+  supported: boolean;
+  month: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  usagePercent: number | null;
+}
+
 const TRANSLATIONS = {
   vi: {
     dashboard: 'Bảng điều khiển',
@@ -691,6 +700,7 @@ export default function App() {
   const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number } | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [dashboardAutoPaymentInfo, setDashboardAutoPaymentInfo] = useState<DashboardAutoPaymentInfo | null>(null);
+  const [dashboardAutoPaymentUsage, setDashboardAutoPaymentUsage] = useState<DashboardAutoPaymentUsage | null>(null);
   const [dashboardQrImageFailed, setDashboardQrImageFailed] = useState(false);
   const [isDashboardQrLoading, setIsDashboardQrLoading] = useState(false);
 
@@ -732,6 +742,21 @@ export default function App() {
     }
   }, [dashboardPaymentMonth, user?.id, user?.role]);
 
+  const loadDashboardAutoPaymentUsage = useCallback(async () => {
+    if (!user || user.role !== 'user') {
+      setDashboardAutoPaymentUsage(null);
+      return;
+    }
+
+    try {
+      const usage = await paymentsAPI.getAutoUsage(dashboardPaymentMonth);
+      setDashboardAutoPaymentUsage(usage);
+    } catch (error) {
+      console.error('Dashboard auto payment usage error:', error);
+      setDashboardAutoPaymentUsage(null);
+    }
+  }, [dashboardPaymentMonth, user?.id, user?.role]);
+
   const handleDashboardQrImageError = (
     event: React.SyntheticEvent<HTMLImageElement>,
     info: DashboardAutoPaymentInfo
@@ -753,6 +778,12 @@ export default function App() {
 
     setDashboardQrImageFailed(true);
   };
+
+  const isDashboardAutoPaymentQuotaExhausted = !!(
+    dashboardAutoPaymentUsage?.supported &&
+    dashboardAutoPaymentUsage.limit &&
+    dashboardAutoPaymentUsage.remaining === 0
+  );
 
   // Smooth language switching
   const handleLanguageChange = async (newLang: Language) => {
@@ -853,8 +884,9 @@ export default function App() {
   useEffect(() => {
     if (activeTab === 'dashboard' && user?.role === 'user') {
       loadDashboardAutoPaymentInfo();
+      loadDashboardAutoPaymentUsage();
     }
-  }, [activeTab, user?.id, user?.role, orders.length, loadDashboardAutoPaymentInfo]);
+  }, [activeTab, user?.id, user?.role, orders.length, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
 
   const fetchAllUsers = async () => {
     try {
@@ -1832,11 +1864,15 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-3 relative z-10">{t.paymentQR}</h3>
+                    <h3 className="text-xl font-bold text-white mb-3 relative z-10">
+                      {isDashboardAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp TPBank' : t.paymentQR}
+                    </h3>
                     <p className="text-white/80 text-sm mb-4 relative z-10">
-                      {dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
-                        ? `${t.scanToPay}: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
-                        : t.scanToPay}
+                      {isDashboardAutoPaymentQuotaExhausted && dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
+                        ? `Hết lượt tự động, chuyển trực tiếp: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
+                        : dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
+                          ? `${t.scanToPay}: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
+                          : t.scanToPay}
                     </p>
                     
                     {/* Payment Info */}
@@ -1856,6 +1892,9 @@ export default function App() {
                               <div className="font-mono text-xs opacity-90">{dashboardAutoPaymentInfo.code}</div>
                             )}
                             <div className="text-xs opacity-80">NAPAS 247</div>
+                            {isDashboardAutoPaymentQuotaExhausted && (
+                              <div className="text-xs font-semibold opacity-95">Admin sẽ xác nhận thủ công</div>
+                            )}
                           </>
                         ) : (
                           <>
