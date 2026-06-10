@@ -128,6 +128,41 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     }
   };
 
+  const buildClientVietQrUrl = (bankId: string, info: AutoPaymentInfo) => {
+    const params = new URLSearchParams({
+      amount: String(Math.round(info.amount)),
+      addInfo: info.code
+    });
+
+    if (info.bank?.accountName) {
+      params.set('accountName', info.bank.accountName);
+    }
+
+    return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(info.bank?.accountNo || '')}-compact2.png?${params.toString()}`;
+  };
+
+  const handleQrImageError = (event: React.SyntheticEvent<HTMLImageElement>, info: AutoPaymentInfo) => {
+    const img = event.currentTarget;
+    const fallbackState = img.dataset.fallbackState || 'primary';
+
+    if (fallbackState === 'primary') {
+      img.dataset.fallbackState = 'tpb';
+      img.src = buildClientVietQrUrl('TPB', info);
+      return;
+    }
+
+    if (fallbackState === 'tpb') {
+      img.dataset.fallbackState = 'tpbank';
+      img.src = buildClientVietQrUrl('TPBank', info);
+      return;
+    }
+
+    if (fallbackState !== 'static') {
+      img.dataset.fallbackState = 'static';
+      img.src = 'QR.png';
+    }
+  };
+
   const generateCalendar = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -339,7 +374,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   <img
                     src={autoPaymentInfo.qrUrl}
                     alt="QR thanh toán"
+                    referrerPolicy="no-referrer"
                     className="w-full max-w-[220px] rounded-lg bg-white"
+                    onError={(event) => handleQrImageError(event, autoPaymentInfo)}
                   />
                 ) : (
                   <div className="text-center px-4">
