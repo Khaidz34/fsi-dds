@@ -19,13 +19,13 @@ Dat cac env vars tren Render backend:
 ```bash
 AUTO_PAYMENT_WEBHOOK_SECRET=tao-chuoi-bi-mat-dai-va-ngau-nhien
 AUTO_PAYMENT_PREFIX=FSI
-AUTO_PAYMENT_BANK_ID=970432
-AUTO_PAYMENT_ACCOUNT_NO=0123456789
-AUTO_PAYMENT_ACCOUNT_NAME=TEN CHU TAI KHOAN
+AUTO_PAYMENT_BANK_ID=970423
+AUTO_PAYMENT_ACCOUNT_NO=00004446755
+AUTO_PAYMENT_ACCOUNT_NAME=NGUYEN DAC KHAI
 AUTO_PAYMENT_QR_TEMPLATE=compact2
 ```
 
-`AUTO_PAYMENT_BANK_ID=970432` la ma BIN VietQR cua VPBank. Ban cung co the dung `VPB` neu provider QR ho tro code ngan hang. Neu chua dien bank/account, frontend van hien ma chuyen khoan nhung khong hien QR.
+`AUTO_PAYMENT_BANK_ID=970423` la ma BIN VietQR cua TPBank. Ban cung co the dung `TPB` neu provider QR ho tro code ngan hang. Neu chua dien bank/account, frontend van hien ma chuyen khoan nhung khong hien QR.
 
 So tien hien tren QR khong lay tu bien moi truong. Backend tinh so tien theo cong no that cua user:
 
@@ -41,7 +41,7 @@ QR hien tren web la QR dong VietQR, khong phai QR tinh. Backend tao link theo da
 https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-compact2.png?amount=<SO_TIEN>&addInfo=<NOI_DUNG>
 ```
 
-Voi VPBank, user quet QR nay bang app ngan hang. App se doc san so tai khoan, so tien va noi dung chuyen khoan neu app ho tro chuan VietQR day du. User van nen kiem tra lai so tien/noi dung truoc khi bam xac nhan.
+Voi TPBank, user quet QR nay bang app ngan hang. App se doc san so tai khoan, so tien va noi dung chuyen khoan neu app ho tro chuan VietQR day du. User van nen kiem tra lai so tien/noi dung truoc khi bam xac nhan.
 
 ## 3. Cau hinh webhook tren provider
 
