@@ -1403,8 +1403,8 @@ export default function App() {
                     <div className="bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30 relative z-10 mb-4">
                       <div className="text-white text-sm space-y-1">
                         <div className="font-bold">NGUYEN DAC KHAI</div>
-                        <div className="font-mono">189284047</div>
-                        <div className="font-semibold">VPBank - VIETOR</div>
+                        <div className="font-mono">0000 4446 755</div>
+                        <div className="font-semibold">TPBank - TPB</div>
                         <div className="text-xs opacity-80">NAPAS 247</div>
                       </div>
                     </div>
