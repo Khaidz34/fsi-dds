@@ -2270,7 +2270,14 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       .single();
 
     if (userError || !targetUser) {
-      return res.status(404).json({ error: 'Payment user not found' });
+      console.warn('Auto payment ignored because payment user was not found:', paymentCode);
+      return res.json({
+        success: true,
+        ignored: true,
+        reason: 'payment_user_not_found',
+        paymentCode: paymentCode.code,
+        userId: paymentCode.userId
+      });
     }
 
     const eventReservation = await reserveAutoPaymentEvent({
