@@ -70,8 +70,22 @@ import { BannerDisplay } from './components/BannerDisplay';
 import { AdminBannerControl } from './components/AdminBannerControl';
 import PaymentDashboard from './components/PaymentDashboard';
 import { useDashboardStats } from './hooks/useDashboardStats';
-import { menuAPI, ordersAPI, usersAPI, adminAPI } from './services/api';
+import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
 import { AnimatePresence } from './framer-motion-mock';
+
+interface DashboardAutoPaymentInfo {
+  code: string;
+  amount: number;
+  remainingTotal: number;
+  isPaid: boolean;
+  bankConfigured: boolean;
+  bank: {
+    bankId: string;
+    accountNo: string;
+    accountName?: string;
+  } | null;
+  qrUrl?: string | null;
+}
 
 const TRANSLATIONS = {
   vi: {
@@ -676,8 +690,69 @@ export default function App() {
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number } | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [dashboardAutoPaymentInfo, setDashboardAutoPaymentInfo] = useState<DashboardAutoPaymentInfo | null>(null);
+  const [dashboardQrImageFailed, setDashboardQrImageFailed] = useState(false);
+  const [isDashboardQrLoading, setIsDashboardQrLoading] = useState(false);
 
   const t = TRANSLATIONS[currentLang];
+
+  const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+  const buildDashboardVietQrUrl = (bankId: string, info: DashboardAutoPaymentInfo) => {
+    const amount = Math.max(0, Math.round(Number(info.amount || info.remainingTotal || 0)));
+    const params = new URLSearchParams({
+      amount: String(amount),
+      addInfo: info.code
+    });
+
+    if (info.bank?.accountName) {
+      params.set('accountName', info.bank.accountName);
+    }
+
+    return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(info.bank?.accountNo || '')}-compact2.png?${params.toString()}`;
+  };
+
+  const loadDashboardAutoPaymentInfo = useCallback(async () => {
+    if (!user || user.role !== 'user') {
+      setDashboardAutoPaymentInfo(null);
+      return;
+    }
+
+    try {
+      setIsDashboardQrLoading(true);
+      setDashboardQrImageFailed(false);
+      const info = await paymentsAPI.getAutoInfo(dashboardPaymentMonth);
+      setDashboardAutoPaymentInfo(info);
+    } catch (error) {
+      console.error('Dashboard dynamic QR error:', error);
+      setDashboardAutoPaymentInfo(null);
+      setDashboardQrImageFailed(true);
+    } finally {
+      setIsDashboardQrLoading(false);
+    }
+  }, [dashboardPaymentMonth, user?.id, user?.role]);
+
+  const handleDashboardQrImageError = (
+    event: React.SyntheticEvent<HTMLImageElement>,
+    info: DashboardAutoPaymentInfo
+  ) => {
+    const img = event.currentTarget;
+    const fallbackState = img.dataset.fallbackState || 'primary';
+
+    if (fallbackState === 'primary') {
+      img.dataset.fallbackState = 'tpb';
+      img.src = buildDashboardVietQrUrl('TPB', info);
+      return;
+    }
+
+    if (fallbackState === 'tpb') {
+      img.dataset.fallbackState = 'tpbank';
+      img.src = buildDashboardVietQrUrl('TPBank', info);
+      return;
+    }
+
+    setDashboardQrImageFailed(true);
+  };
 
   // Smooth language switching
   const handleLanguageChange = async (newLang: Language) => {
@@ -774,6 +849,12 @@ export default function App() {
       }
     }
   }, [user?.id]); // Only re-run when user ID changes, not the entire user object
+
+  useEffect(() => {
+    if (activeTab === 'dashboard' && user?.role === 'user') {
+      loadDashboardAutoPaymentInfo();
+    }
+  }, [activeTab, user?.id, user?.role, orders.length, loadDashboardAutoPaymentInfo]);
 
   const fetchAllUsers = async () => {
     try {
@@ -1726,26 +1807,62 @@ export default function App() {
                     <div className="absolute top-0 left-0 w-full h-full lotus-pattern opacity-20" />
                     <div className="absolute bottom-0 right-0 w-full h-1/2 seigaiha-pattern opacity-5" />
                     <div className="bg-white p-6 rounded-3xl mb-6 shadow-2xl relative z-10 silk-texture">
-                      <img 
-                        src="QR.png" 
-                        alt="Payment QR Code" 
-                        className="w-48 h-48 object-contain"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "qr-simple.svg";
-                        }}
-                      />
+                      {isDashboardQrLoading ? (
+                        <div className="w-48 h-48 flex items-center justify-center">
+                          <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00A693] rounded-full animate-spin" />
+                        </div>
+                      ) : dashboardAutoPaymentInfo?.qrUrl && !dashboardAutoPaymentInfo.isPaid && !dashboardQrImageFailed ? (
+                        <img
+                          key={`${dashboardAutoPaymentInfo.code}-${dashboardAutoPaymentInfo.amount}`}
+                          src={dashboardAutoPaymentInfo.qrUrl}
+                          alt="Payment QR Code"
+                          referrerPolicy="no-referrer"
+                          className="w-48 h-48 object-contain"
+                          onError={(event) => handleDashboardQrImageError(event, dashboardAutoPaymentInfo)}
+                        />
+                      ) : (
+                        <div className="w-48 h-48 flex flex-col items-center justify-center gap-3 text-[#1C1917]">
+                          <QrCode size={44} className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} />
+                          <p className="text-sm font-bold">
+                            {dashboardAutoPaymentInfo?.isPaid ? 'Đã thanh toán' : 'Chưa có QR động'}
+                          </p>
+                          <p className="text-xs text-[#1C1917]/60">
+                            {dashboardAutoPaymentInfo?.isPaid ? 'Hiện không còn khoản nợ.' : 'Mở tab Thanh toán để cập nhật lại.'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <h3 className="text-xl font-bold text-white mb-3 relative z-10">{t.paymentQR}</h3>
-                    <p className="text-white/80 text-sm mb-4 relative z-10">{t.scanToPay}</p>
+                    <p className="text-white/80 text-sm mb-4 relative z-10">
+                      {dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
+                        ? `${t.scanToPay}: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
+                        : t.scanToPay}
+                    </p>
                     
                     {/* Payment Info */}
                     <div className="bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30 relative z-10 mb-4">
                       <div className="text-white text-sm space-y-1">
-                        <div className="font-bold">NGUYEN DAC KHAI</div>
-                        <div className="font-mono">0000 4446 755</div>
-                        <div className="font-semibold">TPBank - TPB</div>
-                        <div className="text-xs opacity-80">NAPAS 247</div>
+                        {dashboardAutoPaymentInfo?.isPaid ? (
+                          <>
+                            <div className="font-bold">Không cần chuyển khoản</div>
+                            <div className="text-xs opacity-90">Tháng này hiện không còn khoản nợ.</div>
+                          </>
+                        ) : dashboardAutoPaymentInfo?.bank ? (
+                          <>
+                            <div className="font-bold">{dashboardAutoPaymentInfo.bank.accountName || 'Tài khoản thanh toán'}</div>
+                            <div className="font-mono">{dashboardAutoPaymentInfo.bank.accountNo}</div>
+                            <div className="font-semibold">{dashboardAutoPaymentInfo.bank.bankId}</div>
+                            {dashboardAutoPaymentInfo.code && (
+                              <div className="font-mono text-xs opacity-90">{dashboardAutoPaymentInfo.code}</div>
+                            )}
+                            <div className="text-xs opacity-80">NAPAS 247</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-bold">Chưa có tài khoản thanh toán</div>
+                            <div className="text-xs opacity-90">Kiểm tra cấu hình QR động.</div>
+                          </>
+                        )}
                       </div>
                     </div>
                     

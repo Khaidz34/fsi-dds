@@ -69,6 +69,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [selectedPaymentAmount, setSelectedPaymentAmount] = useState(0);
   const [customPaymentAmount, setCustomPaymentAmount] = useState('');
+  const [autoPaymentQrFailed, setAutoPaymentQrFailed] = useState(false);
 
   // Tạo dữ liệu calendar từ orders thực tế
   const [monthlyOrders, setMonthlyOrders] = useState<DayOrder[]>([]);
@@ -101,6 +102,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     try {
       setIsAutoPaymentLoading(true);
       setAutoPaymentError(null);
+      setAutoPaymentQrFailed(false);
       const info = await paymentsAPI.getAutoInfo(currentMonth);
       setAutoPaymentInfo(info);
     } catch (error) {
@@ -125,6 +127,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     const amount = Math.max(0, Number(autoPaymentInfo.amount || autoPaymentInfo.remainingTotal || 0));
     setSelectedPaymentAmount(amount);
     setCustomPaymentAmount(amount ? String(amount) : '');
+    setAutoPaymentQrFailed(false);
   }, [autoPaymentInfo?.code, autoPaymentInfo?.amount, autoPaymentInfo?.remainingTotal, autoPaymentInfo?.isPaid]);
 
   const handleRefreshAutoPayment = async () => {
@@ -169,6 +172,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
 
   const selectPaymentAmount = (amount: number, info: AutoPaymentInfo) => {
     const normalizedAmount = normalizePaymentAmount(amount, getMaxAutoPaymentAmount(info));
+    setAutoPaymentQrFailed(false);
     setSelectedPaymentAmount(normalizedAmount);
     setCustomPaymentAmount(normalizedAmount ? String(normalizedAmount) : '');
   };
@@ -179,10 +183,12 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     if (!digitsOnly) {
       setSelectedPaymentAmount(0);
       setCustomPaymentAmount('');
+      setAutoPaymentQrFailed(false);
       return;
     }
 
     const normalizedAmount = normalizePaymentAmount(Number(digitsOnly), getMaxAutoPaymentAmount(info));
+    setAutoPaymentQrFailed(false);
     setSelectedPaymentAmount(normalizedAmount);
     setCustomPaymentAmount(String(normalizedAmount));
   };
@@ -204,11 +210,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const getCurrentQrUrl = (info: AutoPaymentInfo) => {
     const safeAmount = normalizePaymentAmount(selectedPaymentAmount, getMaxAutoPaymentAmount(info));
 
-    if (!info.bankConfigured || !info.bank?.accountNo || safeAmount <= 0) {
+    if (autoPaymentQrFailed || !info.bankConfigured || !info.bank?.accountNo || safeAmount <= 0) {
       return null;
     }
 
-    return buildClientVietQrUrl(info.bank.bankId || '970423', info, safeAmount);
+    return buildClientVietQrUrl(info.bank.bankId, info, safeAmount);
   };
 
   const handleQrImageError = (event: React.SyntheticEvent<HTMLImageElement>, info: AutoPaymentInfo) => {
@@ -228,10 +234,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
       return;
     }
 
-    if (fallbackState !== 'static') {
-      img.dataset.fallbackState = 'static';
-      img.src = 'QR.png';
-    }
+    setAutoPaymentQrFailed(true);
   };
 
   const generateCalendar = (year: number, month: number) => {
@@ -459,11 +462,17 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   <div className="text-center px-4">
                     <Building2 className="mx-auto text-gray-400 mb-3" size={36} />
                     <p className="font-semibold text-gray-700">
-                      {autoPaymentInfo.bankConfigured ? 'Nhập số tiền cần thanh toán' : 'Chưa cấu hình tài khoản ngân hàng'}
+                      {autoPaymentQrFailed
+                        ? 'Chưa tạo được QR động'
+                        : autoPaymentInfo.bankConfigured
+                          ? 'Nhập số tiền cần thanh toán'
+                          : 'Chưa cấu hình tài khoản ngân hàng'}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {autoPaymentInfo.bankConfigured
-                        ? 'Chọn số tiền lớn hơn 0 để hiện mã VietQR.'
+                      {autoPaymentQrFailed
+                        ? 'Hãy bấm Cập nhật hoặc kiểm tra lại cấu hình ngân hàng.'
+                        : autoPaymentInfo.bankConfigured
+                          ? 'Chọn số tiền lớn hơn 0 để hiện mã VietQR.'
                         : 'Thêm biến môi trường AUTO_PAYMENT_BANK_ID và AUTO_PAYMENT_ACCOUNT_NO để hiện QR.'}
                     </p>
                   </div>
