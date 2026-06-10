@@ -56,6 +56,8 @@ interface PaymentDashboardProps {
   translations: any;
 }
 
+const DEFAULT_MEAL_PRICE = 40000;
+
 const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const { user } = useAuth();
@@ -65,6 +67,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const [isAutoPaymentLoading, setIsAutoPaymentLoading] = useState(false);
   const [autoPaymentError, setAutoPaymentError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [selectedPaymentAmount, setSelectedPaymentAmount] = useState(0);
+  const [customPaymentAmount, setCustomPaymentAmount] = useState('');
 
   // Tạo dữ liệu calendar từ orders thực tế
   const [monthlyOrders, setMonthlyOrders] = useState<DayOrder[]>([]);
@@ -111,6 +115,18 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     loadAutoPaymentInfo();
   }, [currentMonth, user?.id, user?.role, paymentStats?.remainingTotal]);
 
+  useEffect(() => {
+    if (!autoPaymentInfo || autoPaymentInfo.isPaid) {
+      setSelectedPaymentAmount(0);
+      setCustomPaymentAmount('');
+      return;
+    }
+
+    const amount = Math.max(0, Number(autoPaymentInfo.amount || autoPaymentInfo.remainingTotal || 0));
+    setSelectedPaymentAmount(amount);
+    setCustomPaymentAmount(amount ? String(amount) : '');
+  }, [autoPaymentInfo?.code, autoPaymentInfo?.amount, autoPaymentInfo?.remainingTotal, autoPaymentInfo?.isPaid]);
+
   const handleRefreshAutoPayment = async () => {
     await refetch();
     await loadAutoPaymentInfo();
@@ -128,9 +144,53 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     }
   };
 
-  const buildClientVietQrUrl = (bankId: string, info: AutoPaymentInfo) => {
+  const getMaxAutoPaymentAmount = (info: AutoPaymentInfo) =>
+    Math.max(0, Number(info.amount || info.remainingTotal || 0));
+
+  const normalizePaymentAmount = (value: number, maxAmount: number) => {
+    const rounded = Math.floor(Number(value) || 0);
+    if (rounded <= 0) return 0;
+    return Math.min(rounded, maxAmount);
+  };
+
+  const getPaymentAmountOptions = (info: AutoPaymentInfo) => {
+    const maxAmount = getMaxAutoPaymentAmount(info);
+    const options = [
+      { label: '1 suất', value: DEFAULT_MEAL_PRICE },
+      { label: '2 suất', value: DEFAULT_MEAL_PRICE * 2 }
+    ].filter((option) => option.value > 0 && option.value < maxAmount);
+
+    if (maxAmount > 0) {
+      options.push({ label: 'Trả hết', value: maxAmount });
+    }
+
+    return options;
+  };
+
+  const selectPaymentAmount = (amount: number, info: AutoPaymentInfo) => {
+    const normalizedAmount = normalizePaymentAmount(amount, getMaxAutoPaymentAmount(info));
+    setSelectedPaymentAmount(normalizedAmount);
+    setCustomPaymentAmount(normalizedAmount ? String(normalizedAmount) : '');
+  };
+
+  const handleCustomPaymentAmountChange = (value: string, info: AutoPaymentInfo) => {
+    const digitsOnly = value.replace(/[^\d]/g, '');
+
+    if (!digitsOnly) {
+      setSelectedPaymentAmount(0);
+      setCustomPaymentAmount('');
+      return;
+    }
+
+    const normalizedAmount = normalizePaymentAmount(Number(digitsOnly), getMaxAutoPaymentAmount(info));
+    setSelectedPaymentAmount(normalizedAmount);
+    setCustomPaymentAmount(String(normalizedAmount));
+  };
+
+  const buildClientVietQrUrl = (bankId: string, info: AutoPaymentInfo, amount: number) => {
+    const safeAmount = normalizePaymentAmount(amount, getMaxAutoPaymentAmount(info));
     const params = new URLSearchParams({
-      amount: String(Math.round(info.amount)),
+      amount: String(Math.round(safeAmount)),
       addInfo: info.code
     });
 
@@ -141,19 +201,30 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(info.bank?.accountNo || '')}-compact2.png?${params.toString()}`;
   };
 
+  const getCurrentQrUrl = (info: AutoPaymentInfo) => {
+    const safeAmount = normalizePaymentAmount(selectedPaymentAmount, getMaxAutoPaymentAmount(info));
+
+    if (!info.bankConfigured || !info.bank?.accountNo || safeAmount <= 0) {
+      return null;
+    }
+
+    return buildClientVietQrUrl(info.bank.bankId || '970423', info, safeAmount);
+  };
+
   const handleQrImageError = (event: React.SyntheticEvent<HTMLImageElement>, info: AutoPaymentInfo) => {
     const img = event.currentTarget;
     const fallbackState = img.dataset.fallbackState || 'primary';
+    const safeAmount = normalizePaymentAmount(selectedPaymentAmount, getMaxAutoPaymentAmount(info));
 
     if (fallbackState === 'primary') {
       img.dataset.fallbackState = 'tpb';
-      img.src = buildClientVietQrUrl('TPB', info);
+      img.src = buildClientVietQrUrl('TPB', info, safeAmount);
       return;
     }
 
     if (fallbackState === 'tpb') {
       img.dataset.fallbackState = 'tpbank';
-      img.src = buildClientVietQrUrl('TPBank', info);
+      img.src = buildClientVietQrUrl('TPBank', info, safeAmount);
       return;
     }
 
@@ -225,6 +296,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     if (count === 2) return 'bg-yellow-100 text-yellow-900 border-yellow-200';
     return 'bg-red-100 text-red-900 border-red-200';
   };
+
+  const maxAutoPaymentAmount = autoPaymentInfo ? getMaxAutoPaymentAmount(autoPaymentInfo) : 0;
+  const activeAutoPaymentAmount = normalizePaymentAmount(selectedPaymentAmount, maxAutoPaymentAmount);
+  const autoPaymentAmountOptions = autoPaymentInfo ? getPaymentAmountOptions(autoPaymentInfo) : [];
+  const currentAutoPaymentQrUrl = autoPaymentInfo ? getCurrentQrUrl(autoPaymentInfo) : null;
 
   return (
     <div className="space-y-8">
@@ -370,9 +446,10 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           ) : autoPaymentInfo ? (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,260px)_1fr]">
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center justify-center min-h-[260px]">
-                {autoPaymentInfo.qrUrl ? (
+                {currentAutoPaymentQrUrl ? (
                   <img
-                    src={autoPaymentInfo.qrUrl}
+                    key={`${autoPaymentInfo.code}-${activeAutoPaymentAmount}`}
+                    src={currentAutoPaymentQrUrl}
                     alt="QR thanh toán"
                     referrerPolicy="no-referrer"
                     className="w-full max-w-[220px] rounded-lg bg-white"
@@ -381,17 +458,74 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 ) : (
                   <div className="text-center px-4">
                     <Building2 className="mx-auto text-gray-400 mb-3" size={36} />
-                    <p className="font-semibold text-gray-700">Chưa cấu hình tài khoản ngân hàng</p>
-                    <p className="text-sm text-gray-500 mt-1">Thêm biến môi trường AUTO_PAYMENT_BANK_ID và AUTO_PAYMENT_ACCOUNT_NO để hiện QR.</p>
+                    <p className="font-semibold text-gray-700">
+                      {autoPaymentInfo.bankConfigured ? 'Nhập số tiền cần thanh toán' : 'Chưa cấu hình tài khoản ngân hàng'}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {autoPaymentInfo.bankConfigured
+                        ? 'Chọn số tiền lớn hơn 0 để hiện mã VietQR.'
+                        : 'Thêm biến môi trường AUTO_PAYMENT_BANK_ID và AUTO_PAYMENT_ACCOUNT_NO để hiện QR.'}
+                    </p>
                   </div>
                 )}
               </div>
 
               <div className="space-y-4 min-w-0">
+                <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase font-bold text-gray-500">Chọn số tiền thanh toán</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Còn nợ {maxAutoPaymentAmount.toLocaleString()}đ, có thể trả từng phần.
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-blue-700 whitespace-nowrap">
+                      Đang chọn {activeAutoPaymentAmount.toLocaleString()}đ
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {autoPaymentAmountOptions.map((option) => {
+                      const isSelected = activeAutoPaymentAmount === option.value;
+
+                      return (
+                        <button
+                          key={`${option.label}-${option.value}`}
+                          type="button"
+                          onClick={() => selectPaymentAmount(option.value, autoPaymentInfo)}
+                          className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option.label} ({option.value.toLocaleString()}đ)
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <label className="block">
+                    <span className="text-xs uppercase font-bold text-gray-500">Hoặc nhập số tiền khác</span>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 focus-within:border-blue-400">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={customPaymentAmount}
+                        onChange={(event) => handleCustomPaymentAmountChange(event.target.value, autoPaymentInfo)}
+                        className="min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-900 outline-none"
+                        placeholder="40000"
+                      />
+                      <span className="text-sm font-semibold text-gray-500">đ</span>
+                    </div>
+                  </label>
+                </div>
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-gray-200 p-4">
-                    <p className="text-xs uppercase font-bold text-gray-500">Số tiền cần thanh toán</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{autoPaymentInfo.amount.toLocaleString()}đ</p>
+                    <p className="text-xs uppercase font-bold text-gray-500">Số tiền QR sẽ tạo</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{activeAutoPaymentAmount.toLocaleString()}đ</p>
+                    <p className="text-xs text-gray-500 mt-1">Tổng còn nợ {autoPaymentInfo.amount.toLocaleString()}đ</p>
                   </div>
 
                   <div className="rounded-xl border border-gray-200 p-4 min-w-0">
@@ -446,7 +580,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 )}
 
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-                  Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền và nội dung <span className="font-bold">{autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận thanh toán.
+                  Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền đã chọn và nội dung <span className="font-bold">{autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận theo đúng số tiền ngân hàng gửi về.
                 </div>
               </div>
             </div>
