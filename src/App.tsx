@@ -606,7 +606,7 @@ export default function App() {
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users } = useUsers();
-  const { userPayments, paymentHistory, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore } = useAdminPayments();
+  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
   
@@ -2956,7 +2956,7 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === 'payments' && (
+            {(activeTab === 'payments' || activeTab === 'admin-payments') && (
               <div
                 key="payments"
                 initial={{ opacity: 0, x: 20 }}
@@ -2967,6 +2967,67 @@ export default function App() {
                 {/* User Payments */}
                 <div className="lacquer-card p-4 lg:p-10">
                   <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.payments}</h3>
+
+                  {autoPaymentUsage && (
+                    <div className="mb-8 rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-5 lg:p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                            <QrCode size={24} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Lượt SePay tháng này</p>
+                            <p className="text-3xl font-black text-[#1C1917] mt-1">
+                              {autoPaymentUsage.used.toLocaleString()}
+                              {autoPaymentUsage.limit ? ` / ${autoPaymentUsage.limit.toLocaleString()}` : ''}
+                            </p>
+                            <p className="text-sm text-[#1C1917]/60 mt-1">
+                              {autoPaymentUsage.supported
+                                ? autoPaymentUsage.remaining !== null
+                                  ? `Còn khoảng ${autoPaymentUsage.remaining.toLocaleString()} lượt trong tháng ${autoPaymentUsage.month}.`
+                                  : `Đã nhận ${autoPaymentUsage.used.toLocaleString()} webhook trong tháng ${autoPaymentUsage.month}.`
+                                : 'Chưa có bảng auto_payment_transactions, hãy chạy AUTO-PAYMENT-SCHEMA.sql để bật bộ đếm.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {autoPaymentUsage.limit && (
+                          <div className="w-full lg:w-72">
+                            <div className="flex items-center justify-between text-xs font-bold text-blue-800 mb-2">
+                              <span>Đã dùng</span>
+                              <span>{autoPaymentUsage.usagePercent || 0}%</span>
+                            </div>
+                            <div className="h-3 bg-white rounded-full overflow-hidden border border-blue-100">
+                              <div
+                                className={`h-full rounded-full ${
+                                  (autoPaymentUsage.usagePercent || 0) >= 90
+                                    ? 'bg-red-500'
+                                    : (autoPaymentUsage.usagePercent || 0) >= 75
+                                      ? 'bg-orange-500'
+                                      : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${autoPaymentUsage.usagePercent || 0}%` }}
+                              />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                              <div className="rounded-xl bg-white/80 px-2 py-2">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase">Xong</p>
+                                <p className="font-black text-emerald-600">{autoPaymentUsage.completed}</p>
+                              </div>
+                              <div className="rounded-xl bg-white/80 px-2 py-2">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase">Lỗi</p>
+                                <p className="font-black text-red-600">{autoPaymentUsage.failed}</p>
+                              </div>
+                              <div className="rounded-xl bg-white/80 px-2 py-2">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase">Đang xử lý</p>
+                                <p className="font-black text-orange-600">{autoPaymentUsage.processing}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   {userPayments && userPayments.length > 0 ? (
                     <>

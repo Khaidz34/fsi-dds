@@ -1514,6 +1514,12 @@ const getUserPaymentStats = async (supabase, userId, month) => {
 // =====================================================
 
 const PAYMENT_MEAL_PRICE = Number(process.env.PAYMENT_MEAL_PRICE || 40000);
+const AUTO_PAYMENT_MONTHLY_LIMIT = (() => {
+  const configuredLimit = Number(process.env.AUTO_PAYMENT_MONTHLY_LIMIT || 50);
+  return Number.isFinite(configuredLimit) && configuredLimit > 0
+    ? Math.floor(configuredLimit)
+    : null;
+})();
 const AUTO_PAYMENT_PREFIX = (process.env.AUTO_PAYMENT_PREFIX || 'FSI')
   .toString()
   .replace(/[^a-zA-Z0-9]/g, '')
@@ -2192,6 +2198,66 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('My payments error:', error);
     res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Get automatic payment webhook usage for the selected month
+app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Khong co quyen truy cap' });
+    }
+
+    const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
+
+    const buildUsageResponse = ({ supported = true, used = 0, completed = 0, failed = 0, processing = 0 }) => {
+      const limit = AUTO_PAYMENT_MONTHLY_LIMIT;
+      const remaining = limit ? Math.max(0, limit - used) : null;
+      const usagePercent = limit ? Math.min(100, Math.round((used / limit) * 100)) : null;
+
+      return {
+        supported,
+        month,
+        used,
+        limit,
+        remaining,
+        usagePercent,
+        completed,
+        failed,
+        processing
+      };
+    };
+
+    const { data, error } = await supabase
+      .from('auto_payment_transactions')
+      .select('status')
+      .gte('created_at', `${startDate}T00:00:00Z`)
+      .lt('created_at', `${nextMonthDate}T00:00:00Z`);
+
+    if (error) {
+      if (isMissingOptionalPaymentSchema(error)) {
+        return res.json(buildUsageResponse({ supported: false }));
+      }
+
+      console.error('Auto payment usage query error:', error);
+      return res.status(500).json({ error: 'Loi lay thong tin luot giao dich tu dong' });
+    }
+
+    const statusCounts = (data || []).reduce((counts, row) => {
+      const status = row.status || 'processing';
+      counts[status] = (counts[status] || 0) + 1;
+      return counts;
+    }, {});
+
+    res.json(buildUsageResponse({
+      used: data?.length || 0,
+      completed: statusCounts.completed || 0,
+      failed: statusCounts.failed || 0,
+      processing: statusCounts.processing || 0
+    }));
+  } catch (error) {
+    console.error('Auto payment usage error:', error);
+    res.status(500).json({ error: 'Loi server' });
   }
 });
 

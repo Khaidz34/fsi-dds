@@ -23,9 +23,12 @@ AUTO_PAYMENT_BANK_ID=970423
 AUTO_PAYMENT_ACCOUNT_NO=00004446755
 AUTO_PAYMENT_ACCOUNT_NAME=NGUYEN DAC KHAI
 AUTO_PAYMENT_QR_TEMPLATE=compact2
+AUTO_PAYMENT_MONTHLY_LIMIT=50
 ```
 
 `AUTO_PAYMENT_BANK_ID=970423` la ma BIN VietQR cua TPBank. Ban cung co the dung `TPB` neu provider QR ho tro code ngan hang. Neu chua dien bank/account, frontend van hien ma chuyen khoan nhung khong hien QR.
+
+`AUTO_PAYMENT_MONTHLY_LIMIT` dung de hien bo dem luot giao dich SePay trong man admin thanh toan. Goi Free co the dat `50`; neu nang cap goi hoac provider doi gioi han, chi can sua bien nay tren Render.
 
 So tien hien tren QR khong lay tu bien moi truong. Backend tinh so tien theo cong no that cua user:
 

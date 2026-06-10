@@ -34,10 +34,23 @@ export interface PaginationInfo {
   totalPages: number;
 }
 
+export interface AutoPaymentUsage {
+  supported: boolean;
+  month: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  usagePercent: number | null;
+  completed: number;
+  failed: number;
+  processing: number;
+}
+
 export const useAdminPayments = (month?: string) => {
   const { user } = useAuth();
   const [userPayments, setUserPayments] = useState<UserPaymentInfo[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [autoPaymentUsage, setAutoPaymentUsage] = useState<AutoPaymentUsage | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -105,6 +118,21 @@ export const useAdminPayments = (month?: string) => {
     }
   };
 
+  const fetchAutoPaymentUsage = async () => {
+    try {
+      if (user?.role !== 'admin') {
+        setAutoPaymentUsage(null);
+        return;
+      }
+
+      const data = await paymentsAPI.getAutoUsage(currentMonth);
+      setAutoPaymentUsage(data);
+    } catch (err) {
+      console.error('Fetch auto payment usage error:', err);
+      setAutoPaymentUsage(null);
+    }
+  };
+
   const markAsPaid = async (userId: number, amount: number) => {
     try {
       console.log('🔄 markAsPaid called for user:', userId, 'amount:', amount);
@@ -114,6 +142,7 @@ export const useAdminPayments = (month?: string) => {
       // Refresh data after marking as paid - skip debounce to ensure immediate update
       await fetchUserPayments(false, true);
       await fetchPaymentHistory();
+      await fetchAutoPaymentUsage();
       console.log('✅ Data refreshed, new userPayments count:', userPayments.length);
       return true;
     } catch (err) {
@@ -134,12 +163,14 @@ export const useAdminPayments = (month?: string) => {
     if (user?.role === 'admin') {
       fetchUserPayments();
       fetchPaymentHistory();
+      fetchAutoPaymentUsage();
       
       // Use polling with longer interval to reduce server load
       const pollInterval = setInterval(() => {
         console.log('🔄 Polling admin payments...');
         fetchUserPayments();
         fetchPaymentHistory();
+        fetchAutoPaymentUsage();
       }, 10000); // Poll every 10 seconds (reduced from 3 seconds)
 
       return () => {
@@ -151,6 +182,7 @@ export const useAdminPayments = (month?: string) => {
   return {
     userPayments,
     paymentHistory,
+    autoPaymentUsage,
     pagination,
     isLoading,
     isLoadingMore,
@@ -160,6 +192,7 @@ export const useAdminPayments = (month?: string) => {
     refetch: () => {
       fetchUserPayments();
       fetchPaymentHistory();
+      fetchAutoPaymentUsage();
     }
   };
 };

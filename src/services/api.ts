@@ -237,6 +237,12 @@ export const paymentsAPI = {
     if (userId) params.append('userId', userId.toString());
     return apiCall<any>(`/payments/auto-info${params.toString() ? `?${params.toString()}` : ''}`);
   },
+
+  getAutoUsage: (month?: string) => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month);
+    return apiCall<any>(`/payments/auto-usage${params.toString() ? `?${params.toString()}` : ''}`);
+  },
   
   getHistory: (month?: string) =>
     apiCall<any[]>(`/payments/history${month ? `?month=${month}` : ''}`),
