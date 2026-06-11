@@ -403,8 +403,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   );
 
   return (
-    <div className="payment-dashboard space-y-5 sm:space-y-8 pb-24 sm:pb-0">
-      <div className="payment-mobile-hero lg:hidden lacquer-card border-app-accent/15 bg-white p-4 shadow-sm">
+    <div className="payment-dashboard max-w-[1360px] mx-auto space-y-5 sm:space-y-8 pb-24 sm:pb-0">
+      <div className="payment-section-card payment-mobile-hero lg:hidden lacquer-card border-app-accent/15 bg-white/95 p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-black uppercase tracking-[0.14em] text-app-accent">
@@ -413,7 +413,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             <h2 className="mt-1 text-xl font-black text-slate-950">
               {translations.paymentDashboard.monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-app-ink/55">
               {paymentStats.remainingTotal > 0 ? 'Cần thanh toán trong tháng này' : 'Tháng này đã thanh toán xong'}
             </p>
           </div>
@@ -447,11 +447,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
       </div>
 
       {/* Payment Stats Cards */}
-      <div className="payment-stats-grid hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-6">
+      <div className="payment-stats-grid hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-5">
         <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`payment-stat-card bg-white rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
             {isRefreshing && (
@@ -463,8 +463,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <ShoppingBag className="text-app-accent" size={24} />
             </div>
             <div className="min-w-0">
-              <p className="payment-stat-label text-[11px] sm:text-sm text-gray-500 font-medium">{translations.paymentDashboard.totalMeals}</p>
-              <p className="payment-stat-value text-lg sm:text-2xl font-bold text-gray-900">{paymentStats?.ordersCount || 0}</p>
+              <p className="payment-stat-label text-[11px] sm:text-sm text-app-ink/45 font-semibold">{translations.paymentDashboard.totalMeals}</p>
+              <p className="payment-stat-value text-lg sm:text-2xl font-black text-app-ink">{paymentStats?.ordersCount || 0}</p>
             </div>
           </div>
         </div>
@@ -473,20 +473,20 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className={`payment-stat-card bg-white rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
             {isRefreshing && (
               <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
               </div>
             )}
-            <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <CheckCircle className="text-green-600" size={24} />
+            <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
+              <CheckCircle className="text-app-accent" size={24} />
             </div>
             <div className="min-w-0">
-              <p className="payment-stat-label text-[11px] sm:text-sm text-gray-500 font-medium">{translations.paymentDashboard.paid}</p>
-              <p className="payment-stat-value text-lg sm:text-2xl font-bold text-green-600">{paymentStats?.paidTotal?.toLocaleString() || '0'}đ</p>
+              <p className="payment-stat-label text-[11px] sm:text-sm text-app-ink/45 font-semibold">{translations.paymentDashboard.paid}</p>
+              <p className="payment-stat-value text-lg sm:text-2xl font-black text-app-ink">{paymentStats?.paidTotal?.toLocaleString() || '0'}đ</p>
             </div>
           </div>
         </div>
@@ -495,20 +495,20 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className={`payment-stat-card bg-white rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
             {isRefreshing && (
               <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
               </div>
             )}
-            <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-              <Clock className="text-orange-600" size={24} />
+            <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
+              <Clock className="text-app-accent" size={24} />
             </div>
             <div className="min-w-0">
-              <p className="payment-stat-label text-[11px] sm:text-sm text-gray-500 font-medium">{translations.paymentDashboard.unpaid}</p>
-              <p className="payment-stat-value text-lg sm:text-2xl font-bold text-orange-600">{paymentStats?.remainingTotal?.toLocaleString() || '0'}đ</p>
+              <p className="payment-stat-label text-[11px] sm:text-sm text-app-ink/45 font-semibold">{translations.paymentDashboard.unpaid}</p>
+              <p className="payment-stat-value text-lg sm:text-2xl font-black text-app-accent">{paymentStats?.remainingTotal?.toLocaleString() || '0'}đ</p>
               {paymentStats?.overpaidTotal && paymentStats.overpaidTotal > 0 && (
                 <p className="text-xs text-app-accent mt-1">
                   Đã thanh toán thừa: {paymentStats.overpaidTotal.toLocaleString()}đ
@@ -522,37 +522,37 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className={`payment-stat-card bg-white rounded-xl sm:rounded-2xl p-3 sm:p-6 border border-gray-200 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
             {isRefreshing && (
               <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
               </div>
             )}
-            <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <DollarSign className="text-purple-600" size={24} />
+            <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
+              <DollarSign className="text-app-accent" size={24} />
             </div>
             <div className="min-w-0">
-              <p className="payment-stat-label text-[11px] sm:text-sm text-gray-500 font-medium">{translations.paymentDashboard.totalAmount}</p>
-              <p className="payment-stat-value text-lg sm:text-2xl font-bold text-gray-900">{paymentStats?.ordersTotal?.toLocaleString() || '0'}đ</p>
+              <p className="payment-stat-label text-[11px] sm:text-sm text-app-ink/45 font-semibold">{translations.paymentDashboard.totalAmount}</p>
+              <p className="payment-stat-value text-lg sm:text-2xl font-black text-app-ink">{paymentStats?.ordersTotal?.toLocaleString() || '0'}đ</p>
             </div>
           </div>
         </div>
       </div>
 
       {user?.role !== 'admin' && (
-        <div className="payment-auto-card lacquer-card border-app-accent/10 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="payment-section-card payment-auto-card lacquer-card border-app-accent/15 bg-white/95 p-4 sm:p-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 sm:w-11 sm:h-11 bg-app-accent/10 rounded-xl flex items-center justify-center shrink-0">
                 <QrCode className="text-app-accent" size={22} />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                <h3 className="text-base sm:text-lg font-bold text-app-ink">
                   {isAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp qua TPBank' : 'Thanh toán tự động'}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-500 leading-snug">
+                <p className="text-xs sm:text-sm text-app-ink/55 leading-snug">
                   {isAutoPaymentQuotaExhausted
                     ? 'Hệ thống đã hết lượt tự động trong tháng. Chuyển khoản trực tiếp, admin sẽ xác nhận thủ công.'
                     : 'Quét mã VietQR để tự điền số tiền và nội dung chuyển khoản.'}
@@ -572,11 +572,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           </div>
 
           {autoPaymentUsage && (
-            <div className="payment-quota-card mb-5 rounded-xl border border-app-accent/20 bg-app-accent/5 p-3 sm:p-4">
+            <div className="payment-quota-card payment-inner-card mb-5 rounded-xl border border-app-accent/15 bg-app-accent/5 p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase font-bold text-app-accent">Lượt chuyển khoản tự động</p>
-                  <p className="text-xl sm:text-2xl font-black text-gray-900 mt-1">
+                  <p className="text-xl sm:text-2xl font-black text-app-ink mt-1">
                     {autoPaymentUsage.remaining !== null
                       ? `${autoPaymentUsage.remaining.toLocaleString()} lượt còn lại`
                       : `${autoPaymentUsage.used.toLocaleString()} lượt đã dùng`}
@@ -607,7 +607,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               </div>
 
               {autoPaymentUsage.remaining === 0 && autoPaymentUsage.limit && (
-                <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+                <div className="mt-3 rounded-lg border border-app-gold/30 bg-app-gold/10 px-3 py-2 text-sm text-app-ink">
                   Gói tự động đã hết lượt trong tháng. Giao diện đã chuyển sang thanh toán trực tiếp qua tài khoản TPBank; admin sẽ kiểm tra và xác nhận thủ công.
                 </div>
               )}
@@ -627,8 +627,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               </div>
             </div>
           ) : autoPaymentInfo?.isPaid ? (
-            <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-green-700">
-              <CheckCircle size={20} className="mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 rounded-xl border border-app-accent/20 bg-app-accent/5 p-4 text-app-ink">
+              <CheckCircle size={20} className="mt-0.5 shrink-0 text-app-accent" />
               <div>
                 <p className="font-semibold">Tháng này đã được thanh toán</p>
                 <p className="text-sm mt-1">
@@ -640,7 +640,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             </div>
           ) : autoPaymentInfo ? (
             <div className="payment-action-grid grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,260px)_1fr]">
-              <div className="payment-qr-panel rounded-xl border border-app-accent/15 bg-app-accent/5 p-3 sm:p-4 flex items-center justify-center min-h-[188px] sm:min-h-[260px]">
+              <div className="payment-qr-panel rounded-2xl border border-app-accent/15 bg-white p-3 sm:p-4 flex items-center justify-center min-h-[188px] sm:min-h-[260px]">
                 {currentAutoPaymentQrUrl ? (
                   <img
                     key={`${autoPaymentInfo.code}-${activeAutoPaymentAmount}`}
@@ -652,15 +652,15 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   />
                 ) : (
                   <div className="text-center px-4">
-                    <Building2 className="mx-auto text-gray-400 mb-3" size={36} />
-                    <p className="font-semibold text-gray-700">
+                    <Building2 className="mx-auto text-app-accent/45 mb-3" size={36} />
+                    <p className="font-semibold text-app-ink">
                       {autoPaymentQrFailed
                         ? 'Chưa tạo được QR động'
                         : autoPaymentInfo.bankConfigured
                           ? 'Nhập số tiền cần thanh toán'
                           : 'Chưa cấu hình tài khoản ngân hàng'}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-app-ink/55 mt-1">
                       {autoPaymentQrFailed
                         ? 'Hãy bấm Cập nhật hoặc kiểm tra lại cấu hình ngân hàng.'
                         : autoPaymentInfo.bankConfigured
@@ -673,7 +673,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
 
               <div className="space-y-3 sm:space-y-4 min-w-0">
                 {isAutoPaymentQuotaExhausted && (
-                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+                  <div className="rounded-xl border border-app-gold/30 bg-app-gold/10 p-4 text-sm text-app-ink">
                     <p className="font-bold">Đang dùng chế độ thanh toán trực tiếp</p>
                     <p className="mt-1">
                       Vẫn quét QR hoặc chuyển khoản vào tài khoản TPBank bên dưới. Sau khi chuyển xong, admin sẽ đối chiếu tài khoản và xác nhận thanh toán thủ công.
@@ -681,11 +681,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   </div>
                 )}
 
-                <div className="payment-amount-card rounded-xl border border-app-accent/15 bg-white p-3 sm:p-4 space-y-3">
+                <div className="payment-amount-card payment-inner-card rounded-xl border border-app-accent/15 bg-white/95 p-3 sm:p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase font-bold text-gray-500">Chọn số tiền thanh toán</p>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-xs uppercase font-bold text-app-ink/45">Chọn số tiền thanh toán</p>
+                      <p className="text-sm text-app-ink/55 mt-1">
                         Còn nợ {maxAutoPaymentAmount.toLocaleString()}đ, có thể trả từng phần.
                       </p>
                     </div>
@@ -706,7 +706,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                           className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
                             isSelected
                               ? 'border-app-accent bg-app-accent/10 text-app-accent'
-                              : 'border-gray-200 text-gray-700 hover:border-app-accent/30 hover:bg-app-accent/5'
+                              : 'border-app-accent/15 text-app-ink/70 hover:border-app-accent/30 hover:bg-app-accent/5'
                           }`}
                         >
                           {option.label} ({option.value.toLocaleString()}đ)
@@ -716,75 +716,75 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   </div>
 
                   <label className="block">
-                    <span className="text-xs uppercase font-bold text-gray-500">Hoặc nhập số tiền khác</span>
-                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 focus-within:border-app-accent focus-within:ring-2 focus-within:ring-app-accent/10">
+                    <span className="text-xs uppercase font-bold text-app-ink/45">Hoặc nhập số tiền khác</span>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-app-accent/15 px-3 py-2 focus-within:border-app-accent focus-within:ring-2 focus-within:ring-app-accent/10">
                       <input
                         type="text"
                         inputMode="numeric"
                         value={customPaymentAmount}
                         onChange={(event) => handleCustomPaymentAmountChange(event.target.value, autoPaymentInfo)}
-                        className="min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-900 outline-none"
+                        className="min-w-0 flex-1 bg-transparent text-base font-semibold text-app-ink outline-none"
                         placeholder="40000"
                       />
-                      <span className="text-sm font-semibold text-gray-500">đ</span>
+                      <span className="text-sm font-semibold text-app-ink/45">đ</span>
                     </div>
                   </label>
                 </div>
 
                 <div className="payment-transfer-grid grid gap-2 sm:gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-app-accent/15 bg-app-accent/5 p-4">
-                    <p className="text-xs uppercase font-bold text-gray-500">Số tiền QR sẽ tạo</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{activeAutoPaymentAmount.toLocaleString()}đ</p>
-                    <p className="text-xs text-gray-500 mt-1">Tổng còn nợ {autoPaymentInfo.amount.toLocaleString()}đ</p>
+                  <div className="payment-transfer-card rounded-xl border border-app-accent/15 bg-white/95 p-4">
+                    <p className="text-xs uppercase font-bold text-app-ink/45">Số tiền QR sẽ tạo</p>
+                    <p className="text-2xl font-black text-app-accent mt-1">{activeAutoPaymentAmount.toLocaleString()}đ</p>
+                    <p className="text-xs text-app-ink/50 mt-1">Tổng còn nợ {autoPaymentInfo.amount.toLocaleString()}đ</p>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white p-4 min-w-0">
-                    <p className="text-xs uppercase font-bold text-gray-500">Nội dung chuyển khoản</p>
+                  <div className="payment-transfer-card rounded-xl border border-app-accent/15 bg-white/95 p-4 min-w-0">
+                    <p className="text-xs uppercase font-bold text-app-ink/45">Nội dung chuyển khoản</p>
                     <div className="mt-1 flex items-center gap-2 min-w-0">
-                      <p className="text-lg font-bold text-gray-900 truncate">{autoPaymentInfo.code}</p>
+                      <p className="text-lg font-bold text-app-ink truncate">{autoPaymentInfo.code}</p>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(autoPaymentInfo.code, 'code')}
-                        className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
                         title="Copy nội dung chuyển khoản"
                       >
-                        <Copy size={16} className="text-gray-600" />
+                        <Copy size={16} className="text-app-ink/60" />
                       </button>
                     </div>
                     {copiedField === 'code' && (
-                      <p className="text-xs text-green-600 mt-1">Đã copy</p>
+                      <p className="text-xs text-app-accent mt-1">Đã copy</p>
                     )}
                   </div>
                 </div>
 
                 {autoPaymentInfo.bankConfigured && autoPaymentInfo.bank && (
-                  <div className="payment-bank-card rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
+                  <div className="payment-bank-card rounded-xl border border-app-accent/15 bg-white/95 divide-y divide-app-accent/10">
                     <div className="flex items-center justify-between gap-3 p-4">
-                      <span className="text-sm text-gray-500">Ngân hàng</span>
-                      <span className="font-semibold text-gray-900 text-right">{autoPaymentInfo.bank.bankId}</span>
+                      <span className="text-sm text-app-ink/50">Ngân hàng</span>
+                      <span className="font-semibold text-app-ink text-right">{autoPaymentInfo.bank.bankId}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3 p-4">
-                      <span className="text-sm text-gray-500">Số tài khoản</span>
+                      <span className="text-sm text-app-ink/50">Số tài khoản</span>
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-gray-900 truncate">{autoPaymentInfo.bank.accountNo}</span>
+                        <span className="font-semibold text-app-ink truncate">{autoPaymentInfo.bank.accountNo}</span>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(autoPaymentInfo.bank?.accountNo || '', 'account')}
-                          className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
                           title="Copy số tài khoản"
                         >
-                          <Copy size={16} className="text-gray-600" />
+                          <Copy size={16} className="text-app-ink/60" />
                         </button>
                       </div>
                     </div>
                     {autoPaymentInfo.bank.accountName && (
                       <div className="flex items-center justify-between gap-3 p-4">
-                        <span className="text-sm text-gray-500">Chủ tài khoản</span>
-                        <span className="font-semibold text-gray-900 text-right">{autoPaymentInfo.bank.accountName}</span>
+                        <span className="text-sm text-app-ink/50">Chủ tài khoản</span>
+                        <span className="font-semibold text-app-ink text-right">{autoPaymentInfo.bank.accountName}</span>
                       </div>
                     )}
                     {copiedField === 'account' && (
-                      <div className="p-4 text-xs text-green-600">Đã copy số tài khoản</div>
+                      <div className="p-4 text-xs text-app-accent">Đã copy số tài khoản</div>
                     )}
                   </div>
                 )}
@@ -807,19 +807,19 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
       )}
 
       {user?.role !== 'admin' && (
-        <div className="payment-history-card lacquer-card border-app-accent/10 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="payment-section-card payment-history-card lacquer-card border-app-accent/15 bg-white/95 p-4 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 sm:w-11 sm:h-11 bg-app-accent/10 rounded-xl flex items-center justify-center shrink-0">
                 <History className="text-app-accent" size={22} />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">Lịch sử thanh toán của tôi</h3>
-                <p className="text-xs sm:text-sm text-gray-500">Các khoản đã ghi nhận trong tháng đang chọn.</p>
+                <h3 className="text-base sm:text-lg font-bold text-app-ink">Lịch sử thanh toán của tôi</h3>
+                <p className="text-xs sm:text-sm text-app-ink/55">Các khoản đã ghi nhận trong tháng đang chọn.</p>
               </div>
             </div>
 
-            <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+            <span className="hidden sm:inline-flex px-3 py-1 rounded-full bg-app-accent/5 text-xs font-bold text-app-accent">
               {currentMonth}
             </span>
           </div>
@@ -836,16 +836,16 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 return (
                   <div
                     key={payment.id}
-                    className="payment-history-row flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 rounded-xl border border-gray-200 p-3 sm:p-4"
+                    className="payment-history-row flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 rounded-xl border border-app-accent/15 bg-white/90 p-3 sm:p-4"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-bold text-gray-900">{getPaymentMethodLabel(payment)}</p>
-                        <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
+                        <p className="font-bold text-app-ink">{getPaymentMethodLabel(payment)}</p>
+                        <span className="px-2 py-1 rounded-full bg-app-accent/10 text-app-accent text-xs font-bold">
                           {payment.status || 'completed'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">{formatPaymentDateTime(payment.created_at)}</p>
+                      <p className="text-sm text-app-ink/50 mt-1">{formatPaymentDateTime(payment.created_at)}</p>
                       {paymentCode && (
                         <p className="text-xs text-app-accent font-semibold mt-1">Mã: {paymentCode}</p>
                       )}
@@ -859,7 +859,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               })}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
+            <div className="rounded-xl border border-dashed border-app-accent/20 p-6 text-center text-app-ink/50">
               Chưa có thanh toán nào được ghi nhận trong tháng này.
             </div>
           )}
@@ -871,31 +871,31 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="payment-calendar-card lacquer-card border-app-accent/10 bg-white p-4 sm:p-6 shadow-sm max-w-4xl mx-auto"
+        className="payment-section-card payment-calendar-card lacquer-card border-app-accent/15 bg-white/95 p-4 sm:p-6 shadow-sm"
       >
         <div className="payment-calendar-header flex items-center justify-between gap-3 mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             <CalendarIcon className="text-app-accent" size={24} />
-            <h3 className="text-base sm:text-xl font-bold text-gray-900">{translations.paymentDashboard.title}</h3>
+            <h3 className="text-base sm:text-xl font-bold text-app-ink">{translations.paymentDashboard.title}</h3>
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => navigateMonth('prev')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-app-accent/5 rounded-lg transition-colors"
             >
-              <ChevronLeft size={20} className="text-gray-600" />
+              <ChevronLeft size={20} className="text-app-ink/60" />
             </button>
             
-            <h4 className="text-sm sm:text-lg font-semibold text-gray-900 min-w-[96px] sm:min-w-[120px] text-center">
+            <h4 className="text-sm sm:text-lg font-semibold text-app-ink min-w-[96px] sm:min-w-[120px] text-center">
               {translations.paymentDashboard.monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h4>
             
             <button
               onClick={() => navigateMonth('next')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-app-accent/5 rounded-lg transition-colors"
             >
-              <ChevronRight size={20} className="text-gray-600" />
+              <ChevronRight size={20} className="text-app-ink/60" />
             </button>
           </div>
         </div>
@@ -904,7 +904,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
         <div className="payment-calendar-grid grid grid-cols-7 gap-1">
           {/* Day headers */}
           {translations.paymentDashboard.dayNames.map((day: string) => (
-            <div key={day} className="payment-calendar-day-name p-1.5 sm:p-2 text-center text-[11px] sm:text-sm font-bold text-gray-700 bg-gray-50 rounded">
+            <div key={day} className="payment-calendar-day-name p-1.5 sm:p-2 text-center text-[11px] sm:text-sm font-bold text-app-ink/70 bg-app-accent/5 rounded">
               {day}
             </div>
           ))}
@@ -914,12 +914,12 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             <div key={index} className="payment-calendar-day h-12 sm:h-16">
               {day ? (
                 <div className={`
-                  w-full h-full rounded-lg border border-gray-200 p-1 flex flex-col items-center justify-center
+                  w-full h-full rounded-lg border border-app-accent/10 p-1 flex flex-col items-center justify-center
                   ${getOrderCountColor(day.orderCount)}
-                  ${day.orderCount > 0 ? 'cursor-pointer hover:border-gray-400 hover:shadow-sm' : ''}
+                  ${day.orderCount > 0 ? 'cursor-pointer hover:border-app-accent/40 hover:shadow-sm' : ''}
                   transition-all
                 `}>
-                  <span className="text-base font-bold text-gray-800">{day.day}</span>
+                  <span className="text-base font-bold text-app-ink">{day.day}</span>
                   {day.orderCount > 0 && (
                     <div className="flex items-center gap-1">
                       <Utensils size={10} />
@@ -935,7 +935,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
         </div>
 
         {/* Legend */}
-        <div className="payment-calendar-legend flex flex-wrap items-center justify-center gap-2 sm:gap-4 mt-4 pt-4 border-t border-gray-200">
+        <div className="payment-calendar-legend flex flex-wrap items-center justify-center gap-2 sm:gap-4 mt-4 pt-4 border-t border-app-accent/10">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-gray-50 rounded border"></div>
             <span className="text-xs text-gray-600">{translations.paymentDashboard.noOrder}</span>

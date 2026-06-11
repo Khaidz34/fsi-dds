@@ -781,6 +781,35 @@ export default function App() {
     { key: 'chopsticks', label: t.chopsticks, checked: chopsticks, onChange: setChopsticks },
     { key: 'lessRice', label: t.lessRice, checked: lessRice, onChange: setLessRice }
   ];
+  const activePageLabel = useMemo(() => {
+    const labels: Record<string, string> = {
+      dashboard: t.dashboard,
+      menu: t.menu,
+      orders: user?.role === 'admin' ? t.admin.allOrders : t.orders,
+      'payment-calendar': t.paymentCalendar,
+      feedback: t.admin.feedback,
+      'menu-mgmt': t.admin.menuManagement,
+      stats: t.admin.statistics,
+      payments: t.admin.payments,
+      invoicing: t.admin.invoicing,
+      accounts: t.admin.accountManagement
+    };
+
+    return labels[activeTab] || activeTab;
+  }, [activeTab, t, user?.role]);
+  const activePageSubtitle = useMemo(() => {
+    if (user?.role === 'admin') {
+      return 'Quản lý suất ăn nội bộ và theo dõi vận hành hằng ngày';
+    }
+
+    if (activeTab === 'menu') return 'Chọn món, kiểm tra tùy chọn và đặt cơm trong một màn hình';
+    if (activeTab === 'payment-calendar') return 'Theo dõi công nợ, QR thanh toán và lịch đặt theo tháng';
+    if (activeTab === 'orders') return 'Xem lại các suất cơm đã đặt và trạng thái gần nhất';
+    return 'Tổng quan đặt cơm, thanh toán và hoạt động trong tuần';
+  }, [activeTab, user?.role]);
+  const weeklyOrderTotal = useMemo(() => {
+    return weeklyData.reduce((total, item) => total + (Number(item.orders) || 0), 0);
+  }, [weeklyData]);
 
   const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
@@ -1329,7 +1358,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
+    <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
@@ -1595,7 +1624,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sidebar - Hidden on mobile, shown on desktop */}
-      <aside className="hidden lg:flex w-72 bg-white border-r border-app-ink/10 flex-col transition-all duration-300 relative silk-texture">
+      <aside className="desktop-sidebar hidden lg:flex w-72 bg-white border-r border-app-ink/10 flex-col transition-all duration-300 relative silk-texture">
         <div className="p-8 flex items-center gap-4">
           {/* FSI DDS Logo */}
           <div className="fsi-logo">
@@ -1763,7 +1792,7 @@ export default function App() {
       {/* Main Content */}
       <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0">
         {/* Header - Hidden on mobile */}
-        <header className="hidden lg:flex h-24 border-b border-app-ink/10 items-center justify-between px-10 shrink-0 bg-white/80 backdrop-blur-md z-20 silk-texture relative">
+        <header className="desktop-topbar hidden lg:flex h-24 border-b border-app-ink/10 items-center justify-between px-10 shrink-0 bg-white/85 backdrop-blur-md z-20 silk-texture relative">
           {/* Theme transition overlay */}
           <AnimatePresence>
             {isThemeChanging && (
@@ -1782,15 +1811,20 @@ export default function App() {
           </AnimatePresence>
 
           <div className="flex items-center gap-4">
-            <h2 
+            <div
               key={`${activeTab}-${currentLang}`}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
-              className="text-2xl font-display font-bold tracking-tight capitalize brush-accent"
             >
-              {activeTab === 'menu-mgmt' ? t.admin.menuManagement : activeTab}
-            </h2>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-app-accent/55 mb-1">FSI DDS Workspace</p>
+              <h2 className="text-3xl font-display font-bold tracking-tight brush-accent">
+                {activePageLabel}
+              </h2>
+              <p className="mt-2 text-xs font-semibold text-app-ink/45 tracking-wide">
+                {activePageSubtitle}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-6">
@@ -1841,7 +1875,7 @@ export default function App() {
         </header>
 
         {/* Content Area */}
-        <div className="app-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 bg-[#FDFCF8] relative">
+        <div className="app-content desktop-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-10 bg-app-bg relative">
           {/* Tab transition overlay */}
           <AnimatePresence>
             {isLanguageChanging && (
@@ -1866,7 +1900,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-8"
+                className="desktop-dashboard space-y-5 lg:space-y-6"
               >
                 {/* Banner Display */}
                 {showBanner && (
@@ -1875,18 +1909,65 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="hidden lg:grid grid-cols-3 gap-4">
+                  <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Suất tuần này</p>
+                      <p className="mt-2 text-3xl font-black text-app-ink">{weeklyOrderTotal}</p>
+                      <p className="mt-1 text-xs font-semibold text-app-ink/45">{t.weeklyActivity}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
+                      <Utensils size={24} />
+                    </div>
+                  </div>
+
+                  <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Cần thanh toán</p>
+                      <p className="mt-2 text-3xl font-black text-app-accent">
+                        {(dashboardAutoPaymentInfo?.isPaid ? 0 : dashboardAutoPaymentInfo?.amount || 0).toLocaleString()}đ
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-app-ink/45">{dashboardAutoPaymentInfo?.isPaid ? 'Đã thanh toán xong' : 'Theo QR tháng này'}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
+                      <QrCode size={24} />
+                    </div>
+                  </div>
+
+                  <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Lượt tự động</p>
+                      <p className="mt-2 text-3xl font-black text-app-ink">
+                        {dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined
+                          ? dashboardAutoPaymentUsage.remaining
+                          : dashboardAutoPaymentUsage?.used || 0}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-app-ink/45">
+                        {dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined ? 'Còn lại trong tháng' : 'Đã ghi nhận'}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
+                      <CheckCircle2 size={24} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8">
                   {/* Chart Section */}
-                  <div className="lg:col-span-2 lacquer-card p-4 lg:p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-xl font-display font-bold tracking-tight">{t.weeklyActivity}</h3>
+                  <div className="desktop-panel lg:col-span-7 xl:col-span-8 lacquer-card p-4 lg:p-7 xl:p-8">
+                    <div className="flex items-start justify-between gap-4 mb-6">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60 mb-2">Hoạt động tuần</p>
+                        <h3 className="text-xl font-display font-bold tracking-tight">{t.weeklyActivity}</h3>
+                        <p className="mt-1 text-sm text-app-ink/45">Theo dõi nhịp đặt cơm để dễ kiểm soát số lượng mỗi ngày.</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${theme === 'corporate' ? 'bg-[#00A693]' : 'bg-[#DA251D]'}`} />
                         <span className="text-xs text-[#1C1917]/40 font-bold uppercase tracking-widest">Suất cơm</span>
                       </div>
                     </div>
-                    <div className="h-[300px] w-full min-h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+                    <div className="h-[320px] xl:h-[360px] w-full min-h-[320px]">
+                      <ResponsiveContainer width="100%" height="100%" minHeight={320}>
                         <BarChart data={weeklyData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E1D1" vertical={false} />
                           <XAxis 
@@ -1911,13 +1992,13 @@ export default function App() {
                   </div>
 
                   {/* Payment QR Section */}
-                  <div className={`rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center shadow-xl relative overflow-hidden ${theme === 'corporate' ? 'bg-gradient-to-br from-[#00A693] to-[#00BFA5] shadow-[#00A693]/20' : 'crimson-gradient shadow-[#DA251D]/20'}`}>
-                    <div className="absolute top-0 left-0 w-full h-full lotus-pattern opacity-20" />
-                    <div className="absolute bottom-0 right-0 w-full h-1/2 seigaiha-pattern opacity-5" />
-                    <div className="bg-white p-6 rounded-3xl mb-6 shadow-2xl relative z-10 silk-texture">
+                  <div className="desktop-qr-card lg:col-span-5 xl:col-span-4 lacquer-card p-5 xl:p-6 flex flex-col items-center justify-center text-center shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full seigaiha-pattern opacity-20" />
+                    <div className="bg-app-accent/10 p-4 rounded-[1.75rem] mb-5 shadow-inner shadow-app-accent/5 relative z-10">
+                      <div className="bg-white p-5 rounded-3xl shadow-sm silk-texture">
                       {isDashboardQrLoading ? (
-                        <div className="w-48 h-48 flex items-center justify-center">
-                          <div className="w-10 h-10 border-4 border-gray-200 border-t-[#00A693] rounded-full animate-spin" />
+                        <div className="w-44 h-44 flex items-center justify-center">
+                          <div className="w-10 h-10 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
                         </div>
                       ) : dashboardAutoPaymentInfo?.qrUrl && !dashboardAutoPaymentInfo.isPaid && !dashboardQrImageFailed ? (
                         <img
@@ -1925,25 +2006,27 @@ export default function App() {
                           src={dashboardAutoPaymentInfo.qrUrl}
                           alt="Payment QR Code"
                           referrerPolicy="no-referrer"
-                          className="w-48 h-48 object-contain"
+                          className="w-44 h-44 object-contain"
                           onError={(event) => handleDashboardQrImageError(event, dashboardAutoPaymentInfo)}
                         />
                       ) : (
-                        <div className="w-48 h-48 flex flex-col items-center justify-center gap-3 text-[#1C1917]">
-                          <QrCode size={44} className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} />
+                        <div className="w-44 h-44 flex flex-col items-center justify-center gap-3 text-app-ink">
+                          <QrCode size={42} className="text-app-accent" />
                           <p className="text-sm font-bold">
                             {dashboardAutoPaymentInfo?.isPaid ? 'Đã thanh toán' : 'Chưa có QR động'}
                           </p>
-                          <p className="text-xs text-[#1C1917]/60">
+                          <p className="text-xs text-app-ink/60">
                             {dashboardAutoPaymentInfo?.isPaid ? 'Hiện không còn khoản nợ.' : 'Mở tab Thanh toán để cập nhật lại.'}
                           </p>
                         </div>
                       )}
+                      </div>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-3 relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60 mb-2 relative z-10">Thanh toán tháng này</p>
+                    <h3 className="text-xl font-display font-bold text-app-ink mb-2 relative z-10">
                       {isDashboardAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp TPBank' : t.paymentQR}
                     </h3>
-                    <p className="text-white/80 text-sm mb-4 relative z-10">
+                    <p className="text-app-ink/55 text-sm mb-4 relative z-10">
                       {isDashboardAutoPaymentQuotaExhausted && dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
                         ? `Hết lượt tự động, chuyển trực tiếp: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
                         : dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
@@ -1952,8 +2035,8 @@ export default function App() {
                     </p>
                     
                     {/* Payment Info */}
-                    <div className="bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30 relative z-10 mb-4">
-                      <div className="text-white text-sm space-y-1">
+                    <div className="bg-app-accent/5 px-5 py-4 rounded-2xl border border-app-accent/15 relative z-10 mb-4 w-full">
+                      <div className="text-app-ink text-sm space-y-1">
                         {dashboardAutoPaymentInfo?.isPaid ? (
                           <>
                             <div className="font-bold">Không cần chuyển khoản</div>
@@ -1980,7 +2063,15 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                    
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('payment-calendar')}
+                      className="relative z-10 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-app-accent px-4 py-3 text-sm font-black text-white shadow-lg shadow-app-accent/20 hover:bg-app-accent/90 transition-colors"
+                    >
+                      <Calendar size={17} />
+                      Mở thanh toán
+                    </button>
 
                   </div>
                 </div>
@@ -2119,10 +2210,47 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-4 sm:space-y-6 lg:space-y-8"
+                className="desktop-menu-section space-y-4 sm:space-y-6 lg:space-y-7"
               >
+                <div className="desktop-menu-hero hidden lg:grid grid-cols-[minmax(0,1fr)_minmax(300px,330px)] items-center gap-5 lacquer-card p-5 xl:p-6 overflow-hidden relative">
+                  <div className="absolute inset-0 menu-heritage-surface" />
+                  <div className="absolute inset-y-0 left-0 w-1/3 lotus-pattern opacity-[0.045]" />
+                  <div className="absolute inset-y-0 right-0 w-1/3 seigaiha-pattern opacity-[0.16]" />
+                  <div className="relative z-10 flex items-start gap-4">
+                    <div className="w-[52px] h-[52px] rounded-2xl bg-app-accent text-white flex items-center justify-center shadow-lg shadow-app-accent/20 shrink-0">
+                      <Utensils size={26} />
+                    </div>
+                    <div>
+                      <div className="desktop-menu-kicker-row flex flex-wrap items-center gap-2 mb-2">
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-app-accent/65">{t.todayMenu}</p>
+                        <span className="menu-culture-chip">Cơm Việt</span>
+                        <span className="menu-culture-chip">和の味</span>
+                      </div>
+                      <h3 className="text-[2rem] font-display font-bold tracking-tight text-app-ink leading-tight">{mobileOrderCopy.title}</h3>
+                      <p className="mt-1.5 max-w-2xl text-[13px] font-semibold leading-relaxed text-app-ink/50">
+                        Chọn tối đa 2 món, thêm tùy chọn nhanh và kiểm tra lại ở thanh đặt món phía dưới.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2.5">
+                    <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-app-accent/5 px-3.5 py-3">
+                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">Món hôm nay</p>
+                      <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-ink leading-none">{menu?.dishes?.length || 0}</p>
+                    </div>
+                    <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
+                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">Đã chọn</p>
+                      <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-accent leading-none">{selectedDishes.length}/{maxSelectableDishes}</p>
+                    </div>
+                    <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
+                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">{mobileOrderCopy.perMeal}</p>
+                      <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-ink leading-none">{mealPriceText}</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Mystical Website Integration - Asian Style */}
-                <div className="bazi-mobile-hero hidden sm:block w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
+                <div className="bazi-mobile-hero hidden sm:block lg:hidden w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
                       {/* Preload image for faster loading */}
                       <link rel="preload" as="image" href="/Background3.png?v=2" />
                       
@@ -2181,7 +2309,7 @@ export default function App() {
                       </div>
                     </div>
 
-                <div className="lg:hidden bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div className="mobile-menu-hero-card lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="w-11 h-11 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
@@ -2200,11 +2328,11 @@ export default function App() {
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="rounded-xl border border-app-accent/15 bg-app-accent/5 px-3 py-2">
                       <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.perMeal}</p>
                       <p className="text-base font-black text-slate-950">{mealPriceText}</p>
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="rounded-xl border border-app-accent/15 bg-app-accent/5 px-3 py-2">
                       <p className="text-[11px] font-bold text-slate-400">{t.selectedDishes}</p>
                       <p className="text-base font-black text-slate-950">{mobileOrderCopy.limit}</p>
                     </div>
@@ -2212,7 +2340,7 @@ export default function App() {
                 </div>
 
                 {/* Menu List */}
-                <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:pb-64 ${
+                <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-4 xl:gap-5 lg:pb-64 ${
                   selectedDishes.length > 0 ? 'pb-[34rem] sm:pb-[24rem]' : 'pb-28'
                 }`}>
                   <AnimatePresence mode="wait">
@@ -2256,7 +2384,7 @@ export default function App() {
                             transition: { duration: 0.2 }
                           }}
                           whileTap={{ scale: 0.98 }}
-                          className={`mobile-dish-card lacquer-card p-3 sm:p-6 min-h-[72px] sm:min-h-[132px] flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
+                          className={`mobile-dish-card desktop-dish-card menu-dish-card lacquer-card p-4 sm:p-4 lg:p-4 xl:p-5 min-h-[92px] sm:min-h-[128px] lg:min-h-[154px] flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
                             selectedDishes.includes(dish.id) 
                               ? 'border-app-accent ring-2 ring-app-accent/20 bg-app-accent/5' 
                               : selectedDishes.length >= 2 
@@ -2269,7 +2397,7 @@ export default function App() {
                             <div 
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
-                              className="absolute top-4 right-4 z-10"
+                              className="absolute top-3 right-3 z-10"
                             >
                               <div className="bg-app-accent text-white p-1 rounded-full shadow-lg">
                                 <CheckCircle2 size={14} />
@@ -2278,14 +2406,18 @@ export default function App() {
                           )}
                           
                           
+                          <div className="menu-dish-number inline-flex mb-2.5 lg:mb-3 w-fit items-center gap-2 rounded-full border border-app-accent/15 bg-app-accent/5 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-app-accent">
+                            #{index + 1}
+                          </div>
+
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-1.5 sm:mb-4">
+                            <div className="flex items-start justify-between mb-1.5 sm:mb-3">
                               <h4 
                                 key={`${dish.id}-name-${currentLang}`}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.05 + 0.1 }}
-                                className={`mobile-dish-title text-[15px] sm:text-lg font-display font-bold leading-snug break-words pr-9 transition-colors duration-300 ${
+                                className={`mobile-dish-title text-[15px] sm:text-[17px] lg:text-[1.05rem] xl:text-[1.1rem] font-display font-bold leading-snug break-words pr-9 transition-colors duration-300 ${
                                   selectedDishes.includes(dish.id) 
                                     ? 'text-app-accent' 
                                     : selectedDishes.length >= 2 
@@ -2298,25 +2430,29 @@ export default function App() {
                             </div>
                             
                             {/* Selection indicator */}
-                            <div className="mt-1 flex items-center justify-between gap-3">
+                            <div className="menu-dish-footer mt-auto pt-2.5 flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2">
-                                {selectedDishes.includes(dish.id) && (
-                                  <span 
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="text-[11px] bg-app-accent text-white px-2 py-1 rounded-full font-bold"
-                                  >
-                                    {mobileOrderCopy.optionPrefix} {selectedDishes.indexOf(dish.id) + 1}
-                                  </span>
-                                )}
+                                <span
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  className={`menu-dish-status text-[11px] px-2.5 py-1 rounded-full font-black ${
+                                    selectedDishes.includes(dish.id)
+                                      ? 'bg-app-accent text-white'
+                                      : 'bg-white text-app-ink/45 border border-app-accent/10'
+                                  }`}
+                                >
+                                  {selectedDishes.includes(dish.id)
+                                    ? `${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
+                                    : `Món ${index + 1}`}
+                                </span>
                               </div>
                               
                               {!selectedDishes.includes(dish.id) && selectedDishes.length < 2 && (
                                 <div 
                                   whileHover={{ scale: 1.1 }}
-                                  className="w-8 h-8 border-2 border-app-accent/30 rounded-full group-hover:border-app-accent transition-colors flex items-center justify-center bg-white"
+                                  className="w-7 h-7 border-2 border-app-accent/30 rounded-full group-hover:border-app-accent transition-colors flex items-center justify-center bg-white"
                                 >
-                                  <Plus size={15} className="text-app-accent/70" />
+                                  <Plus size={14} className="text-app-accent/70" />
                                 </div>
                               )}
                             </div>
@@ -2343,7 +2479,7 @@ export default function App() {
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t-4 border-[#DA251D] shadow-2xl mobile-order-action-sheet lg:z-50"
+                    className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t-4 border-app-accent shadow-2xl mobile-order-action-sheet lg:z-50"
                   >
                     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 lg:py-4">
                       {/* Mobile: Compact View */}
@@ -2503,9 +2639,9 @@ export default function App() {
                               {selectedDishes.map((dishId, index) => {
                                 const dish = menu?.dishes?.find(d => d.id === dishId);
                                 return (
-                                  <div key={dishId} className="flex items-center justify-between bg-[#FDF4E3] rounded-xl px-4 py-3 border border-[#F5E6D3]">
+                                  <div key={dishId} className="flex items-center justify-between bg-app-accent/5 rounded-xl px-4 py-3 border border-app-accent/15">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-[#DA251D] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                      <div className="w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold text-sm">
                                         {index + 1}
                                       </div>
                                       <span className="font-semibold text-[#1C1917]">{dish?.name}</span>
@@ -2520,8 +2656,8 @@ export default function App() {
                                 );
                               })}
                             </div>
-                            <div className="mt-3 p-3 bg-[#DA251D]/10 rounded-xl">
-                              <p className="text-sm text-[#1C1917] font-semibold">Tổng tiền: <span className="text-[#DA251D] text-lg">40,000đ</span></p>
+                            <div className="mt-3 p-3 bg-app-accent/10 rounded-xl">
+                              <p className="text-sm text-[#1C1917] font-semibold">Tổng tiền: <span className="text-app-accent text-lg">40,000đ</span></p>
                             </div>
                           </div>
 
@@ -2542,7 +2678,7 @@ export default function App() {
                                   console.log('Selected user ID:', value);
                                   setOrderForUserId(value);
                                 }}
-                                className="w-full px-4 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] bg-white text-[#1C1917] font-medium"
+                                className="w-full px-4 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-app-accent bg-white text-[#1C1917] font-medium"
                               >
                                 <option value={user?.id || ''}>{user?.fullname} {t.myself}</option>
                                 {allUsers.length > 0 ? (
@@ -2565,7 +2701,7 @@ export default function App() {
                                 { key: 'chopsticks', label: t.chopsticks, state: chopsticks, setState: setChopsticks },
                                 { key: 'lessRice', label: t.lessRice, state: lessRice, setState: setLessRice }
                               ].map(option => (
-                                <label key={option.key} className="flex items-center gap-2 cursor-pointer p-2 bg-[#F5F2E9] rounded-lg hover:bg-[#FDF4E3] transition-colors">
+                                <label key={option.key} className="flex items-center gap-2 cursor-pointer p-2 bg-app-accent/5 rounded-lg hover:bg-app-accent/10 transition-colors">
                                   <input
                                     type="checkbox"
                                     checked={option.state}
@@ -2592,7 +2728,7 @@ export default function App() {
                               value={orderNotes}
                               onChange={(e) => setOrderNotes(e.target.value)}
                               placeholder={t.orderNotesPlaceholder}
-                              className="w-full px-4 py-3 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] resize-none mb-4 text-[#1C1917]"
+                              className="w-full px-4 py-3 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-app-accent resize-none mb-4 text-[#1C1917]"
                               rows={3}
                             />
                             

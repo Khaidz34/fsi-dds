@@ -326,6 +326,145 @@
   border-color: #B2DFDB;
 }
 
+@media (min-width: 1024px) {
+  .desktop-app-shell {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--color-app-bg) 94%, white), #ffffff 52%, color-mix(in srgb, var(--color-app-accent) 5%, white));
+  }
+
+  .desktop-sidebar {
+    box-shadow: 18px 0 44px rgba(15, 23, 42, 0.045);
+  }
+
+  .desktop-topbar {
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.04);
+  }
+
+  .desktop-content {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-app-bg) 96%, white), #ffffff 100%);
+  }
+
+  .desktop-dashboard,
+  .desktop-menu-hero {
+    max-width: 1360px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .desktop-summary-card,
+  .desktop-panel,
+  .desktop-qr-card,
+  .desktop-menu-hero {
+    border-color: color-mix(in srgb, var(--color-app-accent) 22%, white);
+    box-shadow: 0 18px 46px rgba(15, 23, 42, 0.055);
+  }
+
+  .desktop-summary-card {
+    min-height: 118px;
+  }
+
+  .desktop-panel {
+    min-height: 470px;
+  }
+
+  .desktop-qr-card {
+    min-height: 470px;
+  }
+
+  .desktop-dish-card {
+    border-color: color-mix(in srgb, var(--color-app-accent) 15%, white);
+  }
+
+  .desktop-dish-card .mobile-dish-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+}
+
+.payment-dashboard {
+  --payment-card-border: color-mix(in srgb, var(--color-app-accent) 18%, white);
+  --payment-soft-bg: color-mix(in srgb, var(--color-app-accent) 5%, white);
+  --payment-card-shadow: 0 14px 36px rgba(15, 23, 42, 0.055);
+}
+
+.payment-section-card,
+.payment-stat-card {
+  border-color: var(--payment-card-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), color-mix(in srgb, var(--color-app-bg) 82%, white));
+  box-shadow: var(--payment-card-shadow);
+}
+
+.payment-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.payment-stat-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 1rem 0 1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-app-accent) 44%, white), transparent);
+  opacity: 0.65;
+}
+
+.payment-stat-icon {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-app-accent) 12%, white);
+}
+
+.payment-inner-card,
+.payment-transfer-card,
+.payment-bank-card,
+.payment-history-row,
+.payment-qr-panel {
+  border-color: var(--payment-card-border);
+}
+
+.payment-transfer-card,
+.payment-history-row {
+  background: color-mix(in srgb, var(--color-app-bg) 42%, white);
+}
+
+.payment-qr-panel {
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--color-app-accent) 8%, white), transparent 42%),
+    #ffffff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-app-accent) 8%, white);
+}
+
+.payment-calendar-day-name {
+  border: 1px solid color-mix(in srgb, var(--color-app-accent) 12%, white);
+}
+
+@media (min-width: 1024px) {
+  .payment-section-card {
+    border-radius: 1.5rem;
+  }
+
+  .payment-auto-card,
+  .payment-history-card,
+  .payment-calendar-card {
+    padding: 1.5rem;
+  }
+
+  .payment-action-grid {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  }
+
+  .payment-qr-panel {
+    min-height: 320px;
+  }
+
+  .payment-qr-image {
+    max-width: 252px;
+  }
+}
+
 /* FSI DDS Logo Styles - Matching Company Logo */
 .fsi-logo {
   display: inline-flex;
@@ -951,5 +1090,173 @@
     bottom: 0;
     min-height: 48px;
     z-index: 1;
+  }
+}
+
+/* Refined menu cards */
+.desktop-menu-section {
+  max-width: 1360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.desktop-menu-metric,
+.mobile-menu-hero-card,
+.menu-dish-card {
+  border-color: color-mix(in srgb, var(--color-app-accent) 18%, white);
+}
+
+.menu-heritage-surface {
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.98), color-mix(in srgb, var(--color-app-bg) 70%, white) 54%, color-mix(in srgb, var(--color-app-gold) 7%, white));
+}
+
+.desktop-menu-kicker-row {
+  min-height: 1.5rem;
+}
+
+.menu-culture-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--color-app-gold) 26%, white);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-app-gold) 8%, white);
+  padding: 0.125rem 0.5rem;
+  color: color-mix(in srgb, var(--color-app-ink) 78%, var(--color-app-gold));
+  font-size: 0.625rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.desktop-menu-metric {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), color-mix(in srgb, var(--color-app-bg) 72%, white));
+}
+
+.desktop-menu-metric-label {
+  color: color-mix(in srgb, var(--color-app-accent) 58%, var(--color-app-ink));
+  font-size: 0.56rem;
+  letter-spacing: 0.075em;
+  line-height: 1.25;
+  min-height: 1.38rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.desktop-menu-metric-value {
+  color: color-mix(in srgb, var(--color-app-accent) 82%, var(--color-app-ink));
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.mobile-menu-hero-card,
+.menu-dish-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), color-mix(in srgb, var(--color-app-bg) 78%, white)),
+    linear-gradient(135deg, transparent 0%, color-mix(in srgb, var(--color-app-gold) 6%, transparent) 100%);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.055);
+}
+
+.menu-dish-card {
+  isolation: isolate;
+  min-width: 0;
+}
+
+.menu-dish-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--color-app-accent), color-mix(in srgb, var(--color-app-accent) 30%, white));
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.menu-dish-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 auto;
+  width: 5.35rem;
+  height: 3.65rem;
+  border-radius: 1rem 0 0 0;
+  background:
+    linear-gradient(135deg, transparent 0%, color-mix(in srgb, var(--color-app-accent) 7%, white) 46%, color-mix(in srgb, var(--color-app-gold) 9%, white) 100%),
+    repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--color-app-accent) 9%, transparent) 8px 10px);
+  clip-path: polygon(32% 0, 100% 0, 100% 100%, 0 100%);
+  opacity: 0.68;
+  z-index: -1;
+}
+
+.menu-dish-card:hover::before,
+.menu-dish-card:focus-within::before {
+  opacity: 1;
+}
+
+.menu-dish-number,
+.menu-dish-status {
+  white-space: nowrap;
+}
+
+.menu-dish-footer {
+  border-top: 1px solid color-mix(in srgb, var(--color-app-accent) 10%, white);
+}
+
+@media (min-width: 1024px) {
+  .desktop-menu-hero {
+    min-height: 148px;
+  }
+
+  .desktop-menu-metrics {
+    align-items: stretch;
+  }
+
+  .desktop-menu-metric {
+    min-height: 82px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-app-accent) 6%, transparent);
+  }
+
+  .menu-dish-card {
+    min-height: 154px;
+  }
+
+  .menu-dish-card .mobile-dish-title {
+    min-height: 3.05rem;
+    font-size: 1.08rem;
+    line-height: 1.22;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-hero-card {
+    border-radius: 1.25rem;
+  }
+
+  .menu-dish-card.mobile-dish-card {
+    min-height: 92px;
+    padding: 0.875rem !important;
+    border-radius: 1.25rem;
+  }
+
+  .menu-dish-card::after {
+    width: 4.45rem;
+    height: 3.25rem;
+    inset: auto 0 0 auto;
+  }
+
+  .menu-dish-card .mobile-dish-title {
+    font-size: 1rem;
+    line-height: 1.22;
+    padding-right: 2.85rem;
+  }
+
+  .menu-dish-number {
+    margin-bottom: 0.625rem;
   }
 }
