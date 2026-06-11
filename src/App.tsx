@@ -774,12 +774,12 @@ export default function App() {
     return copies[currentLang];
   }, [currentLang]);
   const orderOptionItems = [
-    { key: 'extraRice', label: t.extraRice, checked: extraRice, onChange: setExtraRice },
-    { key: 'extraSoup', label: t.extraSoup, checked: extraSoup, onChange: setExtraSoup },
-    { key: 'chiliSauce', label: t.chiliSauce, checked: chiliSauce, onChange: setChiliSauce },
-    { key: 'fishSauce', label: t.fishSauce, checked: fishSauce, onChange: setFishSauce },
-    { key: 'chopsticks', label: t.chopsticks, checked: chopsticks, onChange: setChopsticks },
-    { key: 'lessRice', label: t.lessRice, checked: lessRice, onChange: setLessRice }
+    { key: 'extraRice', label: t.extraRice, compactLabel: currentLang === 'vi' ? 'Cơm' : currentLang === 'ja' ? 'ご飯' : 'Rice', checked: extraRice, onChange: setExtraRice },
+    { key: 'extraSoup', label: t.extraSoup, compactLabel: currentLang === 'vi' ? 'Canh' : currentLang === 'ja' ? 'スープ' : 'Soup', checked: extraSoup, onChange: setExtraSoup },
+    { key: 'chiliSauce', label: t.chiliSauce, compactLabel: currentLang === 'vi' ? 'Tương ớt' : currentLang === 'ja' ? 'チリ' : 'Chili', checked: chiliSauce, onChange: setChiliSauce },
+    { key: 'fishSauce', label: t.fishSauce, compactLabel: currentLang === 'vi' ? 'Mắm' : currentLang === 'ja' ? '魚醤' : 'Sauce', checked: fishSauce, onChange: setFishSauce },
+    { key: 'chopsticks', label: t.chopsticks, compactLabel: currentLang === 'vi' ? 'Đũa' : currentLang === 'ja' ? '箸' : 'Sticks', checked: chopsticks, onChange: setChopsticks },
+    { key: 'lessRice', label: t.lessRice, compactLabel: currentLang === 'vi' ? 'Ít cơm' : currentLang === 'ja' ? '少なめ' : 'Less', checked: lessRice, onChange: setLessRice }
   ];
   const activePageLabel = useMemo(() => {
     const labels: Record<string, string> = {
@@ -1954,7 +1954,7 @@ export default function App() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8">
                   {/* Chart Section */}
-                  <div className="desktop-panel lg:col-span-7 xl:col-span-8 lacquer-card p-4 lg:p-7 xl:p-8">
+                  <div className="desktop-panel lg:col-span-7 xl:col-span-8 lacquer-card p-4 lg:p-7 xl:p-8 relative overflow-hidden">
                     <div className="flex items-start justify-between gap-4 mb-6">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60 mb-2">Hoạt động tuần</p>
@@ -2210,7 +2210,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="desktop-menu-section space-y-4 sm:space-y-6 lg:space-y-7"
+                className="desktop-menu-section menu-luxury-stage space-y-4 sm:space-y-6 lg:space-y-7"
               >
                 <div className="desktop-menu-hero hidden lg:grid grid-cols-[minmax(0,1fr)_minmax(300px,330px)] items-center gap-5 lacquer-card p-5 xl:p-6 overflow-hidden relative">
                   <div className="absolute inset-0 menu-heritage-surface" />
@@ -2230,7 +2230,14 @@ export default function App() {
                       <p className="mt-1.5 max-w-2xl text-[13px] font-semibold leading-relaxed text-app-ink/50">
                         Chọn tối đa 2 món, thêm tùy chọn nhanh và kiểm tra lại ở thanh đặt món phía dưới.
                       </p>
+                      <div className="personal-menu-mission">
+                        <span>Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
+                      </div>
                     </div>
+                  </div>
+                  <div className="personal-menu-postcard" aria-hidden="true">
+                    <span className="personal-postcard-label">from</span>
+                    <span className="personal-menu-handnote">Nguyễn Tiến Toàn</span>
                   </div>
 
                   <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2.5">
@@ -2309,8 +2316,13 @@ export default function App() {
                       </div>
                     </div>
 
-                <div className="mobile-menu-hero-card lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="mobile-menu-hero-card menu-heritage-surface lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                  <div className="mobile-menu-postcard" aria-hidden="true">
+                    <span className="personal-postcard-label">from</span>
+                    <span className="personal-menu-handnote">Nguyễn Tiến Toàn</span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-3 relative z-10">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="w-11 h-11 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
                         <Utensils size={22} />
@@ -2327,7 +2339,11 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="mobile-menu-mission relative z-10">
+                    <span>Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2 relative z-10">
                     <div className="rounded-xl border border-app-accent/15 bg-app-accent/5 px-3 py-2">
                       <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.perMeal}</p>
                       <p className="text-base font-black text-slate-950">{mealPriceText}</p>
@@ -2388,7 +2404,7 @@ export default function App() {
                             selectedDishes.includes(dish.id) 
                               ? 'border-app-accent ring-2 ring-app-accent/20 bg-app-accent/5' 
                               : selectedDishes.length >= 2 
-                                ? 'opacity-55 border-gray-200' 
+                                ? 'menu-dish-card-muted border-slate-200 bg-white/95'
                                 : 'hover:border-app-accent/40 hover:shadow-lg'
                           }`}
                           onClick={() => handleSelectDish(dish.id)}
@@ -2421,7 +2437,7 @@ export default function App() {
                                   selectedDishes.includes(dish.id) 
                                     ? 'text-app-accent' 
                                     : selectedDishes.length >= 2 
-                                      ? 'text-gray-400' 
+                                      ? 'text-slate-500'
                                       : 'text-[#1C1917] group-hover:text-app-accent'
                                 }`}
                               >
@@ -2561,25 +2577,26 @@ export default function App() {
                           </label>
                         </div>
 
-                        <div className="mb-3">
-                          <p className="text-xs font-black text-slate-500 mb-2">{mobileOrderCopy.quickOptions}</p>
-                          <div className="mobile-order-option-grid grid grid-cols-2 gap-2">
+                        <div className="mb-2.5">
+                          <div className="mobile-order-options-header">
+                            <p>{mobileOrderCopy.quickOptions}</p>
+                            <span>{orderOptionItems.filter(option => option.checked).length}/{orderOptionItems.length}</span>
+                          </div>
+                          <div className="mobile-order-option-grid">
                             {orderOptionItems.map(option => (
                               <label
                                 key={option.key}
-                                className={`min-h-11 rounded-xl border px-3 py-2 flex items-center gap-2 text-sm font-bold transition-colors ${
-                                  option.checked
-                                    ? 'border-app-accent bg-app-accent/10 text-app-accent'
-                                    : 'border-slate-200 bg-white text-slate-700'
-                                }`}
+                                className={`mobile-order-option-chip ${option.checked ? 'is-selected' : ''}`}
+                                title={option.label}
                               >
                                 <input
                                   type="checkbox"
                                   checked={option.checked}
                                   onChange={(e) => option.onChange(e.target.checked)}
-                                  className="w-4 h-4 rounded border-slate-300 text-app-accent focus:ring-app-accent"
+                                  className="sr-only"
                                 />
-                                <span className="min-w-0 leading-tight">{option.label}</span>
+                                <span className="mobile-order-option-check" aria-hidden="true" />
+                                <span className="mobile-order-option-label">{option.compactLabel}</span>
                               </label>
                             ))}
                           </div>
@@ -3082,7 +3099,7 @@ export default function App() {
                               selectedDishes.includes(dish.id) 
                                 ? 'border-[#DA251D] ring-2 ring-[#DA251D]/20 bg-[#DA251D]/5' 
                                 : selectedDishes.length >= 2 
-                                  ? 'opacity-50 border-gray-200' 
+                                  ? 'menu-dish-card-muted border-gray-200 bg-white/95'
                                   : 'hover:border-[#DA251D]/40 hover:shadow-lg'
                             }`}
                             onClick={() => handleSelectDish(dish.id)}
@@ -3110,7 +3127,7 @@ export default function App() {
                                     selectedDishes.includes(dish.id) 
                                       ? 'text-[#DA251D]' 
                                       : selectedDishes.length >= 2 
-                                        ? 'text-gray-400' 
+                                      ? 'text-slate-500'
                                         : 'text-[#1C1917] group-hover:text-[#DA251D]'
                                   }`}
                                 >
