@@ -2237,7 +2237,7 @@ export default function App() {
                   </div>
                   <div className="personal-menu-postcard" aria-hidden="true">
                     <span className="personal-postcard-label">from</span>
-                    <span className="personal-menu-handnote">Nguyễn Tiến Toàn</span>
+                    <span className="personal-menu-handnote"></span>
                   </div>
 
                   <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2.5">
@@ -2319,7 +2319,7 @@ export default function App() {
                 <div className="mobile-menu-hero-card menu-heritage-surface lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm relative overflow-hidden">
                   <div className="mobile-menu-postcard" aria-hidden="true">
                     <span className="personal-postcard-label">from</span>
-                    <span className="personal-menu-handnote">Nguyễn Tiến Toàn</span>
+                    <span className="personal-menu-handnote"></span>
                   </div>
 
                   <div className="flex items-start justify-between gap-3 relative z-10">
