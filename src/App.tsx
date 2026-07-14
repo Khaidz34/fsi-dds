@@ -721,6 +721,7 @@ export default function App() {
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number; fullname?: string; paidTotal?: number; remainingTotal?: number } | null>(null);
   const [paymentAmountInput, setPaymentAmountInput] = useState('');
+  const [paymentHistoryPage, setPaymentHistoryPage] = useState(1);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [dashboardAutoPaymentInfo, setDashboardAutoPaymentInfo] = useState<DashboardAutoPaymentInfo | null>(null);
   const [dashboardAutoPaymentUsage, setDashboardAutoPaymentUsage] = useState<DashboardAutoPaymentUsage | null>(null);
@@ -829,6 +830,17 @@ export default function App() {
   const weeklyOrderTotal = useMemo(() => {
     return weeklyData.reduce((total, item) => total + (Number(item.orders) || 0), 0);
   }, [weeklyData]);
+  const paymentHistoryPageSize = 10;
+  const paymentHistoryTotalPages = Math.max(1, Math.ceil(paymentHistory.length / paymentHistoryPageSize));
+  const paginatedPaymentHistory = useMemo(() => {
+    const safePage = Math.min(Math.max(paymentHistoryPage, 1), paymentHistoryTotalPages);
+    const start = (safePage - 1) * paymentHistoryPageSize;
+    return paymentHistory.slice(start, start + paymentHistoryPageSize);
+  }, [paymentHistory, paymentHistoryPage, paymentHistoryTotalPages]);
+
+  useEffect(() => {
+    setPaymentHistoryPage((page) => Math.min(page, paymentHistoryTotalPages));
+  }, [paymentHistoryTotalPages]);
 
   const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
@@ -3548,6 +3560,24 @@ export default function App() {
                             </div>
                           ))}
                       </div>
+
+                      {pagination && (
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-sm font-semibold text-[#1C1917]/55">
+                            Đang hiển thị {userPayments.length} / {pagination.total} người còn nợ
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={loadMore}
+                              disabled={!pagination.hasMore || isLoadingMore}
+                              className="rounded-xl border border-[#E5E1D1] px-4 py-2 text-sm font-bold text-[#1C1917] disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {isLoadingMore ? 'Đang tải...' : pagination.hasMore ? 'Tải trang sau' : 'Đã hết'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Load More Button */}
                       {pagination && pagination.hasMore && (
@@ -3590,7 +3620,7 @@ export default function App() {
                     <div className="space-y-8">
                       {/* Group payment history by user */}
                       {Object.entries(
-                        paymentHistory.reduce((acc, history: any) => {
+                        paginatedPaymentHistory.reduce((acc, history: any) => {
                           const fullname = history.user?.fullname || history.fullname || 'Unknown';
                           if (!acc[fullname]) {
                             acc[fullname] = [];
@@ -3666,6 +3696,32 @@ export default function App() {
                           </div>
                         </div>
                       ))}
+                      <div className="flex flex-col gap-3 border-t border-[#E5E1D1] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm font-semibold text-[#1C1917]/55">
+                          Hiển thị {paginatedPaymentHistory.length} / {paymentHistory.length} giao dịch
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentHistoryPage((page) => Math.max(1, page - 1))}
+                            disabled={paymentHistoryPage <= 1}
+                            className="rounded-xl border border-[#E5E1D1] px-4 py-2 text-sm font-bold text-[#1C1917] disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Trước
+                          </button>
+                          <span className="min-w-[90px] text-center text-sm font-bold text-[#1C1917]/65">
+                            {paymentHistoryPage} / {paymentHistoryTotalPages}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentHistoryPage((page) => Math.min(paymentHistoryTotalPages, page + 1))}
+                            disabled={paymentHistoryPage >= paymentHistoryTotalPages}
+                            className="rounded-xl border border-[#E5E1D1] px-4 py-2 text-sm font-bold text-[#1C1917] disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Sau
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">

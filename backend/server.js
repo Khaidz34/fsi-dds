@@ -1501,6 +1501,7 @@ const buildPaymentStatsQueryDirect = async (supabase, month, limit = 20, offset 
 
   return {
     data: usersWithDebt.slice(validOffset, validOffset + validLimit),
+    allData: usersWithDebt,
     total: usersWithDebt.length,
     limit: validLimit,
     offset: validOffset
@@ -2533,7 +2534,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
         
         // Cache the full result (without pagination applied)
         cache.set(cacheKey, {
-          data: result.data,
+          data: result.allData || result.data,
           total: result.total
         }, 10 * 60 * 1000); // 10-minute TTL (increased from 5 for better performance)
         
