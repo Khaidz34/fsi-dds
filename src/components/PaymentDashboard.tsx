@@ -59,6 +59,8 @@ interface AutoPaymentUsage {
   used: number;
   providerUsed?: number | null;
   providerSynced?: boolean;
+  providerSyncStatus?: string;
+  providerSyncError?: string | null;
   usageSource?: string;
   limit: number | null;
   remaining: number | null;
@@ -394,6 +396,25 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const autoPaymentAmountOptions = autoPaymentInfo ? getPaymentAmountOptions(autoPaymentInfo) : [];
   const currentAutoPaymentQrUrl = autoPaymentInfo ? getCurrentQrUrl(autoPaymentInfo) : null;
   const autoPaymentUsagePercent = autoPaymentUsage?.usagePercent || 0;
+  const isAutoPaymentUsageUnsynced = !!(
+    autoPaymentUsage?.limit &&
+    !autoPaymentUsage.providerSynced &&
+    autoPaymentUsage.used === 0
+  );
+  const autoPaymentUsageHeadline = isAutoPaymentUsageUnsynced
+    ? 'Chưa đồng bộ SePay'
+    : autoPaymentUsage?.remaining !== null && autoPaymentUsage?.remaining !== undefined
+      ? `${autoPaymentUsage.remaining.toLocaleString()} lượt còn lại`
+      : `${autoPaymentUsage?.used?.toLocaleString() || 0} lượt đã dùng`;
+  const autoPaymentUsageDescription = isAutoPaymentUsageUnsynced
+    ? autoPaymentUsage?.providerSyncStatus === 'missing-token'
+      ? 'Backend chưa có SEPAY_API_TOKEN trên Render nên chưa đọc được số lượt đã dùng từ SePay.'
+      : `Backend chưa đồng bộ được số lượt SePay${autoPaymentUsage?.providerSyncError ? `: ${autoPaymentUsage.providerSyncError}` : '.'}`
+    : autoPaymentUsage?.supported
+      ? autoPaymentUsage.limit
+        ? `Hệ thống đã dùng ${autoPaymentUsage.used.toLocaleString()} / ${autoPaymentUsage.limit.toLocaleString()} lượt trong tháng ${autoPaymentUsage.month}.`
+        : `Hệ thống đã nhận ${autoPaymentUsage.used.toLocaleString()} giao dịch trong tháng ${autoPaymentUsage.month}.`
+      : 'Hệ thống chưa bật bảng đếm giao dịch tự động.';
   const autoPaymentQuotaClass = autoPaymentUsagePercent >= 90
     ? 'bg-red-500'
     : autoPaymentUsagePercent >= 75
@@ -580,16 +601,10 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 <div>
                   <p className="text-xs uppercase font-bold text-app-accent">Lượt chuyển khoản tự động</p>
                   <p className="text-xl sm:text-2xl font-black text-app-ink mt-1">
-                    {autoPaymentUsage.remaining !== null
-                      ? `${autoPaymentUsage.remaining.toLocaleString()} lượt còn lại`
-                      : `${autoPaymentUsage.used.toLocaleString()} lượt đã dùng`}
+                    {autoPaymentUsageHeadline}
                   </p>
                   <p className="text-xs sm:text-sm text-app-ink/65 mt-1 leading-snug">
-                    {autoPaymentUsage.supported
-                      ? autoPaymentUsage.limit
-                        ? `Hệ thống đã dùng ${autoPaymentUsage.used.toLocaleString()} / ${autoPaymentUsage.limit.toLocaleString()} lượt trong tháng ${autoPaymentUsage.month}.`
-                        : `Hệ thống đã nhận ${autoPaymentUsage.used.toLocaleString()} giao dịch trong tháng ${autoPaymentUsage.month}.`
-                      : 'Hệ thống chưa bật bảng đếm giao dịch tự động.'}
+                    {autoPaymentUsageDescription}
                   </p>
                   {autoPaymentUsage.providerSynced && (
                     <p className="text-xs text-app-accent mt-1">

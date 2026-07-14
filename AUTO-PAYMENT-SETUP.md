@@ -41,6 +41,8 @@ SEPAY_USAGE_ACCOUNT_NO=00004446755
 
 Sau khi deploy ban moi va co `SEPAY_API_TOKEN`, web se uu tien so luot lay tu SePay API de tinh "con lai trong thang". Webhook van ghi nhan ca giao dich bi bo qua (`ignored`) de lam log noi bo; bien offset chi can dung de bu cac luot cu khi chua cau hinh duoc API token.
 
+Neu tren web hien "Chua dong bo SePay" hoac van thay `0 / 50`, Render backend dang chua lay duoc so lieu tu SePay. Kiem tra lai `SEPAY_API_TOKEN`, bam redeploy backend, roi bam `Cap nhat` trong man Thanh toan.
+
 So tien hien tren QR khong lay tu bien moi truong. Backend tinh so tien theo cong no that cua user:
 
 ```text

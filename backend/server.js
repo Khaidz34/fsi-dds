@@ -1553,7 +1553,20 @@ const getPreviousDate = (dateString) => {
 
 const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
   const apiToken = getSePayApiToken();
-  if (!apiToken || typeof fetch !== 'function') return null;
+  if (!apiToken) {
+    return {
+      used: null,
+      syncStatus: 'missing-token',
+      syncError: 'SEPAY_API_TOKEN is not configured'
+    };
+  }
+  if (typeof fetch !== 'function') {
+    return {
+      used: null,
+      syncStatus: 'fetch-unavailable',
+      syncError: 'Server runtime does not support fetch'
+    };
+  }
 
   const buildParams = () => new URLSearchParams({
     transaction_date_from: startDate,
@@ -1580,8 +1593,9 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');
+      const syncError = `SePay API returned HTTP ${response.status}`;
       console.warn('SePay usage sync failed:', response.status, body.slice(0, 300));
-      return null;
+      return { used: null, syncStatus: 'api-error', syncError };
     }
 
     const payload = await response.json();
@@ -1591,17 +1605,33 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
       payload?.meta?.total
     );
 
-    return Number.isFinite(total) && total >= 0 ? Math.floor(total) : null;
+    if (Number.isFinite(total) && total >= 0) {
+      return {
+        used: Math.floor(total),
+        syncStatus: 'synced',
+        syncError: null
+      };
+    }
+
+    return {
+      used: null,
+      syncStatus: 'invalid-response',
+      syncError: 'SePay API response does not include pagination total'
+    };
   };
 
   try {
-    const scopedTotal = await requestUsageTotal(params);
-    if (scopedTotal !== null || !accountNo) return scopedTotal;
+    const scopedResult = await requestUsageTotal(params);
+    if (scopedResult.used !== null || !accountNo) return scopedResult;
 
     return requestUsageTotal(buildParams());
   } catch (error) {
     console.warn('SePay usage sync error:', error.message);
-    return null;
+    return {
+      used: null,
+      syncStatus: 'request-error',
+      syncError: error.message
+    };
   }
 };
 const AUTO_PAYMENT_PREFIX = (process.env.AUTO_PAYMENT_PREFIX || 'FSI')
@@ -2483,7 +2513,8 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
 app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
   try {
     const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
-    const providerUsed = await fetchSePayTransactionUsage({ startDate, nextMonthDate });
+    const sePayUsage = await fetchSePayTransactionUsage({ startDate, nextMonthDate });
+    const providerUsed = sePayUsage.used;
     const providerSynced = Number.isFinite(providerUsed);
 
     const buildUsageResponse = ({ supported = true, recordedUsed = 0, completed = 0, failed = 0, ignored = 0, processing = 0 }) => {
@@ -2502,6 +2533,8 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
         providerOffset,
         providerUsed: providerSynced ? providerUsed : null,
         providerSynced,
+        providerSyncStatus: sePayUsage.syncStatus,
+        providerSyncError: sePayUsage.syncError,
         usageSource: providerSynced
           ? 'sepay-api'
           : providerOffset > 0

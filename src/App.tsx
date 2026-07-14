@@ -93,6 +93,8 @@ interface DashboardAutoPaymentUsage {
   used: number;
   providerUsed?: number | null;
   providerSynced?: boolean;
+  providerSyncStatus?: string;
+  providerSyncError?: string | null;
   usageSource?: string;
   limit: number | null;
   remaining: number | null;
@@ -1941,12 +1943,16 @@ export default function App() {
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Lượt tự động</p>
                       <p className="mt-2 text-3xl font-black text-app-ink">
-                        {dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined
+                        {dashboardAutoPaymentUsage?.limit && !dashboardAutoPaymentUsage?.providerSynced && dashboardAutoPaymentUsage?.used === 0
+                          ? '--'
+                          : dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined
                           ? dashboardAutoPaymentUsage.remaining
                           : dashboardAutoPaymentUsage?.used || 0}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-app-ink/45">
-                        {dashboardAutoPaymentUsage?.providerSynced
+                        {dashboardAutoPaymentUsage?.limit && !dashboardAutoPaymentUsage?.providerSynced && dashboardAutoPaymentUsage?.used === 0
+                          ? 'Chưa sync SePay'
+                          : dashboardAutoPaymentUsage?.providerSynced
                           ? 'Còn lại theo SePay'
                           : dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined
                             ? 'Còn lại trong tháng'
@@ -3350,11 +3356,21 @@ export default function App() {
                           <div>
                             <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Lượt thanh toán tự động tháng này</p>
                             <p className="text-3xl font-black text-[#1C1917] mt-1">
-                              {autoPaymentUsage.used.toLocaleString()}
-                              {autoPaymentUsage.limit ? ` / ${autoPaymentUsage.limit.toLocaleString()}` : ''}
+                              {autoPaymentUsage.limit && !autoPaymentUsage.providerSynced && autoPaymentUsage.used === 0
+                                ? 'Chưa đồng bộ SePay'
+                                : (
+                                  <>
+                                    {autoPaymentUsage.used.toLocaleString()}
+                                    {autoPaymentUsage.limit ? ` / ${autoPaymentUsage.limit.toLocaleString()}` : ''}
+                                  </>
+                                )}
                             </p>
                             <p className="text-sm text-[#1C1917]/60 mt-1">
-                              {autoPaymentUsage.supported
+                              {autoPaymentUsage.limit && !autoPaymentUsage.providerSynced && autoPaymentUsage.used === 0
+                                ? autoPaymentUsage.providerSyncStatus === 'missing-token'
+                                  ? 'Backend chưa có SEPAY_API_TOKEN trên Render nên chưa đọc được số lượt từ SePay.'
+                                  : `Backend chưa đồng bộ được SePay${autoPaymentUsage.providerSyncError ? `: ${autoPaymentUsage.providerSyncError}` : '.'}`
+                                : autoPaymentUsage.supported
                                 ? autoPaymentUsage.remaining !== null
                                   ? `Còn khoảng ${autoPaymentUsage.remaining.toLocaleString()} lượt trong tháng ${autoPaymentUsage.month}.`
                                   : `Đã nhận ${autoPaymentUsage.used.toLocaleString()} webhook trong tháng ${autoPaymentUsage.month}.`
