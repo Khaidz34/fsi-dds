@@ -1577,6 +1577,81 @@ const parseAutoPaymentCode = (content = '') => {
   };
 };
 
+const parsePaymentNotes = (notes = '') => {
+  return String(notes || '').split('|').reduce((metadata, part) => {
+    const separatorIndex = part.indexOf(':');
+    if (separatorIndex <= 0) return metadata;
+
+    const key = part.slice(0, separatorIndex).trim();
+    const value = part.slice(separatorIndex + 1).trim();
+    if (key && value) metadata[key] = value;
+    return metadata;
+  }, {});
+};
+
+const normalizeVietnameseName = (value = '') => {
+  const cleaned = String(value)
+    .normalize('NFC')
+    .replace(/[_*#~`"'()[\]{}<>|\\/]+/g, ' ')
+    .replace(/\b(bankapinotify|tpbank|vietqr|napas|sepay|webhook|notify|notification)\b/gi, ' ')
+    .replace(/\b(chuyen|chuyển|ck|ct|transfer|payment|pay|thanh\s*toan|thanh\s*toán|naptien|nap\s*tien)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned || cleaned.length < 3) return '';
+  if (new RegExp(`${escapeRegExp(AUTO_PAYMENT_PREFIX)}\\d+M\\d{6}`, 'i').test(cleaned)) return '';
+  if (/^[\d\s.,+-]+$/.test(cleaned)) return '';
+
+  return cleaned.slice(0, 120);
+};
+
+const extractPayerNameFromDescription = (description = '') => {
+  let value = String(description || '');
+  if (!value) return '';
+
+  value = value
+    .replace(new RegExp(`${escapeRegExp(AUTO_PAYMENT_PREFIX)}\\d+M\\d{6}`, 'ig'), ' ')
+    .replace(/\b[A-Z]{1,4}\d{8,}\b/gi, ' ')
+    .replace(/\b(SO\s*GD|REF|REFERENCE|MA\s*GD|MÃ\s*GD|MAGD)\s*[:#-]?\s*[\w-]+/gi, ' ')
+    .replace(/\b\d{6,}\b/g, ' ');
+
+  return normalizeVietnameseName(value);
+};
+
+const extractPayerNameFromPayload = (body = {}, description = '') => {
+  const directPayer = findValueDeep(body, [
+    'senderName',
+    'senderAccountName',
+    'fromAccountName',
+    'debitAccountName',
+    'counterAccountName',
+    'counterPartyName',
+    'payerName',
+    'payer',
+    'remitterName',
+    'benefactorName',
+    'customerName'
+  ]);
+
+  return normalizeVietnameseName(directPayer || '') || extractPayerNameFromDescription(description);
+};
+
+const enrichPaymentHistoryRow = (payment) => {
+  if (!payment) return payment;
+
+  const metadata = parsePaymentNotes(payment.notes);
+  const payerName = payment.payer_name || metadata.payer || metadata.sender || '';
+
+  return {
+    ...payment,
+    payer_name: payerName || null,
+    payerName: payerName || null,
+    payment_code: payment.payment_code || metadata.code || null,
+    transaction_id: payment.transaction_id || metadata.transaction || null,
+    transfer_description: payment.transfer_description || metadata.description || null
+  };
+};
+
 const parseMoneyAmount = (value) => {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string') return 0;
@@ -1686,6 +1761,7 @@ const extractAutoPaymentTransaction = (body = {}) => {
     amount,
     description: description ? String(description) : '',
     transactionId: transactionId ? String(transactionId) : '',
+    payerName: extractPayerNameFromPayload(body, description ? String(description) : ''),
     direction,
     status
   };
@@ -1739,7 +1815,7 @@ const isMissingOptionalPaymentSchema = (error) => {
   return message.includes('column') || message.includes('schema cache') || message.includes('relation') || message.includes('auto_payment_transactions');
 };
 
-const insertPaymentRecord = async ({ userId, amount, source, notes }) => {
+const insertPaymentRecord = async ({ userId, amount, source, notes, payerName }) => {
   const basePaymentData = {
     user_id: userId,
     amount,
@@ -1749,7 +1825,8 @@ const insertPaymentRecord = async ({ userId, amount, source, notes }) => {
   const paymentDataWithMetadata = {
     ...basePaymentData,
     method: source === 'manual' ? 'cash' : 'transfer',
-    notes
+    notes,
+    ...(payerName ? { payer_name: payerName } : {})
   };
 
   let insertResult = await supabase
@@ -1757,6 +1834,15 @@ const insertPaymentRecord = async ({ userId, amount, source, notes }) => {
     .insert([paymentDataWithMetadata])
     .select()
     .single();
+
+  if (insertResult.error && isMissingOptionalPaymentSchema(insertResult.error) && payerName) {
+    const { payer_name, ...metadataWithoutPayerName } = paymentDataWithMetadata;
+    insertResult = await supabase
+      .from('payments')
+      .insert([metadataWithoutPayerName])
+      .select()
+      .single();
+  }
 
   if (insertResult.error && isMissingOptionalPaymentSchema(insertResult.error)) {
     console.warn('Auto payment metadata columns are not available, inserting minimal payment row');
@@ -1774,12 +1860,12 @@ const insertPaymentRecord = async ({ userId, amount, source, notes }) => {
   return insertResult.data;
 };
 
-const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, userId, month, amount, description, rawPayload }) => {
+const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, userId, month, amount, description, payerName, rawPayload }) => {
   if (!transactionId) {
     return { supported: false, duplicate: false, event: null };
   }
 
-  const eventData = {
+  const baseEventData = {
     provider: source,
     transaction_id: transactionId.slice(0, 180),
     payment_code: paymentCode,
@@ -1791,11 +1877,27 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
     status: 'processing'
   };
 
-  const { data, error } = await supabase
+  const eventData = {
+    ...baseEventData,
+    ...(payerName ? { payer_name: payerName.slice(0, 120) } : {})
+  };
+
+  let { data, error } = await supabase
     .from('auto_payment_transactions')
     .insert([eventData])
     .select()
     .single();
+
+  if (error && isMissingOptionalPaymentSchema(error) && payerName) {
+    const fallbackResult = await supabase
+      .from('auto_payment_transactions')
+      .insert([baseEventData])
+      .select()
+      .single();
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
 
   if (!error) {
     return { supported: true, duplicate: false, event: data };
@@ -1913,7 +2015,7 @@ const invalidatePaymentCaches = (userId, month, reason = 'payment_updated') => {
   cache.invalidate(`stats:user:${userId}:${month}`, reason);
 };
 
-const recordCompletedPayment = async ({ userId, month, amount, source = 'manual', paymentCode, transactionId, description, rawPayload, actorUserId }) => {
+const recordCompletedPayment = async ({ userId, month, amount, source = 'manual', paymentCode, transactionId, description, payerName, rawPayload, actorUserId }) => {
   const safeMonth = normalizePaymentMonth(month);
   const numericAmount = Number(amount);
 
@@ -1934,6 +2036,7 @@ const recordCompletedPayment = async ({ userId, month, amount, source = 'manual'
     `source:${source}`,
     `code:${code}`,
     transactionId ? `transaction:${String(transactionId).slice(0, 180)}` : null,
+    payerName ? `payer:${String(payerName).slice(0, 120)}` : null,
     description ? `description:${String(description).slice(0, 500)}` : null
   ].filter(Boolean).join(' | ');
 
@@ -1941,7 +2044,8 @@ const recordCompletedPayment = async ({ userId, month, amount, source = 'manual'
     userId,
     amount: numericAmount,
     source,
-    notes
+    notes,
+    payerName
   });
 
   const paidOrders = await markOrdersPaidForPayment({
@@ -2063,7 +2167,7 @@ app.get('/api/payments/today', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
-    res.json(payments || []);
+    res.json((payments || []).map(enrichPaymentHistoryRow));
   } catch (error) {
     console.error('Payments error:', error);
     res.status(500).json({ error: 'Lỗi server' });
@@ -2178,7 +2282,7 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
     }
 
     console.log(`✅ Returned ${payments?.length || 0} payments`);
-    res.json(payments || []);
+    res.json((payments || []).map(enrichPaymentHistoryRow));
   } catch (error) {
     console.error('Payment history error:', error);
     res.status(500).json({ error: 'Lỗi server' });
@@ -2200,7 +2304,7 @@ app.get('/api/payments/my-history', authenticateToken, async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    let { data: payments, error } = await buildPaymentHistoryQuery('id, amount, status, method, notes, created_at');
+    let { data: payments, error } = await buildPaymentHistoryQuery('id, amount, status, method, notes, payer_name, created_at');
 
     if (error && isMissingOptionalPaymentSchema(error)) {
       const fallbackResult = await buildPaymentHistoryQuery('id, amount, status, created_at');
@@ -2232,7 +2336,7 @@ app.get('/api/payments/my-history', authenticateToken, async (req, res) => {
 
     res.json({
       month,
-      data: payments || []
+      data: (payments || []).map(enrichPaymentHistoryRow)
     });
   } catch (error) {
     console.error('My payment history error:', error);
@@ -2405,6 +2509,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       month: paymentCode.month,
       amount: transaction.amount,
       description: transaction.description,
+      payerName: transaction.payerName,
       rawPayload: req.body
     });
 
@@ -2426,6 +2531,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       paymentCode: paymentCode.code,
       transactionId: transaction.transactionId,
       description: transaction.description,
+      payerName: transaction.payerName,
       rawPayload: req.body
     });
 

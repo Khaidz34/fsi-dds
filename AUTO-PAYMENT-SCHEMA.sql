@@ -10,6 +10,9 @@ ADD COLUMN IF NOT EXISTS method TEXT DEFAULT 'cash';
 ALTER TABLE payments
 ADD COLUMN IF NOT EXISTS notes TEXT;
 
+ALTER TABLE payments
+ADD COLUMN IF NOT EXISTS payer_name TEXT;
+
 -- Store provider transaction IDs so webhook retries do not create duplicate payments.
 CREATE TABLE IF NOT EXISTS auto_payment_transactions (
   id SERIAL PRIMARY KEY,
@@ -20,6 +23,7 @@ CREATE TABLE IF NOT EXISTS auto_payment_transactions (
   month TEXT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
   description TEXT,
+  payer_name TEXT,
   raw_payload JSONB,
   payment_id INTEGER REFERENCES payments(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'processing' CHECK (status IN ('processing', 'completed', 'failed')),

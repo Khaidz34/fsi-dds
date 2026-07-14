@@ -2231,13 +2231,16 @@ export default function App() {
                         Chọn tối đa 2 món, thêm tùy chọn nhanh và kiểm tra lại ở thanh đặt món phía dưới.
                       </p>
                       <div className="personal-menu-mission">
-                        <span>Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
+                        <span className="menu-mission-icon" aria-hidden="true">
+                          <Sparkles size={15} />
+                        </span>
+                        <span className="menu-mission-copy">Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
                       </div>
                     </div>
                   </div>
                   <div className="personal-menu-postcard" aria-hidden="true">
-                    <span className="personal-postcard-label">from</span>
-                    <span className="personal-menu-handnote"></span>
+                    <span className="personal-postcard-label">seal</span>
+                    <span className="personal-menu-handnote">FSI DDS</span>
                   </div>
 
                   <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2.5">
@@ -2318,8 +2321,8 @@ export default function App() {
 
                 <div className="mobile-menu-hero-card menu-heritage-surface lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm relative overflow-hidden">
                   <div className="mobile-menu-postcard" aria-hidden="true">
-                    <span className="personal-postcard-label">from</span>
-                    <span className="personal-menu-handnote"></span>
+                    <span className="personal-postcard-label">seal</span>
+                    <span className="personal-menu-handnote">FSI DDS</span>
                   </div>
 
                   <div className="flex items-start justify-between gap-3 relative z-10">
@@ -2340,7 +2343,10 @@ export default function App() {
                   </div>
 
                   <div className="mobile-menu-mission relative z-10">
-                    <span>Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
+                    <span className="menu-mission-icon" aria-hidden="true">
+                      <Sparkles size={14} />
+                    </span>
+                    <span className="menu-mission-copy">Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2 relative z-10">
@@ -3495,6 +3501,7 @@ export default function App() {
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="border-b-2 border-[#E5D4B8]">
+                                  <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Người chuyển</th>
                                   <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Ngày giờ</th>
                                   <th className="text-right py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Số tiền</th>
                                 </tr>
@@ -3502,6 +3509,18 @@ export default function App() {
                               <tbody>
                                 {userHistory.map((history: any) => (
                                   <tr key={history.id} className="border-b border-[#E5E1D1] hover:bg-[#FDF4E3]/50 transition-colors">
+                                    <td className="py-3 px-4">
+                                      <div className="space-y-1">
+                                        <p className="font-bold text-[#1C1917]">
+                                          {history.payerName || history.payer_name || 'Chưa có thông tin'}
+                                        </p>
+                                        {(history.payment_code || history.transfer_description) && (
+                                          <p className="text-xs text-[#1C1917]/45 line-clamp-1">
+                                            {history.payment_code || history.transfer_description}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </td>
                                     <td className="py-3 px-4">
                                       <div className="flex items-center gap-2">
                                         <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />

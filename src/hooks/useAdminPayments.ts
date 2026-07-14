@@ -24,6 +24,11 @@ export interface PaymentHistory {
   paid_at: string;
   fullname: string;
   username: string;
+  payerName?: string | null;
+  payer_name?: string | null;
+  transfer_description?: string | null;
+  payment_code?: string | null;
+  transaction_id?: string | null;
 }
 
 export interface PaginationInfo {
