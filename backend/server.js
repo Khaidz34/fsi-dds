@@ -1414,6 +1414,99 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   }
 };
 
+const buildPaymentStatsQueryDirect = async (supabase, month, limit = 20, offset = 0) => {
+  const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+  const validOffset = Math.max(parseInt(offset) || 0, 0);
+
+  const [year, monthNum] = month.split('-');
+  const monthIndex = parseInt(monthNum) - 1;
+  const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
+  const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, fullname, username')
+    .eq('role', 'user')
+    .order('fullname');
+
+  if (usersError) throw usersError;
+
+  const { data: orders, error: ordersError } = await supabase
+    .from('orders')
+    .select('id, user_id, ordered_for, price, paid, created_at')
+    .is('deleted_at', null)
+    .lt('created_at', `${nextMonth}T00:00:00Z`);
+
+  if (ordersError) throw ordersError;
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from('payments')
+    .select('id, user_id, amount, created_at')
+    .lt('created_at', `${nextMonth}T00:00:00Z`);
+
+  if (paymentsError) throw paymentsError;
+
+  const statsByUserId = new Map((users || []).map(user => [Number(user.id), {
+    userId: user.id,
+    fullname: user.fullname,
+    username: user.username,
+    month,
+    ordersCount: 0,
+    ordersTotal: 0,
+    paidCount: 0,
+    paidTotal: 0,
+    paidOrderTotal: 0,
+    remainingCount: 0,
+    remainingTotal: 0,
+    overpaidTotal: 0
+  }]));
+
+  (orders || []).forEach(order => {
+    const payerId = Number(order.ordered_for || order.user_id);
+    const stat = statsByUserId.get(payerId);
+    if (!stat) return;
+
+    const price = Number(order.price || 0);
+    stat.ordersCount += 1;
+    stat.ordersTotal += price;
+
+    if (order.paid === true) {
+      stat.paidCount += 1;
+      stat.paidOrderTotal += price;
+    } else {
+      stat.remainingCount += 1;
+    }
+  });
+
+  (payments || []).forEach(payment => {
+    const stat = statsByUserId.get(Number(payment.user_id));
+    if (!stat) return;
+
+    stat.paidTotal += Number(payment.amount || 0);
+  });
+
+  const usersWithDebt = Array.from(statsByUserId.values())
+    .map(stat => {
+      const effectivePaidTotal = Math.max(stat.paidTotal, stat.paidOrderTotal);
+
+      return {
+        ...stat,
+        paidTotal: effectivePaidTotal,
+        remainingTotal: Math.max(0, stat.ordersTotal - effectivePaidTotal),
+        overpaidTotal: effectivePaidTotal > stat.ordersTotal ? effectivePaidTotal - stat.ordersTotal : 0
+      };
+    })
+    .filter(user => user.remainingTotal > 0)
+    .sort((a, b) => b.remainingTotal - a.remainingTotal || a.fullname.localeCompare(b.fullname, 'vi'));
+
+  return {
+    data: usersWithDebt.slice(validOffset, validOffset + validLimit),
+    total: usersWithDebt.length,
+    limit: validLimit,
+    offset: validOffset
+  };
+};
+
 /**
  * Get single user payment stats
  */
@@ -1474,14 +1567,16 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   }) || [];
   
   const ordersTotal = ordersForPayment.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
-  const paidTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
-  const remainingTotal = Math.max(0, ordersTotal - paidTotal);
+  const paymentRecordsTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   
   // Count paid and unpaid orders based on 'paid' field
   const paidOrders = ordersForPayment?.filter(order => order.paid === true) || [];
   const unpaidOrders = ordersForPayment?.filter(order => order.paid === false || !order.paid) || [];
   const paidCount = paidOrders.length;
   const remainingCount = unpaidOrders.length;
+  const paidOrdersTotal = paidOrders.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+  const paidTotal = Math.max(paymentRecordsTotal, paidOrdersTotal);
+  const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
   console.log(`  📊 ${ordersCount} total orders, ${ordersForPayment.length} orders to pay (${ordersTotal}đ), paid: ${paidCount} orders, unpaid: ${remainingCount} orders, money remaining: ${remainingTotal}đ`);
   if (ordersCount > 0) {
@@ -2434,7 +2529,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       }
       
       try {
-        const result = await buildPaymentStatsQuery(supabase, currentMonth, validLimit, validOffset);
+        const result = await buildPaymentStatsQueryDirect(supabase, currentMonth, validLimit, validOffset);
         
         // Cache the full result (without pagination applied)
         cache.set(cacheKey, {
