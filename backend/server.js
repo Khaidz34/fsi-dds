@@ -1520,6 +1520,15 @@ const AUTO_PAYMENT_MONTHLY_LIMIT = (() => {
     ? Math.floor(configuredLimit)
     : null;
 })();
+const getAutoPaymentUsedOffset = (month) => {
+  const monthKey = String(month || '').replace(/[^0-9]/g, '');
+  const monthSpecificOffset = monthKey ? process.env[`AUTO_PAYMENT_USED_OFFSET_${monthKey}`] : undefined;
+  const configuredOffset = Number(monthSpecificOffset ?? process.env.AUTO_PAYMENT_USED_OFFSET ?? 0);
+
+  return Number.isFinite(configuredOffset) && configuredOffset > 0
+    ? Math.floor(configuredOffset)
+    : 0;
+};
 const AUTO_PAYMENT_PREFIX = (process.env.AUTO_PAYMENT_PREFIX || 'FSI')
   .toString()
   .replace(/[^a-zA-Z0-9]/g, '')
@@ -2365,8 +2374,10 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
   try {
     const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
 
-    const buildUsageResponse = ({ supported = true, used = 0, completed = 0, failed = 0, processing = 0 }) => {
+    const buildUsageResponse = ({ supported = true, recordedUsed = 0, completed = 0, failed = 0, processing = 0 }) => {
       const limit = AUTO_PAYMENT_MONTHLY_LIMIT;
+      const providerOffset = getAutoPaymentUsedOffset(month);
+      const used = recordedUsed + providerOffset;
       const remaining = limit ? Math.max(0, limit - used) : null;
       const usagePercent = limit ? Math.min(100, Math.round((used / limit) * 100)) : null;
 
@@ -2374,6 +2385,8 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
         supported,
         month,
         used,
+        recordedUsed,
+        providerOffset,
         limit,
         remaining,
         usagePercent,
@@ -2405,7 +2418,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
     }, {});
 
     res.json(buildUsageResponse({
-      used: data?.length || 0,
+      recordedUsed: data?.length || 0,
       completed: statusCounts.completed || 0,
       failed: statusCounts.failed || 0,
       processing: statusCounts.processing || 0

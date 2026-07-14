@@ -43,6 +43,8 @@ export interface AutoPaymentUsage {
   supported: boolean;
   month: string;
   used: number;
+  recordedUsed: number;
+  providerOffset: number;
   limit: number | null;
   remaining: number | null;
   usagePercent: number | null;

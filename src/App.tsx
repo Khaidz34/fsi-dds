@@ -3341,7 +3341,7 @@ export default function App() {
                             <QrCode size={24} />
                           </div>
                           <div>
-                            <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Lượt SePay tháng này</p>
+                            <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Lượt thanh toán tự động tháng này</p>
                             <p className="text-3xl font-black text-[#1C1917] mt-1">
                               {autoPaymentUsage.used.toLocaleString()}
                               {autoPaymentUsage.limit ? ` / ${autoPaymentUsage.limit.toLocaleString()}` : ''}
@@ -3353,6 +3353,11 @@ export default function App() {
                                   : `Đã nhận ${autoPaymentUsage.used.toLocaleString()} webhook trong tháng ${autoPaymentUsage.month}.`
                                 : 'Chưa có bảng auto_payment_transactions, hãy chạy AUTO-PAYMENT-SCHEMA.sql để bật bộ đếm.'}
                             </p>
+                            {autoPaymentUsage.supported && autoPaymentUsage.providerOffset > 0 && (
+                              <p className="text-xs text-blue-700/70 mt-1">
+                                Web ghi nhận {autoPaymentUsage.recordedUsed.toLocaleString()} lượt, cộng bù {autoPaymentUsage.providerOffset.toLocaleString()} lượt đã dùng trên SePay.
+                              </p>
+                            )}
                           </div>
                         </div>
 
