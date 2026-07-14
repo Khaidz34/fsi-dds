@@ -41,6 +41,8 @@ interface AutoPaymentInfo {
   userId: number;
   month: string;
   code: string;
+  transferContent?: string;
+  payerName?: string;
   amount: number;
   remainingTotal: number;
   isPaid: boolean;
@@ -288,7 +290,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     const safeAmount = normalizePaymentAmount(amount, getMaxAutoPaymentAmount(info));
     const params = new URLSearchParams({
       amount: String(Math.round(safeAmount)),
-      addInfo: info.code
+      addInfo: info.transferContent || info.code
     });
 
     if (info.bank?.accountName) {
@@ -764,10 +766,10 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   <div className="payment-transfer-card rounded-xl border border-app-accent/15 bg-white/95 p-4 min-w-0">
                     <p className="text-xs uppercase font-bold text-app-ink/45">Nội dung chuyển khoản</p>
                     <div className="mt-1 flex items-center gap-2 min-w-0">
-                      <p className="text-lg font-bold text-app-ink truncate">{autoPaymentInfo.code}</p>
+                      <p className="text-lg font-bold text-app-ink truncate">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</p>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(autoPaymentInfo.code, 'code')}
+                        onClick={() => copyToClipboard(autoPaymentInfo.transferContent || autoPaymentInfo.code, 'code')}
                         className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
                         title="Copy nội dung chuyển khoản"
                       >
@@ -815,11 +817,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 <div className="payment-help-note rounded-xl border border-app-accent/20 bg-app-accent/5 p-3 sm:p-4 text-xs sm:text-sm text-app-ink/70 leading-relaxed">
                   {isAutoPaymentQuotaExhausted ? (
                     <>
-                      Quét mã này bằng app ngân hàng hoặc chuyển khoản trực tiếp vào tài khoản TPBank ở trên. Vui lòng giữ nội dung <span className="font-bold">{autoPaymentInfo.code}</span> để admin đối chiếu và xác nhận thủ công.
+                      Quét mã này bằng app ngân hàng hoặc chuyển khoản trực tiếp vào tài khoản TPBank ở trên. Vui lòng giữ nội dung <span className="font-bold">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</span> để admin đối chiếu và xác nhận thủ công.
                     </>
                   ) : (
                     <>
-                      Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền đã chọn và nội dung <span className="font-bold">{autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận theo đúng số tiền ngân hàng gửi về.
+                      Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền đã chọn và nội dung <span className="font-bold">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận theo đúng số tiền ngân hàng gửi về.
                     </>
                   )}
                 </div>

@@ -1727,6 +1727,23 @@ const buildAutoPaymentCode = (userId, month) => {
   return `${AUTO_PAYMENT_PREFIX}${Number(userId)}M${safeMonth}`;
 };
 
+const normalizeTransferName = (value = '') => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .replace(/Đ/g, 'D')
+  .replace(/[^a-zA-Z0-9\s]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .toUpperCase()
+  .slice(0, 60);
+
+const buildAutoPaymentTransferContent = ({ code, payerName }) => {
+  const safeCode = String(code || '').trim().toUpperCase();
+  const safeName = normalizeTransferName(payerName);
+  return [safeCode, safeName].filter(Boolean).join(' ').slice(0, 120);
+};
+
 const parseAutoPaymentCode = (content = '') => {
   const compactContent = String(content).replace(/\s+/g, '').toUpperCase();
   const match = compactContent.match(new RegExp(`${escapeRegExp(AUTO_PAYMENT_PREFIX)}(\\d+)M(\\d{6})`, 'i'));
@@ -1948,7 +1965,7 @@ const isFailedAutoPayment = (transaction) => {
   return ['fail', 'failed', 'cancel', 'cancelled', 'error', 'reject'].some((keyword) => status.includes(keyword));
 };
 
-const buildVietQrUrl = ({ amount, code }) => {
+const buildVietQrUrl = ({ amount, code, transferContent }) => {
   const bankId = process.env.AUTO_PAYMENT_BANK_ID;
   const accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO;
 
@@ -1959,7 +1976,7 @@ const buildVietQrUrl = ({ amount, code }) => {
   const template = process.env.AUTO_PAYMENT_QR_TEMPLATE || 'compact2';
   const params = new URLSearchParams({
     amount: String(Math.round(amount)),
-    addInfo: code
+    addInfo: transferContent || code
   });
 
   if (process.env.AUTO_PAYMENT_ACCOUNT_NAME) {
@@ -2657,18 +2674,28 @@ app.get('/api/payments/auto-info', authenticateToken, async (req, res) => {
     const stats = await getUserPaymentStats(supabase, requestedUserId, month);
     const amount = Math.max(0, Number(stats.remainingTotal || 0));
     const code = buildAutoPaymentCode(requestedUserId, month);
+    const { data: paymentUser } = await supabase
+      .from('users')
+      .select('id, fullname')
+      .eq('id', requestedUserId)
+      .limit(1)
+      .single();
+    const payerName = paymentUser?.fullname || stats.fullname || req.user.fullname || '';
+    const transferContent = buildAutoPaymentTransferContent({ code, payerName });
     const bank = getAutoPaymentBankInfo();
 
     res.json({
       userId: requestedUserId,
       month,
       code,
+      transferContent,
+      payerName,
       amount,
       remainingTotal: amount,
       isPaid: amount <= 0,
       bankConfigured: !!bank,
       bank,
-      qrUrl: bank ? buildVietQrUrl({ amount, code }) : null
+      qrUrl: bank ? buildVietQrUrl({ amount, code, transferContent }) : null
     });
   } catch (error) {
     console.error('Auto payment info error:', error);
@@ -2782,6 +2809,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
 
     await updateAutoPaymentEvent(reservedEvent?.id, {
       payment_id: result.payment.id,
+      payer_name: transaction.payerName || targetUser.fullname,
       status: 'completed'
     });
 

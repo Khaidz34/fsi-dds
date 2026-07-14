@@ -75,6 +75,8 @@ import { AnimatePresence } from './framer-motion-mock';
 
 interface DashboardAutoPaymentInfo {
   code: string;
+  transferContent?: string;
+  payerName?: string;
   amount: number;
   remainingTotal: number;
   isPaid: boolean;
@@ -833,7 +835,7 @@ export default function App() {
     const amount = Math.max(0, Math.round(Number(info.amount || info.remainingTotal || 0)));
     const params = new URLSearchParams({
       amount: String(amount),
-      addInfo: info.code
+      addInfo: info.transferContent || info.code
     });
 
     if (info.bank?.accountName) {
@@ -2072,7 +2074,7 @@ export default function App() {
                             <div className="font-mono">{dashboardAutoPaymentInfo.bank.accountNo}</div>
                             <div className="font-semibold">{dashboardAutoPaymentInfo.bank.bankId}</div>
                             {dashboardAutoPaymentInfo.code && (
-                              <div className="font-mono text-xs opacity-90">{dashboardAutoPaymentInfo.code}</div>
+                              <div className="font-mono text-xs opacity-90">{dashboardAutoPaymentInfo.transferContent || dashboardAutoPaymentInfo.code}</div>
                             )}
                             <div className="text-xs opacity-80">NAPAS 247</div>
                             {isDashboardAutoPaymentQuotaExhausted && (

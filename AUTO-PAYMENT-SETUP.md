@@ -95,14 +95,16 @@ Authorization: Apikey <AUTO_PAYMENT_WEBHOOK_SECRET>
 Noi dung chuyen khoan do frontend sinh theo dang:
 
 ```text
-FSI<userId>M<YYYYMM>
+FSI<userId>M<YYYYMM> <TEN_NGUOI_DUNG_KHONG_DAU>
 ```
 
-Vi du user id `12`, thang `2026-06`:
+Vi du user id `12`, thang `2026-06`, user ten Nguyen Khai:
 
 ```text
-FSI12M202606
+FSI12M202606 NGUYEN KHAI
 ```
+
+Webhook van parse phan ma `FSI...` de tim user/thang thanh toan. Phan ten phia sau giup admin nhin sao ke de biet ai chuyen, va backend cung dung ten nay lam fallback neu ngan hang khong gui rieng truong ten nguoi chuyen.
 
 Webhook co the gui nhieu dang payload. Backend se tu tim cac field pho bien nhu `amount`, `transferAmount`, `description`, `content`, `transferContent`, `transactionId`, `referenceCode`.
 
@@ -113,7 +115,7 @@ Payload test toi thieu:
   "transactionId": "test-transaction-001",
   "transferType": "in",
   "amount": 40000,
-  "transferContent": "FSI1M202606"
+  "transferContent": "FSI1M202606 TEST USER"
 }
 ```
 
@@ -125,7 +127,7 @@ Invoke-RestMethod `
   -Uri "https://<backend-domain>/api/payments/auto-webhook" `
   -Headers @{ "X-Auto-Payment-Secret" = "<AUTO_PAYMENT_WEBHOOK_SECRET>" } `
   -ContentType "application/json" `
-  -Body '{"transactionId":"test-transaction-001","transferType":"in","amount":40000,"transferContent":"FSI1M202606"}'
+  -Body '{"transactionId":"test-transaction-001","transferType":"in","amount":40000,"transferContent":"FSI1M202606 TEST USER"}'
 ```
 
 Ket qua thanh cong:
