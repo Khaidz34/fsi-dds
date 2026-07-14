@@ -43,6 +43,13 @@ Sau khi deploy ban moi va co `SEPAY_API_TOKEN`, web se uu tien so luot lay tu Se
 
 Neu tren web hien "Chua dong bo SePay" hoac van thay `0 / 50`, Render backend dang chua lay duoc so lieu tu SePay. Kiem tra lai `SEPAY_API_TOKEN`, bam redeploy backend, roi bam `Cap nhat` trong man Thanh toan.
 
+Trong man admin Thanh toan, mo `Kiem tra ket noi SePay`:
+
+- `hasToken: no`: Render backend chua co token SePay.
+- `http: 401` hoac `http: 403`: token sai hoac token khong co quyen doc giao dich.
+- `http: 200` va `count: meta.pagination.total`: da doc duoc tong giao dich tu SePay.
+- `http: 200` va `dataCount: 0`: SePay API khong thay giao dich tien vao trong thang dang xem.
+
 So tien hien tren QR khong lay tu bien moi truong. Backend tinh so tien theo cong no that cua user:
 
 ```text

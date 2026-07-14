@@ -1556,14 +1556,22 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
     return {
       used: null,
       syncStatus: 'missing-token',
-      syncError: 'SEPAY_API_TOKEN is not configured'
+      syncError: 'SEPAY_API_TOKEN is not configured',
+      diagnostics: {
+        hasToken: false,
+        baseUrl: SEPAY_API_BASE_URL
+      }
     };
   }
   if (typeof fetch !== 'function') {
     return {
       used: null,
       syncStatus: 'fetch-unavailable',
-      syncError: 'Server runtime does not support fetch'
+      syncError: 'Server runtime does not support fetch',
+      diagnostics: {
+        hasToken: true,
+        baseUrl: SEPAY_API_BASE_URL
+      }
     };
   }
 
@@ -1572,7 +1580,7 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
     transaction_date_to: `${getPreviousDate(nextMonthDate)} 23:59:59`,
     transfer_type: 'in',
     amount_in_min: '1',
-    per_page: '1',
+    per_page: '100',
     page: '1'
   });
 
@@ -1595,7 +1603,18 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
       const body = await response.text().catch(() => '');
       const syncError = `SePay API returned HTTP ${response.status}`;
       console.warn('SePay usage sync failed:', response.status, body.slice(0, 300));
-      return { used: null, syncStatus: 'api-error', syncError };
+      return {
+        used: null,
+        syncStatus: 'api-error',
+        syncError,
+        diagnostics: {
+          hasToken: true,
+          baseUrl: SEPAY_API_BASE_URL,
+          query: queryParams.toString(),
+          httpStatus: response.status,
+          responsePreview: body.slice(0, 300)
+        }
+      };
     }
 
     const payload = await response.json();
@@ -1609,14 +1628,48 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
       return {
         used: Math.floor(total),
         syncStatus: 'synced',
-        syncError: null
+        syncError: null,
+        diagnostics: {
+          hasToken: true,
+          baseUrl: SEPAY_API_BASE_URL,
+          query: queryParams.toString(),
+          httpStatus: response.status,
+          responseStatus: payload?.status,
+          countMethod: 'meta.pagination.total',
+          dataCount: Array.isArray(payload?.data) ? payload.data.length : null
+        }
+      };
+    }
+
+    if (Array.isArray(payload?.data)) {
+      return {
+        used: payload.data.length,
+        syncStatus: 'synced',
+        syncError: null,
+        diagnostics: {
+          hasToken: true,
+          baseUrl: SEPAY_API_BASE_URL,
+          query: queryParams.toString(),
+          httpStatus: response.status,
+          responseStatus: payload?.status,
+          countMethod: 'data.length',
+          dataCount: payload.data.length
+        }
       };
     }
 
     return {
       used: null,
       syncStatus: 'invalid-response',
-      syncError: 'SePay API response does not include pagination total'
+      syncError: 'SePay API response does not include pagination total',
+      diagnostics: {
+        hasToken: true,
+        baseUrl: SEPAY_API_BASE_URL,
+        query: queryParams.toString(),
+        httpStatus: response.status,
+        responseStatus: payload?.status,
+        responseKeys: payload && typeof payload === 'object' ? Object.keys(payload) : []
+      }
     };
   };
 
@@ -1630,7 +1683,11 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
     return {
       used: null,
       syncStatus: 'request-error',
-      syncError: error.message
+      syncError: error.message,
+      diagnostics: {
+        hasToken: true,
+        baseUrl: SEPAY_API_BASE_URL
+      }
     };
   }
 };
@@ -2535,6 +2592,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
         providerSynced,
         providerSyncStatus: sePayUsage.syncStatus,
         providerSyncError: sePayUsage.syncError,
+        providerDiagnostics: req.user.role === 'admin' ? sePayUsage.diagnostics || null : null,
         usageSource: providerSynced
           ? 'sepay-api'
           : providerOffset > 0

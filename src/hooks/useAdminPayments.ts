@@ -49,6 +49,17 @@ export interface AutoPaymentUsage {
   providerSynced: boolean;
   providerSyncStatus?: string;
   providerSyncError?: string | null;
+  providerDiagnostics?: {
+    hasToken?: boolean;
+    baseUrl?: string;
+    query?: string;
+    httpStatus?: number;
+    responseStatus?: string;
+    responsePreview?: string;
+    responseKeys?: string[];
+    countMethod?: string;
+    dataCount?: number | null;
+  } | null;
   usageSource: 'sepay-api' | 'local-plus-offset' | 'local';
   limit: number | null;
   remaining: number | null;

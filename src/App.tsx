@@ -95,6 +95,17 @@ interface DashboardAutoPaymentUsage {
   providerSynced?: boolean;
   providerSyncStatus?: string;
   providerSyncError?: string | null;
+  providerDiagnostics?: {
+    hasToken?: boolean;
+    baseUrl?: string;
+    query?: string;
+    httpStatus?: number;
+    responseStatus?: string;
+    responsePreview?: string;
+    responseKeys?: string[];
+    countMethod?: string;
+    dataCount?: number | null;
+  } | null;
   usageSource?: string;
   limit: number | null;
   remaining: number | null;
@@ -3384,6 +3395,30 @@ export default function App() {
                               <p className="text-xs text-blue-700/70 mt-1">
                                 Web ghi nhận {autoPaymentUsage.recordedUsed.toLocaleString()} lượt, cộng bù {autoPaymentUsage.providerOffset.toLocaleString()} lượt đã dùng trên SePay.
                               </p>
+                            )}
+                            {autoPaymentUsage.providerDiagnostics && (
+                              <details className="mt-3 rounded-2xl border border-blue-200 bg-white/70 px-3 py-2 text-xs text-slate-700">
+                                <summary className="cursor-pointer font-bold text-blue-800">Kiểm tra kết nối SePay</summary>
+                                <div className="mt-2 space-y-1 font-mono text-[11px] leading-relaxed break-all">
+                                  <p>status: {autoPaymentUsage.providerSyncStatus || 'unknown'}</p>
+                                  <p>hasToken: {autoPaymentUsage.providerDiagnostics.hasToken ? 'yes' : 'no'}</p>
+                                  {autoPaymentUsage.providerDiagnostics.httpStatus && (
+                                    <p>http: {autoPaymentUsage.providerDiagnostics.httpStatus}</p>
+                                  )}
+                                  {autoPaymentUsage.providerDiagnostics.countMethod && (
+                                    <p>count: {autoPaymentUsage.providerDiagnostics.countMethod}</p>
+                                  )}
+                                  {autoPaymentUsage.providerDiagnostics.dataCount !== null && autoPaymentUsage.providerDiagnostics.dataCount !== undefined && (
+                                    <p>dataCount: {autoPaymentUsage.providerDiagnostics.dataCount}</p>
+                                  )}
+                                  {autoPaymentUsage.providerDiagnostics.query && (
+                                    <p>query: {autoPaymentUsage.providerDiagnostics.query}</p>
+                                  )}
+                                  {autoPaymentUsage.providerDiagnostics.responsePreview && (
+                                    <p>response: {autoPaymentUsage.providerDiagnostics.responsePreview}</p>
+                                  )}
+                                </div>
+                              </details>
                             )}
                           </div>
                         </div>
