@@ -3526,8 +3526,8 @@ export default function App() {
                             {userPayments.map((payment) => (
                               <div key={getPaymentUserId(payment) || `${getPaymentDisplayName(payment)}-${payment.remainingTotal}`} className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] items-center px-4 py-3 text-sm hover:bg-[#FDF4E3]/45">
                                 <div className="min-w-0">
-                                  <p className="truncate font-bold text-[#1C1917]">{payment.fullname || payment.username || `Người dùng #${payment.userId || 'không rõ'}`}</p>
-                                  <p className="mt-0.5 text-xs text-[#1C1917]/45">#{payment.userId}</p>
+                                  <p className="truncate font-bold text-[#1C1917]">{getPaymentDisplayName(payment)}</p>
+                                  <p className="mt-0.5 text-xs text-[#1C1917]/45">{getPaymentUserId(payment) ? `#${getPaymentUserId(payment)}` : 'Thiếu ID người dùng'}</p>
                                 </div>
                                 <div className="text-right font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</div>
                                 <div className="text-right font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</div>

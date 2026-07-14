@@ -208,7 +208,7 @@ export const useAdminPayments = (month?: string) => {
       await paymentsAPI.markPaid(userId, currentMonth, amount);
       console.log('✅ Payment marked successfully, refreshing data...');
       // Refresh data after marking as paid - skip debounce to ensure immediate update
-      await fetchUserPayments(false, true);
+      await fetchUserPayments(false, true, 1);
       await fetchPaymentHistory();
       await fetchAutoPaymentUsage();
       console.log('✅ Data refreshed, new userPayments count:', userPayments.length);
@@ -236,20 +236,26 @@ export const useAdminPayments = (month?: string) => {
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      fetchUserPayments();
+      fetchUserPayments(false, true, 1);
       fetchPaymentHistory();
       fetchAutoPaymentUsage();
       
       // Use polling with longer interval to reduce server load
       const pollInterval = setInterval(() => {
         console.log('🔄 Polling admin payments...');
-        fetchUserPayments();
+        fetchUserPayments(false, true, 1);
         fetchPaymentHistory();
         fetchAutoPaymentUsage();
       }, 10000); // Poll every 10 seconds (reduced from 3 seconds)
 
+      const ordersChannel = subscribeToTable('orders', () => {
+        console.log('Order update detected, refreshing admin payments...');
+        fetchUserPayments(false, true, 1);
+      }, 'admin_payments_orders_changes');
+
       return () => {
         clearInterval(pollInterval);
+        unsubscribeFromTable(ordersChannel);
       };
     }
   }, [user?.role, currentMonth]);
