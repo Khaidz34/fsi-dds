@@ -1529,6 +1529,81 @@ const getAutoPaymentUsedOffset = (month) => {
     ? Math.floor(configuredOffset)
     : 0;
 };
+const SEPAY_API_BASE_URL = (process.env.SEPAY_API_BASE_URL || 'https://userapi.sepay.vn/v2')
+  .toString()
+  .replace(/\/+$/, '');
+
+const getSePayApiToken = () => (
+  process.env.SEPAY_API_TOKEN ||
+  process.env.SEPAY_ACCESS_TOKEN ||
+  ''
+).toString().trim();
+
+const getSePayUsageAccountNo = () => (
+  process.env.SEPAY_USAGE_ACCOUNT_NO ||
+  process.env.AUTO_PAYMENT_ACCOUNT_NO ||
+  ''
+).toString().replace(/\s+/g, '');
+
+const getPreviousDate = (dateString) => {
+  const date = new Date(`${dateString}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+};
+
+const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
+  const apiToken = getSePayApiToken();
+  if (!apiToken || typeof fetch !== 'function') return null;
+
+  const buildParams = () => new URLSearchParams({
+    transaction_date_from: startDate,
+    transaction_date_to: getPreviousDate(nextMonthDate),
+    amount_in_min: '1',
+    per_page: '1',
+    page: '1'
+  });
+
+  const accountNo = getSePayUsageAccountNo();
+  const params = buildParams();
+  if (accountNo) {
+    params.set('account_number', accountNo);
+  }
+
+  const requestUsageTotal = async (queryParams) => {
+    const response = await fetch(`${SEPAY_API_BASE_URL}/transactions?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      console.warn('SePay usage sync failed:', response.status, body.slice(0, 300));
+      return null;
+    }
+
+    const payload = await response.json();
+    const total = Number(
+      payload?.meta?.pagination?.total ??
+      payload?.pagination?.total ??
+      payload?.meta?.total
+    );
+
+    return Number.isFinite(total) && total >= 0 ? Math.floor(total) : null;
+  };
+
+  try {
+    const scopedTotal = await requestUsageTotal(params);
+    if (scopedTotal !== null || !accountNo) return scopedTotal;
+
+    return requestUsageTotal(buildParams());
+  } catch (error) {
+    console.warn('SePay usage sync error:', error.message);
+    return null;
+  }
+};
 const AUTO_PAYMENT_PREFIX = (process.env.AUTO_PAYMENT_PREFIX || 'FSI')
   .toString()
   .replace(/[^a-zA-Z0-9]/g, '')
@@ -2408,11 +2483,14 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
 app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
   try {
     const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
+    const providerUsed = await fetchSePayTransactionUsage({ startDate, nextMonthDate });
+    const providerSynced = Number.isFinite(providerUsed);
 
     const buildUsageResponse = ({ supported = true, recordedUsed = 0, completed = 0, failed = 0, ignored = 0, processing = 0 }) => {
       const limit = AUTO_PAYMENT_MONTHLY_LIMIT;
       const providerOffset = getAutoPaymentUsedOffset(month);
-      const used = recordedUsed + providerOffset;
+      const localUsed = recordedUsed + providerOffset;
+      const used = providerSynced ? Math.max(localUsed, providerUsed) : localUsed;
       const remaining = limit ? Math.max(0, limit - used) : null;
       const usagePercent = limit ? Math.min(100, Math.round((used / limit) * 100)) : null;
 
@@ -2422,6 +2500,13 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
         used,
         recordedUsed,
         providerOffset,
+        providerUsed: providerSynced ? providerUsed : null,
+        providerSynced,
+        usageSource: providerSynced
+          ? 'sepay-api'
+          : providerOffset > 0
+            ? 'local-plus-offset'
+            : 'local',
         limit,
         remaining,
         usagePercent,
@@ -2440,7 +2525,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
 
     if (error) {
       if (isMissingOptionalPaymentSchema(error)) {
-        return res.json(buildUsageResponse({ supported: false }));
+        return res.json(buildUsageResponse({ supported: providerSynced }));
       }
 
       console.error('Auto payment usage query error:', error);

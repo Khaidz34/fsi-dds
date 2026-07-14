@@ -25,15 +25,21 @@ AUTO_PAYMENT_ACCOUNT_NAME=NGUYEN DAC KHAI
 AUTO_PAYMENT_QR_TEMPLATE=compact2
 AUTO_PAYMENT_MONTHLY_LIMIT=50
 AUTO_PAYMENT_USED_OFFSET=0
+SEPAY_API_TOKEN=token-api-sepay-cua-ban
+SEPAY_USAGE_ACCOUNT_NO=00004446755
 ```
 
 `AUTO_PAYMENT_BANK_ID=970423` la ma BIN VietQR cua TPBank. Ban cung co the dung `TPB` neu provider QR ho tro code ngan hang. Neu chua dien bank/account, frontend van hien ma chuyen khoan nhung khong hien QR.
 
 `AUTO_PAYMENT_MONTHLY_LIMIT` dung de hien bo dem luot giao dich SePay trong man admin thanh toan. Goi Free co the dat `50`; neu nang cap goi hoac provider doi gioi han, chi can sua bien nay tren Render.
 
-`AUTO_PAYMENT_USED_OFFSET` dung de bu so luot SePay da tinh nhung web chua ghi nhan duoc, vi du thoi gian webhook dang bi 404 hoac chua tao bang `auto_payment_transactions`. Neu SePay dang bao "Da su dung 15" ma web moi ghi nhan 8, dat `AUTO_PAYMENT_USED_OFFSET=7`. Neu muon bu rieng cho mot thang, co the dat bien theo dang `AUTO_PAYMENT_USED_OFFSET_202607=7`.
+`SEPAY_API_TOKEN` dung de backend tu dong lay so giao dich da dung trong thang tu SePay API. Tao token o SePay `API Access`, sau do dat token nay tren Render backend. Token nay chi duoc dat trong backend env, khong dua vao frontend va khong commit len GitHub.
 
-Sau khi deploy ban moi, webhook se tu ghi nhan ca giao dich bi bo qua (`ignored`) de bo dem tren web tang gan voi so luot SePay tinh. Bien offset chi can dung de bu cac luot cu da mat truoc khi ban deploy ban nay.
+`SEPAY_USAGE_ACCOUNT_NO` la so tai khoan TPBank dung de loc bo dem giao dich. Neu bo trong, backend se dung `AUTO_PAYMENT_ACCOUNT_NO`.
+
+`AUTO_PAYMENT_USED_OFFSET` la phuong an du phong khi chua cau hinh `SEPAY_API_TOKEN` hoac SePay API tam loi. Bien nay dung de bu so luot SePay da tinh nhung web chua ghi nhan duoc, vi du thoi gian webhook dang bi 404 hoac chua tao bang `auto_payment_transactions`. Neu SePay dang bao "Da su dung 15" ma web moi ghi nhan 8, dat `AUTO_PAYMENT_USED_OFFSET=7`. Neu muon bu rieng cho mot thang, co the dat bien theo dang `AUTO_PAYMENT_USED_OFFSET_202607=7`.
+
+Sau khi deploy ban moi va co `SEPAY_API_TOKEN`, web se uu tien so luot lay tu SePay API de tinh "con lai trong thang". Webhook van ghi nhan ca giao dich bi bo qua (`ignored`) de lam log noi bo; bien offset chi can dung de bu cac luot cu khi chua cau hinh duoc API token.
 
 So tien hien tren QR khong lay tu bien moi truong. Backend tinh so tien theo cong no that cua user:
 

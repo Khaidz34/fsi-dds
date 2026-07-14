@@ -57,6 +57,9 @@ interface AutoPaymentUsage {
   supported: boolean;
   month: string;
   used: number;
+  providerUsed?: number | null;
+  providerSynced?: boolean;
+  usageSource?: string;
   limit: number | null;
   remaining: number | null;
   usagePercent: number | null;
@@ -588,6 +591,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                         : `Hệ thống đã nhận ${autoPaymentUsage.used.toLocaleString()} giao dịch trong tháng ${autoPaymentUsage.month}.`
                       : 'Hệ thống chưa bật bảng đếm giao dịch tự động.'}
                   </p>
+                  {autoPaymentUsage.providerSynced && (
+                    <p className="text-xs text-app-accent mt-1">
+                      Đã đồng bộ từ SePay: {autoPaymentUsage.providerUsed?.toLocaleString() || 0} lượt đã dùng.
+                    </p>
+                  )}
                 </div>
 
                 {autoPaymentUsage.limit && (

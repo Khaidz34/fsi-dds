@@ -91,6 +91,9 @@ interface DashboardAutoPaymentUsage {
   supported: boolean;
   month: string;
   used: number;
+  providerUsed?: number | null;
+  providerSynced?: boolean;
+  usageSource?: string;
   limit: number | null;
   remaining: number | null;
   usagePercent: number | null;
@@ -1943,7 +1946,11 @@ export default function App() {
                           : dashboardAutoPaymentUsage?.used || 0}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-app-ink/45">
-                        {dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined ? 'Còn lại trong tháng' : 'Đã ghi nhận'}
+                        {dashboardAutoPaymentUsage?.providerSynced
+                          ? 'Còn lại theo SePay'
+                          : dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined
+                            ? 'Còn lại trong tháng'
+                            : 'Đã ghi nhận'}
                       </p>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
@@ -3353,7 +3360,11 @@ export default function App() {
                                   : `Đã nhận ${autoPaymentUsage.used.toLocaleString()} webhook trong tháng ${autoPaymentUsage.month}.`
                                 : 'Chưa có bảng auto_payment_transactions, hãy chạy AUTO-PAYMENT-SCHEMA.sql để bật bộ đếm.'}
                             </p>
-                            {autoPaymentUsage.supported && autoPaymentUsage.providerOffset > 0 && (
+                            {autoPaymentUsage.providerSynced ? (
+                              <p className="text-xs text-blue-700/70 mt-1">
+                                Đã đồng bộ từ SePay: {autoPaymentUsage.providerUsed?.toLocaleString() || 0} lượt đã dùng trong tháng này.
+                              </p>
+                            ) : autoPaymentUsage.supported && autoPaymentUsage.providerOffset > 0 && (
                               <p className="text-xs text-blue-700/70 mt-1">
                                 Web ghi nhận {autoPaymentUsage.recordedUsed.toLocaleString()} lượt, cộng bù {autoPaymentUsage.providerOffset.toLocaleString()} lượt đã dùng trên SePay.
                               </p>

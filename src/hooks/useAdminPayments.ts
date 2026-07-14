@@ -45,6 +45,9 @@ export interface AutoPaymentUsage {
   used: number;
   recordedUsed: number;
   providerOffset: number;
+  providerUsed: number | null;
+  providerSynced: boolean;
+  usageSource: 'sepay-api' | 'local-plus-offset' | 'local';
   limit: number | null;
   remaining: number | null;
   usagePercent: number | null;
