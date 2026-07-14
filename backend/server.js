@@ -2508,7 +2508,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       
       // Check cache first (5-minute TTL for admin payments)
       const cacheKey = `payments:admin:${currentMonth}`;
-      const cachedResult = cache.get(cacheKey);
+      const cachedResult = null;
       
       if (cachedResult) {
         // Apply pagination to cached data

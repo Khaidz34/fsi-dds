@@ -637,7 +637,7 @@ export default function App() {
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users } = useUsers();
-  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore } = useAdminPayments();
+  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
   
@@ -830,13 +830,29 @@ export default function App() {
   const weeklyOrderTotal = useMemo(() => {
     return weeklyData.reduce((total, item) => total + (Number(item.orders) || 0), 0);
   }, [weeklyData]);
-  const paymentHistoryPageSize = 10;
-  const paymentHistoryTotalPages = Math.max(1, Math.ceil(paymentHistory.length / paymentHistoryPageSize));
-  const paginatedPaymentHistory = useMemo(() => {
+  const paymentHistoryPageSize = 5;
+  const paymentHistoryGroups = useMemo(() => {
+    const grouped = paymentHistory.reduce((acc, history: any) => {
+      const fullname = history.user?.fullname || history.fullname || history.username || 'Unknown';
+      if (!acc[fullname]) {
+        acc[fullname] = [];
+      }
+      acc[fullname].push(history);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    return Object.entries(grouped).sort(([, firstHistory], [, secondHistory]) => {
+      const firstDate = new Date(firstHistory?.[0]?.created_at || 0).getTime();
+      const secondDate = new Date(secondHistory?.[0]?.created_at || 0).getTime();
+      return secondDate - firstDate;
+    });
+  }, [paymentHistory]);
+  const paymentHistoryTotalPages = Math.max(1, Math.ceil(paymentHistoryGroups.length / paymentHistoryPageSize));
+  const paginatedPaymentHistoryGroups = useMemo(() => {
     const safePage = Math.min(Math.max(paymentHistoryPage, 1), paymentHistoryTotalPages);
     const start = (safePage - 1) * paymentHistoryPageSize;
-    return paymentHistory.slice(start, start + paymentHistoryPageSize);
-  }, [paymentHistory, paymentHistoryPage, paymentHistoryTotalPages]);
+    return paymentHistoryGroups.slice(start, start + paymentHistoryPageSize);
+  }, [paymentHistoryGroups, paymentHistoryPage, paymentHistoryTotalPages]);
 
   useEffect(() => {
     setPaymentHistoryPage((page) => Math.min(page, paymentHistoryTotalPages));
@@ -3494,7 +3510,7 @@ export default function App() {
                             {userPayments.map((payment) => (
                               <div key={payment.userId} className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] items-center px-4 py-3 text-sm hover:bg-[#FDF4E3]/45">
                                 <div className="min-w-0">
-                                  <p className="truncate font-bold text-[#1C1917]">{payment.fullname}</p>
+                                  <p className="truncate font-bold text-[#1C1917]">{payment.fullname || payment.username || `Người dùng #${payment.userId}`}</p>
                                   <p className="mt-0.5 text-xs text-[#1C1917]/45">#{payment.userId}</p>
                                 </div>
                                 <div className="text-right font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</div>
@@ -3569,6 +3585,17 @@ export default function App() {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
+                              onClick={loadPrevious}
+                              disabled={(pagination.page || 1) <= 1 || isLoadingMore}
+                              className="rounded-xl border border-[#E5E1D1] px-4 py-2 text-sm font-bold text-[#1C1917] disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Trước
+                            </button>
+                            <span className="min-w-[90px] text-center text-sm font-bold text-[#1C1917]/65">
+                              {pagination.page || 1} / {pagination.totalPages || 1}
+                            </span>
+                            <button
+                              type="button"
                               onClick={loadMore}
                               disabled={!pagination.hasMore || isLoadingMore}
                               className="rounded-xl border border-[#E5E1D1] px-4 py-2 text-sm font-bold text-[#1C1917] disabled:cursor-not-allowed disabled:opacity-40"
@@ -3580,7 +3607,7 @@ export default function App() {
                       )}
                       
                       {/* Load More Button */}
-                      {pagination && pagination.hasMore && (
+                      {false && pagination && pagination.hasMore && (
                         <div className="mt-8 text-center">
                           <button
                             onClick={loadMore}
@@ -3619,16 +3646,7 @@ export default function App() {
                   {paymentHistory.length > 0 ? (
                     <div className="space-y-8">
                       {/* Group payment history by user */}
-                      {Object.entries(
-                        paginatedPaymentHistory.reduce((acc, history: any) => {
-                          const fullname = history.user?.fullname || history.fullname || 'Unknown';
-                          if (!acc[fullname]) {
-                            acc[fullname] = [];
-                          }
-                          acc[fullname].push(history);
-                          return acc;
-                        }, {} as Record<string, any>)
-                      ).map(([fullname, userHistory]: [string, any]) => (
+                      {paginatedPaymentHistoryGroups.map(([fullname, userHistory]: [string, any]) => (
                         <div key={fullname} className="border-b-2 border-[#E5E1D1] pb-6 last:border-b-0">
                           {/* User Header */}
                           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#E5D4B8]">
@@ -3698,7 +3716,7 @@ export default function App() {
                       ))}
                       <div className="flex flex-col gap-3 border-t border-[#E5E1D1] pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm font-semibold text-[#1C1917]/55">
-                          Hiển thị {paginatedPaymentHistory.length} / {paymentHistory.length} giao dịch
+                          Hiển thị {paginatedPaymentHistoryGroups.length} / {paymentHistoryGroups.length} người dùng ({paymentHistory.length} giao dịch)
                         </p>
                         <div className="flex items-center gap-2">
                           <button

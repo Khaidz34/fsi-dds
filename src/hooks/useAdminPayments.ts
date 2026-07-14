@@ -80,10 +80,12 @@ export const useAdminPayments = (month?: string) => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+  const [paymentPage, setPaymentPage] = useState(1);
 
   const currentMonth = month || new Date().toISOString().slice(0, 7);
+  const paymentPageSize = 20;
 
-  const fetchUserPayments = async (loadMore: boolean = false, skipDebounce: boolean = false) => {
+  const fetchUserPayments = async (loadMore: boolean = false, skipDebounce: boolean = false, pageOverride?: number) => {
     try {
       // Debounce: don't fetch more than once per 1 second (unless skipDebounce is true)
       const now = Date.now();
@@ -101,9 +103,11 @@ export const useAdminPayments = (month?: string) => {
       setError(null);
       
       if (user?.role === 'admin') {
-        const offset = loadMore ? userPayments.length : 0;
+        const nextPage = pageOverride || (loadMore ? (pagination?.page || paymentPage) + 1 : paymentPage);
+        const targetPage = Math.max(1, nextPage);
+        const offset = (targetPage - 1) * paymentPageSize;
         console.log('📡 Fetching payments from API, offset:', offset, 'skipDebounce:', skipDebounce);
-        const response = await paymentsAPI.getAll(currentMonth, 20, offset);
+        const response = await paymentsAPI.getAll(currentMonth, paymentPageSize, offset);
         
         // Handle response with pagination
         const data = response?.data || [];
@@ -111,14 +115,13 @@ export const useAdminPayments = (month?: string) => {
         
         console.log('📊 Received', data.length, 'users with debt from API');
         
-        if (loadMore) {
-          setUserPayments(prev => [...prev, ...data]);
-        } else {
-          setUserPayments(data);
-        }
+        setUserPayments(data);
         
         if (paginationInfo) {
           setPagination(paginationInfo);
+          setPaymentPage(paginationInfo.page);
+        } else {
+          setPaymentPage(targetPage);
         }
       }
     } catch (err) {
@@ -179,7 +182,14 @@ export const useAdminPayments = (month?: string) => {
 
   const loadMore = () => {
     if (pagination?.hasMore && !isLoadingMore) {
-      fetchUserPayments(true);
+      fetchUserPayments(true, false, (pagination.page || paymentPage) + 1);
+    }
+  };
+
+  const loadPrevious = () => {
+    const currentPage = pagination?.page || paymentPage;
+    if (currentPage > 1 && !isLoadingMore) {
+      fetchUserPayments(true, false, currentPage - 1);
     }
   };
 
@@ -213,8 +223,10 @@ export const useAdminPayments = (month?: string) => {
     error,
     markAsPaid,
     loadMore,
+    loadPrevious,
+    paymentPage,
     refetch: () => {
-      fetchUserPayments();
+      fetchUserPayments(false, true, 1);
       fetchPaymentHistory();
       fetchAutoPaymentUsage();
     }
