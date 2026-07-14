@@ -1824,6 +1824,11 @@ const isMissingOptionalPaymentSchema = (error) => {
   return message.includes('column') || message.includes('schema cache') || message.includes('relation') || message.includes('auto_payment_transactions');
 };
 
+const isAutoPaymentStatusConstraintError = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return error?.code === '23514' && message.includes('status');
+};
+
 const insertPaymentRecord = async ({ userId, amount, source, notes, payerName }) => {
   const basePaymentData = {
     user_id: userId,
@@ -1869,21 +1874,23 @@ const insertPaymentRecord = async ({ userId, amount, source, notes, payerName })
   return insertResult.data;
 };
 
-const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, userId, month, amount, description, payerName, rawPayload }) => {
+const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, userId, month, amount, description, payerName, rawPayload, status = 'processing', errorMessage }) => {
   if (!transactionId) {
     return { supported: false, duplicate: false, event: null };
   }
 
+  const safeAmount = Number(amount);
   const baseEventData = {
     provider: source,
     transaction_id: transactionId.slice(0, 180),
-    payment_code: paymentCode,
-    user_id: userId,
-    month,
-    amount,
+    payment_code: paymentCode || 'UNMATCHED',
+    user_id: Number.isInteger(Number(userId)) && Number(userId) > 0 ? Number(userId) : null,
+    month: normalizePaymentMonth(month),
+    amount: Number.isFinite(safeAmount) && safeAmount > 0 ? safeAmount : 0,
     description: description ? description.slice(0, 1000) : null,
     raw_payload: rawPayload,
-    status: 'processing'
+    status,
+    ...(errorMessage ? { error_message: String(errorMessage).slice(0, 500) } : {})
   };
 
   const eventData = {
@@ -1901,6 +1908,21 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
     const fallbackResult = await supabase
       .from('auto_payment_transactions')
       .insert([baseEventData])
+      .select()
+      .single();
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
+  if (error && status === 'ignored' && isAutoPaymentStatusConstraintError(error)) {
+    const fallbackResult = await supabase
+      .from('auto_payment_transactions')
+      .insert([{
+        ...eventData,
+        status: 'failed',
+        error_message: errorMessage ? `ignored:${String(errorMessage).slice(0, 450)}` : 'ignored'
+      }])
       .select()
       .single();
 
@@ -1939,10 +1961,23 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
 const updateAutoPaymentEvent = async (eventId, values) => {
   if (!eventId) return;
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from('auto_payment_transactions')
     .update(values)
     .eq('id', eventId);
+
+  if (error && values?.status === 'ignored' && isAutoPaymentStatusConstraintError(error)) {
+    const fallbackValues = {
+      ...values,
+      status: 'failed',
+      error_message: values.error_message ? `ignored:${String(values.error_message).slice(0, 450)}` : 'ignored'
+    };
+    const fallbackResult = await supabase
+      .from('auto_payment_transactions')
+      .update(fallbackValues)
+      .eq('id', eventId);
+    error = fallbackResult.error;
+  }
 
   if (error && !isMissingOptionalPaymentSchema(error)) {
     console.warn('Could not update auto payment event:', error.message);
@@ -2374,7 +2409,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
   try {
     const { month, startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
 
-    const buildUsageResponse = ({ supported = true, recordedUsed = 0, completed = 0, failed = 0, processing = 0 }) => {
+    const buildUsageResponse = ({ supported = true, recordedUsed = 0, completed = 0, failed = 0, ignored = 0, processing = 0 }) => {
       const limit = AUTO_PAYMENT_MONTHLY_LIMIT;
       const providerOffset = getAutoPaymentUsedOffset(month);
       const used = recordedUsed + providerOffset;
@@ -2392,6 +2427,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
         usagePercent,
         completed,
         failed,
+        ignored,
         processing
       };
     };
@@ -2421,6 +2457,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
       recordedUsed: data?.length || 0,
       completed: statusCounts.completed || 0,
       failed: statusCounts.failed || 0,
+      ignored: statusCounts.ignored || 0,
       processing: statusCounts.processing || 0
     }));
   } catch (error) {
@@ -2477,49 +2514,14 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
     }
 
     const transaction = extractAutoPaymentTransaction(req.body);
-
-    if (isOutgoingAutoPayment(transaction)) {
-      return res.json({ success: true, ignored: true, reason: 'outgoing_transaction' });
-    }
-
-    if (isFailedAutoPayment(transaction)) {
-      return res.json({ success: true, ignored: true, reason: 'failed_transaction' });
-    }
-
     const paymentCode = parseAutoPaymentCode(transaction.description);
-
-    if (!paymentCode) {
-      return res.json({ success: true, ignored: true, reason: 'payment_code_not_found' });
-    }
-
-    if (!Number.isFinite(transaction.amount) || transaction.amount <= 0) {
-      return res.status(400).json({ error: 'Invalid transaction amount' });
-    }
-
-    const { data: targetUser, error: userError } = await supabase
-      .from('users')
-      .select('id, fullname')
-      .eq('id', paymentCode.userId)
-      .limit(1)
-      .single();
-
-    if (userError || !targetUser) {
-      console.warn('Auto payment ignored because payment user was not found:', paymentCode);
-      return res.json({
-        success: true,
-        ignored: true,
-        reason: 'payment_user_not_found',
-        paymentCode: paymentCode.code,
-        userId: paymentCode.userId
-      });
-    }
 
     const eventReservation = await reserveAutoPaymentEvent({
       source: 'bank-webhook',
       transactionId: transaction.transactionId,
-      paymentCode: paymentCode.code,
-      userId: paymentCode.userId,
-      month: paymentCode.month,
+      paymentCode: paymentCode?.code || 'UNMATCHED',
+      userId: paymentCode?.userId || null,
+      month: paymentCode?.month || normalizePaymentMonth(),
       amount: transaction.amount,
       description: transaction.description,
       payerName: transaction.payerName,
@@ -2532,7 +2534,61 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       return res.json({
         success: true,
         duplicate: true,
-        paymentCode: paymentCode.code
+        paymentCode: paymentCode?.code || null
+      });
+    }
+
+    if (isOutgoingAutoPayment(transaction)) {
+      await updateAutoPaymentEvent(reservedEvent?.id, {
+        status: 'ignored',
+        error_message: 'outgoing_transaction'
+      });
+      return res.json({ success: true, ignored: true, reason: 'outgoing_transaction' });
+    }
+
+    if (isFailedAutoPayment(transaction)) {
+      await updateAutoPaymentEvent(reservedEvent?.id, {
+        status: 'ignored',
+        error_message: 'failed_transaction'
+      });
+      return res.json({ success: true, ignored: true, reason: 'failed_transaction' });
+    }
+
+    if (!paymentCode) {
+      await updateAutoPaymentEvent(reservedEvent?.id, {
+        status: 'ignored',
+        error_message: 'payment_code_not_found'
+      });
+      return res.json({ success: true, ignored: true, reason: 'payment_code_not_found' });
+    }
+
+    if (!Number.isFinite(transaction.amount) || transaction.amount <= 0) {
+      await updateAutoPaymentEvent(reservedEvent?.id, {
+        status: 'ignored',
+        error_message: 'invalid_transaction_amount'
+      });
+      return res.status(400).json({ error: 'Invalid transaction amount' });
+    }
+
+    const { data: targetUser, error: userError } = await supabase
+      .from('users')
+      .select('id, fullname')
+      .eq('id', paymentCode.userId)
+      .limit(1)
+      .single();
+
+    if (userError || !targetUser) {
+      console.warn('Auto payment ignored because payment user was not found:', paymentCode);
+      await updateAutoPaymentEvent(reservedEvent?.id, {
+        status: 'ignored',
+        error_message: 'payment_user_not_found'
+      });
+      return res.json({
+        success: true,
+        ignored: true,
+        reason: 'payment_user_not_found',
+        paymentCode: paymentCode.code,
+        userId: paymentCode.userId
       });
     }
 

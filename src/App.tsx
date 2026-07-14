@@ -3379,7 +3379,7 @@ export default function App() {
                                 style={{ width: `${autoPaymentUsage.usagePercent || 0}%` }}
                               />
                             </div>
-                            <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                            <div className="grid grid-cols-4 gap-2 mt-3 text-center">
                               <div className="rounded-xl bg-white/80 px-2 py-2">
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">Xong</p>
                                 <p className="font-black text-emerald-600">{autoPaymentUsage.completed}</p>
@@ -3387,6 +3387,10 @@ export default function App() {
                               <div className="rounded-xl bg-white/80 px-2 py-2">
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">Lỗi</p>
                                 <p className="font-black text-red-600">{autoPaymentUsage.failed}</p>
+                              </div>
+                              <div className="rounded-xl bg-white/80 px-2 py-2">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase">Bỏ qua</p>
+                                <p className="font-black text-slate-500">{autoPaymentUsage.ignored || 0}</p>
                               </div>
                               <div className="rounded-xl bg-white/80 px-2 py-2">
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">Đang xử lý</p>

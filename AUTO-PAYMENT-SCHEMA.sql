@@ -31,6 +31,26 @@ CREATE TABLE IF NOT EXISTS auto_payment_transactions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+DO $$
+DECLARE
+  status_check_name TEXT;
+BEGIN
+  SELECT conname INTO status_check_name
+  FROM pg_constraint
+  WHERE conrelid = 'auto_payment_transactions'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%status%'
+  LIMIT 1;
+
+  IF status_check_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE auto_payment_transactions DROP CONSTRAINT %I', status_check_name);
+  END IF;
+END $$;
+
+ALTER TABLE auto_payment_transactions
+ADD CONSTRAINT auto_payment_transactions_status_check
+CHECK (status IN ('processing', 'completed', 'failed', 'ignored'));
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_auto_payment_transactions_provider_tx
 ON auto_payment_transactions(provider, transaction_id);
 

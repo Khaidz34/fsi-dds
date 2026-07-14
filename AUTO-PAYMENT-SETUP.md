@@ -33,6 +33,8 @@ AUTO_PAYMENT_USED_OFFSET=0
 
 `AUTO_PAYMENT_USED_OFFSET` dung de bu so luot SePay da tinh nhung web chua ghi nhan duoc, vi du thoi gian webhook dang bi 404 hoac chua tao bang `auto_payment_transactions`. Neu SePay dang bao "Da su dung 15" ma web moi ghi nhan 8, dat `AUTO_PAYMENT_USED_OFFSET=7`. Neu muon bu rieng cho mot thang, co the dat bien theo dang `AUTO_PAYMENT_USED_OFFSET_202607=7`.
 
+Sau khi deploy ban moi, webhook se tu ghi nhan ca giao dich bi bo qua (`ignored`) de bo dem tren web tang gan voi so luot SePay tinh. Bien offset chi can dung de bu cac luot cu da mat truoc khi ban deploy ban nay.
+
 So tien hien tren QR khong lay tu bien moi truong. Backend tinh so tien theo cong no that cua user:
 
 ```text

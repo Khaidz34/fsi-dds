@@ -50,6 +50,7 @@ export interface AutoPaymentUsage {
   usagePercent: number | null;
   completed: number;
   failed: number;
+  ignored: number;
   processing: number;
 }
 
