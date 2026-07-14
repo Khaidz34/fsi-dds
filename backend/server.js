@@ -1536,14 +1536,13 @@ const SEPAY_API_BASE_URL = (process.env.SEPAY_API_BASE_URL || 'https://userapi.s
 const getSePayApiToken = () => (
   process.env.SEPAY_API_TOKEN ||
   process.env.SEPAY_ACCESS_TOKEN ||
+  process.env.SEPAY_API_KEY ||
+  process.env.SEPAY_BEARER_TOKEN ||
+  process.env.SEPAY_TOKEN ||
   ''
 ).toString().trim();
 
-const getSePayUsageAccountNo = () => (
-  process.env.SEPAY_USAGE_ACCOUNT_NO ||
-  process.env.AUTO_PAYMENT_ACCOUNT_NO ||
-  ''
-).toString().replace(/\s+/g, '');
+const getSePayBankAccountId = () => (process.env.SEPAY_BANK_ACCOUNT_ID || '').toString().trim();
 
 const getPreviousDate = (dateString) => {
   const date = new Date(`${dateString}T00:00:00Z`);
@@ -1569,17 +1568,18 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
   }
 
   const buildParams = () => new URLSearchParams({
-    transaction_date_from: startDate,
-    transaction_date_to: getPreviousDate(nextMonthDate),
+    transaction_date_from: `${startDate} 00:00:00`,
+    transaction_date_to: `${getPreviousDate(nextMonthDate)} 23:59:59`,
+    transfer_type: 'in',
     amount_in_min: '1',
     per_page: '1',
     page: '1'
   });
 
-  const accountNo = getSePayUsageAccountNo();
+  const bankAccountId = getSePayBankAccountId();
   const params = buildParams();
-  if (accountNo) {
-    params.set('account_number', accountNo);
+  if (bankAccountId) {
+    params.set('bank_account_id', bankAccountId);
   }
 
   const requestUsageTotal = async (queryParams) => {
@@ -1622,7 +1622,7 @@ const fetchSePayTransactionUsage = async ({ startDate, nextMonthDate }) => {
 
   try {
     const scopedResult = await requestUsageTotal(params);
-    if (scopedResult.used !== null || !accountNo) return scopedResult;
+    if (scopedResult.used !== null || !bankAccountId) return scopedResult;
 
     return requestUsageTotal(buildParams());
   } catch (error) {

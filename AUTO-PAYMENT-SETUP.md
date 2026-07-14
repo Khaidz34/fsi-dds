@@ -26,7 +26,7 @@ AUTO_PAYMENT_QR_TEMPLATE=compact2
 AUTO_PAYMENT_MONTHLY_LIMIT=50
 AUTO_PAYMENT_USED_OFFSET=0
 SEPAY_API_TOKEN=token-api-sepay-cua-ban
-SEPAY_USAGE_ACCOUNT_NO=00004446755
+SEPAY_BANK_ACCOUNT_ID=
 ```
 
 `AUTO_PAYMENT_BANK_ID=970423` la ma BIN VietQR cua TPBank. Ban cung co the dung `TPB` neu provider QR ho tro code ngan hang. Neu chua dien bank/account, frontend van hien ma chuyen khoan nhung khong hien QR.
@@ -35,7 +35,7 @@ SEPAY_USAGE_ACCOUNT_NO=00004446755
 
 `SEPAY_API_TOKEN` dung de backend tu dong lay so giao dich da dung trong thang tu SePay API. Tao token o SePay `API Access`, sau do dat token nay tren Render backend. Token nay chi duoc dat trong backend env, khong dua vao frontend va khong commit len GitHub.
 
-`SEPAY_USAGE_ACCOUNT_NO` la so tai khoan TPBank dung de loc bo dem giao dich. Neu bo trong, backend se dung `AUTO_PAYMENT_ACCOUNT_NO`.
+`SEPAY_BANK_ACCOUNT_ID` la UUID tai khoan ngan hang tren SePay neu ban muon loc rieng mot tai khoan. Co the bo trong neu tai khoan SePay chi ket noi mot tai khoan nhan tien. Luu y SePay API v2 loc bang `bank_account_id`, khong loc bang so tai khoan TPBank truc tiep.
 
 `AUTO_PAYMENT_USED_OFFSET` la phuong an du phong khi chua cau hinh `SEPAY_API_TOKEN` hoac SePay API tam loi. Bien nay dung de bu so luot SePay da tinh nhung web chua ghi nhan duoc, vi du thoi gian webhook dang bi 404 hoac chua tao bang `auto_payment_transactions`. Neu SePay dang bao "Da su dung 15" ma web moi ghi nhan 8, dat `AUTO_PAYMENT_USED_OFFSET=7`. Neu muon bu rieng cho mot thang, co the dat bien theo dang `AUTO_PAYMENT_USED_OFFSET_202607=7`.
 
