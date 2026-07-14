@@ -719,7 +719,8 @@ export default function App() {
 
   // Payment confirmation state
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
-  const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number } | null>(null);
+  const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number; fullname?: string; paidTotal?: number; remainingTotal?: number } | null>(null);
+  const [paymentAmountInput, setPaymentAmountInput] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [dashboardAutoPaymentInfo, setDashboardAutoPaymentInfo] = useState<DashboardAutoPaymentInfo | null>(null);
   const [dashboardAutoPaymentUsage, setDashboardAutoPaymentUsage] = useState<DashboardAutoPaymentUsage | null>(null);
@@ -3469,7 +3470,50 @@ export default function App() {
                   
                   {userPayments && userPayments.length > 0 ? (
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="mb-6 overflow-x-auto rounded-2xl border border-[#E5E1D1] bg-white">
+                        <div className="min-w-[720px]">
+                          <div className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] bg-[#F5F2E9] px-4 py-3 text-[11px] font-black uppercase tracking-widest text-[#1C1917]/55">
+                            <div>Người dùng</div>
+                            <div className="text-right">Đã trả</div>
+                            <div className="text-right">Còn nợ</div>
+                            <div className="text-right">Thao tác</div>
+                          </div>
+                          <div className="divide-y divide-[#E5E1D1]">
+                            {userPayments.map((payment) => (
+                              <div key={payment.userId} className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] items-center px-4 py-3 text-sm hover:bg-[#FDF4E3]/45">
+                                <div className="min-w-0">
+                                  <p className="truncate font-bold text-[#1C1917]">{payment.fullname}</p>
+                                  <p className="mt-0.5 text-xs text-[#1C1917]/45">#{payment.userId}</p>
+                                </div>
+                                <div className="text-right font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</div>
+                                <div className="text-right font-black text-[#DA251D]">{payment.remainingTotal.toLocaleString()}đ</div>
+                                <div className="text-right">
+                                  <button
+                                    onClick={() => {
+                                      const amount = Math.max(0, Number(payment.remainingTotal || 0));
+                                      setPendingPayment({
+                                        userId: payment.userId,
+                                        amount,
+                                        fullname: payment.fullname,
+                                        paidTotal: payment.paidTotal,
+                                        remainingTotal: payment.remainingTotal
+                                      });
+                                      setPaymentAmountInput(String(amount));
+                                      setShowPaymentConfirm(true);
+                                    }}
+                                    disabled={isProcessingPayment || payment.remainingTotal <= 0}
+                                    className="inline-flex items-center justify-center rounded-xl bg-[#DA251D] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#DA251D]/90 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    Ghi thanh toán
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="hidden grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {userPayments
                           .map((payment) => (
                             <div key={payment.userId} className="bg-gradient-to-br from-[#FDF4E3] to-[#F5E6D3] rounded-3xl border-2 border-[#E5D4B8] p-6 shadow-lg hover:shadow-xl transition-shadow">
@@ -4332,7 +4376,10 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowPaymentConfirm(false)}
+              onClick={() => {
+                setShowPaymentConfirm(false);
+                setPaymentAmountInput('');
+              }}
               className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
             />
             <div 
@@ -4351,6 +4398,56 @@ export default function App() {
                 </div>
 
                 <div className="bg-[#F5F2E9] rounded-2xl p-6 mb-8 border border-[#E5E1D1]">
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/45">Người dùng</p>
+                      <p className="mt-1 font-bold text-[#1C1917]">{pendingPayment.fullname || `#${pendingPayment.userId}`}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-white/70 p-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/45">Đã trả</p>
+                        <p className="mt-1 font-black text-emerald-600">{(pendingPayment.paidTotal || 0).toLocaleString()}đ</p>
+                      </div>
+                      <div className="rounded-xl bg-white/70 p-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/45">Còn nợ</p>
+                        <p className="mt-1 font-black text-[#DA251D]">{(pendingPayment.remainingTotal ?? pendingPayment.amount).toLocaleString()}đ</p>
+                      </div>
+                    </div>
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase tracking-widest text-[#1C1917]/45">Số tiền ghi nhận</span>
+                      <div className="mt-2 flex items-center rounded-xl border border-[#E5E1D1] bg-white px-3 py-2 focus-within:border-[#DA251D] focus-within:ring-2 focus-within:ring-[#DA251D]/10">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={paymentAmountInput}
+                          onChange={(event) => {
+                            const digits = event.target.value.replace(/[^\d]/g, '');
+                            const maxAmount = Number(pendingPayment.remainingTotal ?? pendingPayment.amount);
+                            const normalized = digits ? Math.min(Number(digits), maxAmount) : 0;
+                            setPaymentAmountInput(digits ? String(normalized) : '');
+                          }}
+                          className="min-w-0 flex-1 bg-transparent text-xl font-black text-[#1C1917] outline-none"
+                          placeholder="40000"
+                        />
+                        <span className="text-sm font-bold text-[#1C1917]/45">đ</span>
+                      </div>
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[40000, 80000, Number(pendingPayment.remainingTotal ?? pendingPayment.amount)].filter((value, index, arr) => value > 0 && arr.indexOf(value) === index).map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setPaymentAmountInput(String(value))}
+                          className="rounded-xl border border-[#E5E1D1] bg-white px-2 py-2 text-xs font-bold text-[#1C1917] hover:border-[#DA251D]/40 hover:text-[#DA251D]"
+                        >
+                          {value === Number(pendingPayment.remainingTotal ?? pendingPayment.amount) ? 'Trả hết' : `${value.toLocaleString()}đ`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="hidden bg-[#F5F2E9] rounded-2xl p-6 mb-8 border border-[#E5E1D1]">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#1C1917]/60">Số tiền thanh toán:</span>
@@ -4361,7 +4458,10 @@ export default function App() {
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setShowPaymentConfirm(false)}
+                    onClick={() => {
+                      setShowPaymentConfirm(false);
+                      setPaymentAmountInput('');
+                    }}
                     disabled={isProcessingPayment}
                     className="flex-1 px-6 py-3 border border-[#E5E1D1] text-[#1C1917] rounded-2xl font-bold hover:bg-[#F5F2E9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -4371,9 +4471,20 @@ export default function App() {
                     onClick={async () => {
                       setIsProcessingPayment(true);
                       try {
-                        await markAsPaid(pendingPayment.userId, pendingPayment.amount);
+                        const enteredAmount = Number(paymentAmountInput || 0);
+                        const maxAmount = Number(pendingPayment.remainingTotal ?? pendingPayment.amount);
+                        if (!Number.isFinite(enteredAmount) || enteredAmount <= 0) {
+                          alert('Vui lòng nhập số tiền thanh toán hợp lệ.');
+                          return;
+                        }
+                        if (enteredAmount > maxAmount) {
+                          alert('Số tiền thanh toán không được lớn hơn số nợ còn lại.');
+                          return;
+                        }
+                        await markAsPaid(pendingPayment.userId, enteredAmount);
                         setShowPaymentConfirm(false);
                         setPendingPayment(null);
+                        setPaymentAmountInput('');
                       } catch (error) {
                         console.error('Payment error:', error);
                         alert('Lỗi khi thanh toán. Vui lòng thử lại.');
