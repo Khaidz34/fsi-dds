@@ -3510,7 +3510,7 @@ export default function App() {
                             {userPayments.map((payment) => (
                               <div key={payment.userId} className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] items-center px-4 py-3 text-sm hover:bg-[#FDF4E3]/45">
                                 <div className="min-w-0">
-                                  <p className="truncate font-bold text-[#1C1917]">{payment.fullname || payment.username || `Người dùng #${payment.userId}`}</p>
+                                  <p className="truncate font-bold text-[#1C1917]">{payment.fullname || payment.username || `Người dùng #${payment.userId || 'không rõ'}`}</p>
                                   <p className="mt-0.5 text-xs text-[#1C1917]/45">#{payment.userId}</p>
                                 </div>
                                 <div className="text-right font-black text-emerald-600">{payment.paidTotal.toLocaleString()}đ</div>
@@ -3550,7 +3550,7 @@ export default function App() {
                                   <UserIcon size={28} />
                                 </div>
                                 <div className="flex-1">
-                                  <p className="font-bold text-lg text-[#1C1917]">{payment.fullname}</p>
+                                  <p className="font-bold text-lg text-[#1C1917]">{payment.fullname || payment.username || `Người dùng #${payment.userId || 'không rõ'}`}</p>
                                 </div>
                               </div>
                               <div className="space-y-4 mb-6">

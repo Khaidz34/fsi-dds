@@ -1414,6 +1414,27 @@ const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) =
   }
 };
 
+const normalizePaymentStatsRow = (row) => {
+  const nestedUser = row?.user || row?.users || {};
+  const userId = Number(row?.userId ?? row?.user_id ?? row?.userid ?? nestedUser?.id ?? 0);
+  const fullname = String(row?.fullname ?? row?.full_name ?? row?.name ?? nestedUser?.fullname ?? '').trim();
+  const username = String(row?.username ?? nestedUser?.username ?? '').trim();
+
+  return {
+    userId,
+    fullname: fullname || username || (userId ? `Người dùng #${userId}` : ''),
+    username,
+    month: row?.month,
+    ordersCount: Number(row?.ordersCount ?? row?.orders_count ?? 0),
+    ordersTotal: Number(row?.ordersTotal ?? row?.orders_total ?? 0),
+    paidCount: Number(row?.paidCount ?? row?.paid_count ?? 0),
+    paidTotal: Number(row?.paidTotal ?? row?.paid_total ?? 0),
+    remainingCount: Number(row?.remainingCount ?? row?.remaining_count ?? 0),
+    remainingTotal: Number(row?.remainingTotal ?? row?.remaining_total ?? 0),
+    overpaidTotal: Number(row?.overpaidTotal ?? row?.overpaid_total ?? 0)
+  };
+};
+
 const buildPaymentStatsQueryDirect = async (supabase, month, limit = 20, offset = 0) => {
   const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
   const validOffset = Math.max(parseInt(offset) || 0, 0);
@@ -2512,7 +2533,10 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       
       if (cachedResult) {
         // Apply pagination to cached data
-        const paginatedData = cachedResult.data.slice(validOffset, validOffset + validLimit);
+        const paginatedData = cachedResult.data
+          .slice(validOffset, validOffset + validLimit)
+          .map(normalizePaymentStatsRow)
+          .filter((row) => row.userId);
         const totalPages = Math.ceil(cachedResult.total / validLimit);
         const currentPage = Math.floor(validOffset / validLimit) + 1;
         
@@ -2531,24 +2555,31 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       
       try {
         const result = await buildPaymentStatsQueryDirect(supabase, currentMonth, validLimit, validOffset);
+        const normalizedAllData = (result.allData || result.data || [])
+          .map(normalizePaymentStatsRow)
+          .filter((row) => row.userId);
+        const normalizedData = (result.data || [])
+          .map(normalizePaymentStatsRow)
+          .filter((row) => row.userId);
         
         // Cache the full result (without pagination applied)
         cache.set(cacheKey, {
-          data: result.allData || result.data,
-          total: result.total
+          data: normalizedAllData,
+          total: normalizedAllData.length
         }, 10 * 60 * 1000); // 10-minute TTL (increased from 5 for better performance)
         
         // Calculate pagination metadata
-        const totalPages = Math.ceil(result.total / validLimit);
+        const total = normalizedAllData.length || result.total;
+        const totalPages = Math.ceil(total / validLimit);
         const currentPage = Math.floor(validOffset / validLimit) + 1;
         
         res.json({
-          data: result.data,
+          data: normalizedData,
           pagination: {
-            total: result.total,
+            total,
             page: currentPage,
             pageSize: validLimit,
-            hasMore: validOffset + validLimit < result.total,
+            hasMore: validOffset + validLimit < total,
             totalPages
           },
           cached: false

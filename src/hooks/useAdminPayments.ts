@@ -70,6 +70,45 @@ export interface AutoPaymentUsage {
   processing: number;
 }
 
+const toNumber = (value: unknown, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeUserPayment = (payment: any): UserPaymentInfo | null => {
+  const nestedUser = payment?.user || payment?.users || payment?.receiver || {};
+  const userId = toNumber(payment?.userId ?? payment?.user_id ?? payment?.userid ?? nestedUser?.id);
+
+  if (!userId) {
+    console.warn('Skipping payment row without user id:', payment);
+    return null;
+  }
+
+  const fullname = String(
+    payment?.fullname ??
+    payment?.full_name ??
+    payment?.name ??
+    nestedUser?.fullname ??
+    nestedUser?.full_name ??
+    ''
+  ).trim();
+  const username = String(payment?.username ?? nestedUser?.username ?? '').trim();
+
+  return {
+    userId,
+    fullname: fullname || username || `Người dùng #${userId}`,
+    username,
+    month: payment?.month || '',
+    ordersCount: toNumber(payment?.ordersCount ?? payment?.orders_count),
+    ordersTotal: toNumber(payment?.ordersTotal ?? payment?.orders_total),
+    paidCount: toNumber(payment?.paidCount ?? payment?.paid_count),
+    paidTotal: toNumber(payment?.paidTotal ?? payment?.paid_total),
+    remainingCount: toNumber(payment?.remainingCount ?? payment?.remaining_count),
+    remainingTotal: toNumber(payment?.remainingTotal ?? payment?.remaining_total),
+    overpaidTotal: toNumber(payment?.overpaidTotal ?? payment?.overpaid_total)
+  };
+};
+
 export const useAdminPayments = (month?: string) => {
   const { user } = useAuth();
   const [userPayments, setUserPayments] = useState<UserPaymentInfo[]>([]);
@@ -110,7 +149,9 @@ export const useAdminPayments = (month?: string) => {
         const response = await paymentsAPI.getAll(currentMonth, paymentPageSize, offset);
         
         // Handle response with pagination
-        const data = response?.data || [];
+        const data = (response?.data || [])
+          .map(normalizeUserPayment)
+          .filter(Boolean) as UserPaymentInfo[];
         const paginationInfo = response?.pagination;
         
         console.log('📊 Received', data.length, 'users with debt from API');
