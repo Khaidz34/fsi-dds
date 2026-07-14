@@ -3080,9 +3080,11 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
 
-    const { userId, month, amount } = req.body;
+    const { month } = req.body;
+    const userId = Number(req.body.userId ?? req.body.user_id ?? req.body.userid);
+    const amount = Number(req.body.amount);
     
-    if (!userId || !month || !amount) {
+    if (!userId || !Number.isFinite(userId) || !month || !amount || !Number.isFinite(amount) || amount <= 0) {
       console.log('❌ Missing required fields:', { userId, month, amount });
       return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
     }

@@ -858,6 +858,22 @@ export default function App() {
     setPaymentHistoryPage((page) => Math.min(page, paymentHistoryTotalPages));
   }, [paymentHistoryTotalPages]);
 
+  const getPaymentUserId = useCallback((payment: any) => {
+    const parsed = Number(payment?.userId ?? payment?.user_id ?? payment?.userid ?? payment?.id ?? payment?.user?.id);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, []);
+
+  const getPaymentDisplayName = useCallback((payment: any) => {
+    const userId = getPaymentUserId(payment);
+    return String(
+      payment?.fullname ||
+      payment?.username ||
+      payment?.user?.fullname ||
+      payment?.user?.username ||
+      (userId ? `Người dùng #${userId}` : 'Không xác định người dùng')
+    ).trim();
+  }, [getPaymentUserId]);
+
   const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
   const buildDashboardVietQrUrl = (bankId: string, info: DashboardAutoPaymentInfo) => {
@@ -3508,7 +3524,7 @@ export default function App() {
                           </div>
                           <div className="divide-y divide-[#E5E1D1]">
                             {userPayments.map((payment) => (
-                              <div key={payment.userId} className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] items-center px-4 py-3 text-sm hover:bg-[#FDF4E3]/45">
+                              <div key={getPaymentUserId(payment) || `${getPaymentDisplayName(payment)}-${payment.remainingTotal}`} className="grid grid-cols-[minmax(220px,1.5fr)_150px_150px_150px] items-center px-4 py-3 text-sm hover:bg-[#FDF4E3]/45">
                                 <div className="min-w-0">
                                   <p className="truncate font-bold text-[#1C1917]">{payment.fullname || payment.username || `Người dùng #${payment.userId || 'không rõ'}`}</p>
                                   <p className="mt-0.5 text-xs text-[#1C1917]/45">#{payment.userId}</p>
@@ -3518,18 +3534,23 @@ export default function App() {
                                 <div className="text-right">
                                   <button
                                     onClick={() => {
+                                      const paymentUserId = getPaymentUserId(payment);
+                                      if (!paymentUserId) {
+                                        alert('Không xác định được người dùng để ghi thanh toán. Vui lòng bấm Cập nhật rồi thử lại.');
+                                        return;
+                                      }
                                       const amount = Math.max(0, Number(payment.remainingTotal || 0));
                                       setPendingPayment({
-                                        userId: payment.userId,
+                                        userId: paymentUserId,
                                         amount,
-                                        fullname: payment.fullname,
+                                        fullname: getPaymentDisplayName(payment),
                                         paidTotal: payment.paidTotal,
                                         remainingTotal: payment.remainingTotal
                                       });
                                       setPaymentAmountInput(String(amount));
                                       setShowPaymentConfirm(true);
                                     }}
-                                    disabled={isProcessingPayment || payment.remainingTotal <= 0}
+                                    disabled={isProcessingPayment || !getPaymentUserId(payment) || payment.remainingTotal <= 0}
                                     className="inline-flex items-center justify-center rounded-xl bg-[#DA251D] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#DA251D]/90 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     Ghi thanh toán
@@ -3565,10 +3586,22 @@ export default function App() {
                               </div>
                               <button
                                 onClick={() => {
-                                  setPendingPayment({ userId: payment.userId, amount: payment.remainingTotal });
+                                  const paymentUserId = getPaymentUserId(payment);
+                                  if (!paymentUserId) {
+                                    alert('Không xác định được người dùng để ghi thanh toán. Vui lòng bấm Cập nhật rồi thử lại.');
+                                    return;
+                                  }
+                                  setPendingPayment({
+                                    userId: paymentUserId,
+                                    amount: payment.remainingTotal,
+                                    fullname: getPaymentDisplayName(payment),
+                                    paidTotal: payment.paidTotal,
+                                    remainingTotal: payment.remainingTotal
+                                  });
+                                  setPaymentAmountInput(String(payment.remainingTotal));
                                   setShowPaymentConfirm(true);
                                 }}
-                                disabled={isProcessingPayment}
+                                disabled={isProcessingPayment || !getPaymentUserId(payment)}
                                 className="w-full bg-[#DA251D] text-white py-3 rounded-2xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
                               >
                                 {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
@@ -4543,6 +4576,10 @@ export default function App() {
                   </button>
                   <button
                     onClick={async () => {
+                      if (!pendingPayment.userId) {
+                        alert('Không xác định được người dùng để ghi thanh toán. Vui lòng đóng popup, bấm Cập nhật rồi thử lại.');
+                        return;
+                      }
                       setIsProcessingPayment(true);
                       try {
                         const enteredAmount = Number(paymentAmountInput || 0);
