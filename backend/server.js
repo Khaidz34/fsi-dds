@@ -2567,7 +2567,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
         status: 'ignored',
         error_message: 'invalid_transaction_amount'
       });
-      return res.status(400).json({ error: 'Invalid transaction amount' });
+      return res.json({ success: true, ignored: true, reason: 'invalid_transaction_amount' });
     }
 
     const { data: targetUser, error: userError } = await supabase
@@ -2600,7 +2600,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       paymentCode: paymentCode.code,
       transactionId: transaction.transactionId,
       description: transaction.description,
-      payerName: transaction.payerName,
+      payerName: transaction.payerName || targetUser.fullname,
       rawPayload: req.body
     });
 
