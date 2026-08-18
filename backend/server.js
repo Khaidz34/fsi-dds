@@ -88,11 +88,13 @@ console.log('Node Version:', process.version);
 console.log('Target Port:', PORT);
 console.log('Environment:', process.env.NODE_ENV || 'development');
 
-// Supabase Client
+// Supabase Clients
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let supabase = null;
+let supabaseAdmin = null;
 let supabaseConfigured = false;
 
 if (!supabaseUrl || !supabaseKey) {
@@ -106,7 +108,17 @@ if (!supabaseUrl || !supabaseKey) {
   supabaseConfigured = true;
   console.log('✅ Supabase URL:', supabaseUrl);
   console.log('✅ Supabase Key: Configured');
+  if (supabaseServiceKey) {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    console.log('✅ Supabase Service Role: Configured (bypasses RLS)');
+  } else {
+    console.warn('⚠️  SUPABASE_SERVICE_ROLE_KEY missing - admin writes may fail with RLS deny');
+  }
 }
+
+const dbForWrite = (table) => (supabaseAdmin || supabase).from(table);
 
 // #region agent log - Supabase config debug (H1)
 try {
@@ -3551,8 +3563,7 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
     console.log(`Attempting to update banner_settings to "${bannerType}"...`);
     
     // Direct update without RLS
-    let { data: updated, error } = await supabase
-      .from('banner_settings')
+    let { data: updated, error } = await dbForWrite('banner_settings')
       .update({
         banner_type: bannerType,
         updated_at: new Date().toISOString()
@@ -3658,8 +3669,7 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
     const nextEnabled = Boolean(enabled);
     const nextUrl = (typeof videoUrl === 'string' && videoUrl.trim()) ? videoUrl.trim() : '/videos/0816.mp4';
 
-    const { data: updated, error } = await supabase
-      .from('banner_settings')
+    const { data: updated, error } = await dbForWrite('banner_settings')
       .update({
         video_enabled: nextEnabled,
         video_url: nextUrl,
