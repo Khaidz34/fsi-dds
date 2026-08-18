@@ -1,25 +1,23 @@
--- Video settings (toggle + URL)
--- Stored alongside banner_settings row id=1, separate row id=2
--- Run this AFTER CREATE-BANNER-SETTINGS-TABLE.sql
+-- Reuse row id=1 of banner_settings for video overlay
+-- Avoids a second RLS-protected row (id=2) which was failing UPDATE.
+--
+-- Prerequisites:
+--   1. CREATE-BANNER-SETTINGS-TABLE.sql must have run already (row id=1 exists).
+--   2. RLS must already permit anon key to UPDATE banner_settings WHERE id = 1
+--      (this is the configuration that powers POST /api/banner/settings).
+--
+-- New columns:
+--   video_enabled BOOLEAN  -- true => overlay shown to all clients
+--   video_url     TEXT     -- source URL for the overlay
 
 ALTER TABLE banner_settings
-  DROP CONSTRAINT IF EXISTS banner_settings_banner_type_check;
+  ADD COLUMN IF NOT EXISTS video_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
-ALTER TABLE banner_settings
-  ADD CONSTRAINT banner_settings_banner_type_check
-  CHECK (banner_type IN ('game', 'anniversary', 'video'));
-
-INSERT INTO banner_settings (id, banner_type, updated_at, updated_by)
-VALUES (2, 'game', NOW(), NULL)
-ON CONFLICT (id) DO NOTHING;
-
--- Add video URL column to banner_settings for video overlay
 ALTER TABLE banner_settings
   ADD COLUMN IF NOT EXISTS video_url TEXT;
 
--- Ensure default video URL
 UPDATE banner_settings
 SET video_url = '/videos/0816.mp4'
-WHERE id = 2 AND (video_url IS NULL OR video_url = '');
+WHERE id = 1 AND (video_url IS NULL OR video_url = '');
 
-SELECT * FROM banner_settings ORDER BY id;
+SELECT id, banner_type, video_enabled, video_url FROM banner_settings ORDER BY id;

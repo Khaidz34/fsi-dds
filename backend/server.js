@@ -3612,18 +3612,18 @@ const videoCache = {
 };
 
 // GET /api/video/settings - Get video overlay config (public endpoint)
-// Reads row id=2 from banner_settings (banner_type='video' means overlay ON, else OFF)
+// Stored on banner_settings id=1 via columns video_enabled / video_url
 app.get('/api/video/settings', async (req, res) => {
   try {
     if (videoCache.data && Date.now() - videoCache.timestamp < videoCache.ttl) {
-      console.log('📦 Returning cached video settings');
+      console.log('Returning cached video settings');
       return res.json(videoCache.data);
     }
 
     const { data: row, error } = await supabase
       .from('banner_settings')
-      .select('*')
-      .eq('id', 2)
+      .select('video_enabled, video_url, updated_at, updated_by')
+      .eq('id', 1)
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -3631,11 +3631,9 @@ app.get('/api/video/settings', async (req, res) => {
       return res.json({ enabled: false, videoUrl: '/videos/0816.mp4', updatedAt: null, updatedBy: null });
     }
 
-    const enabled = row?.banner_type === 'video';
-    const videoUrl = row?.video_url || '/videos/0816.mp4';
     const response = {
-      enabled,
-      videoUrl,
+      enabled: Boolean(row?.video_enabled),
+      videoUrl: row?.video_url || '/videos/0816.mp4',
       updatedAt: row?.updated_at || null,
       updatedBy: row?.updated_by || null
     };
@@ -3659,65 +3657,36 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
     const { enabled, videoUrl } = req.body || {};
     const nextEnabled = Boolean(enabled);
     const nextUrl = (typeof videoUrl === 'string' && videoUrl.trim()) ? videoUrl.trim() : '/videos/0816.mp4';
-    const bannerTypeValue = nextEnabled ? 'video' : 'game';
 
-    // Ensure row id=2 exists (insert if missing)
-    const { data: existing, error: existingError } = await supabase
+    const { data: updated, error } = await supabase
       .from('banner_settings')
-      .select('id')
-      .eq('id', 2)
-      .maybeSingle();
+      .update({
+        video_enabled: nextEnabled,
+        video_url: nextUrl,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user.id
+      })
+      .eq('id', 1)
+      .select();
 
-    if (existingError) {
-      console.error('Error checking video settings row:', existingError);
-      return res.status(500).json({ error: 'Database error', details: existingError.message });
-    }
-
-    let updateError;
-    if (!existing) {
-      const { error: insertError } = await supabase
-        .from('banner_settings')
-        .insert({
-          id: 2,
-          banner_type: bannerTypeValue,
-          video_url: nextUrl,
-          updated_at: new Date().toISOString(),
-          updated_by: req.user.id
-        });
-      updateError = insertError;
-    } else {
-      const { error: updError } = await supabase
-        .from('banner_settings')
-        .update({
-          banner_type: bannerTypeValue,
-          video_url: nextUrl,
-          updated_at: new Date().toISOString(),
-          updated_by: req.user.id
-        })
-        .eq('id', 2);
-      updateError = updError;
-    }
-
-    if (updateError) {
-      console.error('Error updating video settings:', updateError);
-      const isMissingColumn = /column .*video_url.* does not exist/i.test(updateError.message || '');
-      const isMissingRowConstraint = /banner_settings_banner_type_check/i.test(updateError.message || '');
+    if (error) {
+      console.error('Error updating video settings:', error);
       return res.status(500).json({
         error: 'Database error',
-        details: updateError.message,
-        code: updateError.code,
-        hint: isMissingColumn
-          ? 'Thiếu cột video_url trong banner_settings. Chạy CREATE-VIDEO-SETTINGS.sql trên Supabase.'
-          : (isMissingRowConstraint
-            ? 'Banner_type=video bị CHECK constraint chặn. Chạy CREATE-VIDEO-SETTINGS.sql để mở rộng CHECK.'
-            : 'Kiểm tra RLS policy của banner_settings.')
+        details: error.message,
+        code: error.code,
+        hint: error.code === '42703'
+          ? 'Thiếu cột video_enabled / video_url. Chạy CREATE-VIDEO-SETTINGS.sql trên Supabase.'
+          : error.code === '42501'
+            ? 'RLS chặn UPDATE banner_settings. Cấp quyền UPDATE cho anon role hoặc dùng service_role key.'
+            : 'Kiểm tra RLS / schema của banner_settings.'
       });
     }
 
     videoCache.data = null;
     videoCache.timestamp = 0;
 
-    console.log(`✅ Video overlay ${nextEnabled ? 'ENABLED' : 'DISABLED'} url=${nextUrl}`);
+    console.log(`Video overlay ${nextEnabled ? 'ENABLED' : 'DISABLED'} url=${nextUrl}`);
 
     res.json({
       success: true,
