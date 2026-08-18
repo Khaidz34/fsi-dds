@@ -3604,6 +3604,123 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
   }
 });
 
+// Video settings cache
+const videoCache = {
+  data: null,
+  timestamp: 0,
+  ttl: 60000
+};
+
+// GET /api/video/settings - Get video overlay config (public endpoint)
+// Reads row id=2 from banner_settings (banner_type='video' means overlay ON, else OFF)
+app.get('/api/video/settings', async (req, res) => {
+  try {
+    if (videoCache.data && Date.now() - videoCache.timestamp < videoCache.ttl) {
+      console.log('📦 Returning cached video settings');
+      return res.json(videoCache.data);
+    }
+
+    const { data: row, error } = await supabase
+      .from('banner_settings')
+      .select('*')
+      .eq('id', 2)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Database error fetching video settings:', error);
+      return res.json({ enabled: false, videoUrl: '/videos/0816.mp4', updatedAt: null, updatedBy: null });
+    }
+
+    const enabled = row?.banner_type === 'video';
+    const videoUrl = row?.video_url || '/videos/0816.mp4';
+    const response = {
+      enabled,
+      videoUrl,
+      updatedAt: row?.updated_at || null,
+      updatedBy: row?.updated_by || null
+    };
+
+    videoCache.data = { ...response };
+    videoCache.timestamp = Date.now();
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching video settings:', error);
+    res.json({ enabled: false, videoUrl: '/videos/0816.mp4', updatedAt: null, updatedBy: null });
+  }
+});
+
+// POST /api/video/settings - Toggle video overlay (admin only)
+app.post('/api/video/settings', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { enabled, videoUrl } = req.body || {};
+    const nextEnabled = Boolean(enabled);
+    const nextUrl = (typeof videoUrl === 'string' && videoUrl.trim()) ? videoUrl.trim() : '/videos/0816.mp4';
+    const bannerTypeValue = nextEnabled ? 'video' : 'game';
+
+    // Ensure row id=2 exists (insert if missing)
+    const { data: existing, error: existingError } = await supabase
+      .from('banner_settings')
+      .select('id')
+      .eq('id', 2)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('Error checking video settings row:', existingError);
+      return res.status(500).json({ error: 'Database error', details: existingError.message });
+    }
+
+    let updateError;
+    if (!existing) {
+      const { error: insertError } = await supabase
+        .from('banner_settings')
+        .insert({
+          id: 2,
+          banner_type: bannerTypeValue,
+          video_url: nextUrl,
+          updated_at: new Date().toISOString(),
+          updated_by: req.user.id
+        });
+      updateError = insertError;
+    } else {
+      const { error: updError } = await supabase
+        .from('banner_settings')
+        .update({
+          banner_type: bannerTypeValue,
+          video_url: nextUrl,
+          updated_at: new Date().toISOString(),
+          updated_by: req.user.id
+        })
+        .eq('id', 2);
+      updateError = updError;
+    }
+
+    if (updateError) {
+      console.error('Error updating video settings:', updateError);
+      return res.status(500).json({ error: 'Database error', details: updateError.message });
+    }
+
+    videoCache.data = null;
+    videoCache.timestamp = 0;
+
+    console.log(`✅ Video overlay ${nextEnabled ? 'ENABLED' : 'DISABLED'} url=${nextUrl}`);
+
+    res.json({
+      success: true,
+      enabled: nextEnabled,
+      videoUrl: nextUrl,
+      updatedAt: new Date().toISOString(),
+      updatedBy: req.user.id
+    });
+  } catch (error) {
+    console.error('Error updating video settings:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
 // Admin cleanup markdown
 app.post('/api/admin/cleanup-markdown', authenticateToken, async (req, res) => {
   try {

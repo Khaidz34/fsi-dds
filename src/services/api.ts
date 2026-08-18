@@ -312,3 +312,26 @@ export const bannerAPI = {
       body: JSON.stringify({ bannerType })
     })
 };
+
+// Video overlay API (uses row id=2 in banner_settings)
+export const videoAPI = {
+  getSettings: () =>
+    apiCall<{
+      enabled: boolean;
+      videoUrl: string;
+      updatedAt: string | null;
+      updatedBy: number | null;
+    }>('/video/settings'),
+
+  updateSettings: (enabled: boolean, videoUrl?: string) =>
+    apiCall<{
+      success: boolean;
+      enabled: boolean;
+      videoUrl: string;
+      updatedAt: string;
+      updatedBy: number;
+    }>('/video/settings', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, videoUrl })
+    })
+};

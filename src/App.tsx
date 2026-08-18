@@ -68,6 +68,8 @@ import { Login } from './components/Login';
 import { FusionSliceGame } from './components/FusionSliceGame';
 import { BannerDisplay } from './components/BannerDisplay';
 import { AdminBannerControl } from './components/AdminBannerControl';
+import { AdminVideoControl } from './components/AdminVideoControl';
+import { VideoOverlay } from './components/VideoOverlay';
 import PaymentDashboard from './components/PaymentDashboard';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
@@ -1422,6 +1424,8 @@ export default function App() {
 
   return (
     <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
+      {/* Video Overlay (shown to all authenticated users when admin enables it) */}
+      <VideoOverlay />
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
@@ -2159,6 +2163,9 @@ export default function App() {
               >
                 {/* Banner Management Control */}
                 <AdminBannerControl user={user} />
+
+                {/* Video Overlay Control */}
+                <AdminVideoControl user={user} />
 
                 {/* Admin Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
