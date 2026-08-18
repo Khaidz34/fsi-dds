@@ -3700,7 +3700,18 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
 
     if (updateError) {
       console.error('Error updating video settings:', updateError);
-      return res.status(500).json({ error: 'Database error', details: updateError.message });
+      const isMissingColumn = /column .*video_url.* does not exist/i.test(updateError.message || '');
+      const isMissingRowConstraint = /banner_settings_banner_type_check/i.test(updateError.message || '');
+      return res.status(500).json({
+        error: 'Database error',
+        details: updateError.message,
+        code: updateError.code,
+        hint: isMissingColumn
+          ? 'Thiếu cột video_url trong banner_settings. Chạy CREATE-VIDEO-SETTINGS.sql trên Supabase.'
+          : (isMissingRowConstraint
+            ? 'Banner_type=video bị CHECK constraint chặn. Chạy CREATE-VIDEO-SETTINGS.sql để mở rộng CHECK.'
+            : 'Kiểm tra RLS policy của banner_settings.')
+      });
     }
 
     videoCache.data = null;
