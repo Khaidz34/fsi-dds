@@ -3663,8 +3663,7 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
       .update({
         video_enabled: nextEnabled,
         video_url: nextUrl,
-        updated_at: new Date().toISOString(),
-        updated_by: req.user.id
+        updated_at: new Date().toISOString()
       })
       .eq('id', 1)
       .select();
