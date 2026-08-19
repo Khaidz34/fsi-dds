@@ -4,6 +4,12 @@ import { useVideoSettings } from '../hooks/useVideoSettings';
 
 interface VideoOverlayProps {
   canDismiss?: boolean;
+  /**
+   * Bypass the polled `enabled` flag. When true, the overlay renders if
+   * `videoUrl` is truthy (caller-controlled). Useful when the parent has
+   * already decided to show the video (e.g. as a dashboard replacement).
+   */
+  forceVisible?: boolean;
 }
 
 /**
@@ -12,38 +18,41 @@ interface VideoOverlayProps {
  * - User can dismiss via X (hides for session) or Esc key
  * - Admin can re-enable from AdminVideoControl
  */
-export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true }) => {
+export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, forceVisible = false }) => {
   const { enabled, videoUrl, isLoading } = useVideoSettings();
   const [hidden, setHidden] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const shouldShow = (forceVisible || enabled) && Boolean(videoUrl);
 
   useEffect(() => {
     if (enabled) setHidden(false);
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!shouldShow) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && canDismiss) setHidden(true);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [enabled, canDismiss]);
+  }, [shouldShow, canDismiss]);
 
   // Auto-play once visible (browsers may block muted autoplay only without user gesture)
   useEffect(() => {
-    if (enabled && !hidden && videoRef.current) {
+    if (shouldShow && !hidden && videoRef.current) {
       videoRef.current.play().catch((err) => {
         console.warn('[VideoOverlay] autoplay blocked:', err);
       });
     }
-  }, [enabled, hidden, videoUrl]);
+  }, [shouldShow, hidden, videoUrl]);
 
-  if (isLoading || !enabled || hidden) return null;
+  if (isLoading && !forceVisible) return null;
+  if (!shouldShow || hidden) return null;
 
   return (
     <div
-      className="my-4 rounded-2xl overflow-hidden bg-black shadow-2xl border border-app-accent/20 max-w-3xl mx-auto"
+      className="w-full rounded-2xl overflow-hidden bg-black shadow-2xl border border-app-accent/20"
       role="region"
       aria-label="Video overlay"
     >

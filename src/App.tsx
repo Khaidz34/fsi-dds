@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
-import { 
+import { useVideoSettings } from './hooks/useVideoSettings';
+
+import {
   Utensils, 
   History, 
   User as UserIcon, 
@@ -608,7 +610,9 @@ const FallingFood = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
 
 export default function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, token } = useAuth();
-  
+
+  const videoSettings = useVideoSettings();
+
   const [theme, setTheme] = useState<'fusion' | 'corporate'>('corporate'); // Default to corporate
   const [currentLang, setCurrentLang] = useState<Language>('vi');
   const [isLanguageChanging, setIsLanguageChanging] = useState(false);
@@ -1423,14 +1427,9 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell desktop-app-shell flex flex-col min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
-      {/* Video Overlay (shown to all authenticated users when admin enables it) */}
-      {/* Always renders as its own full-width row at the top */}
-      <div className="w-full px-4 pt-4">
-        <VideoOverlay />
-      </div>
-      {/* Sidebar + Main live in a sub-row on desktop, stack on mobile */}
-      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+    <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
+      {/* Video Overlay is now rendered inside <main> as a dashboard replacement */}
+      <VideoOverlay forceVisible={false} />
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
@@ -1966,7 +1965,19 @@ export default function App() {
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
-            {activeTab === 'dashboard' && user?.role === 'user' && (
+            {activeTab === 'dashboard' && user?.role === 'user' && videoSettings.enabled && !videoSettings.isLoading && (
+              <div
+                key="dashboard-video"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="desktop-dashboard w-full"
+              >
+                <VideoOverlay forceVisible />
+              </div>
+            )}
+
+            {activeTab === 'dashboard' && user?.role === 'user' && (!videoSettings.enabled || videoSettings.isLoading) && (
               <div
                 key="dashboard-user"
                 initial={{ opacity: 0, y: 20 }}
@@ -2149,9 +2160,9 @@ export default function App() {
                       onClick={() => setActiveTab('payment-calendar')}
                       className="relative z-10 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-app-accent px-4 py-3 text-sm font-black text-white shadow-lg shadow-app-accent/20 hover:bg-app-accent/90 transition-colors"
                     >
-                      <Calendar size={17} />
+<Calendar size={17} />
                       Mở thanh toán
-                    </button>
+</button>
 
                   </div>
                 </div>
@@ -4626,7 +4637,6 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-      </div>
     </div>
   );
 }
