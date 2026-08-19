@@ -1,36 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, SkipBack, SkipForward, Volume2 } from 'lucide-react';
+import { X, SkipBack, SkipForward } from 'lucide-react';
 import { useVideoSettings } from '../hooks/useVideoSettings';
 
 interface VideoOverlayProps {
   canDismiss?: boolean;
-  /**
-   * Bypass the polled `enabled` flag. When true, the overlay renders if
-   * `videoUrl` is truthy (caller-controlled). Useful when the parent has
-   * already decided to show the video (e.g. as a dashboard replacement).
-   */
   forceVisible?: boolean;
 }
 
 /**
- * Full-screen video overlay shown to all users when enabled
- * - Polls settings every 10s via useVideoSettings
- * - User can dismiss via X (hides for session) or Esc key
- * - Admin can re-enable from AdminVideoControl
- * - Plays intro video first, then main video automatically
- * - Prev/Next buttons to manually navigate between intro and main
- * - Prompts user to enable audio on first interaction
+ * Full-screen video overlay — auto-plays intro then main with sound.
+ * Uses muted-start → 1s-delay → unmute trick to bypass browser autoplay restrictions.
  */
 export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, forceVisible = false }) => {
   const { enabled, videoUrl, introVideoUrl, isLoading } = useVideoSettings();
   const [hidden, setHidden] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
-  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(false);
 
   const shouldShow = (forceVisible || enabled) && Boolean(videoUrl || introVideoUrl);
 
-  // Build the playlist (deduplicated)
   const playlist: string[] = [
     introVideoUrl,
     ...(videoUrl && videoUrl !== introVideoUrl ? [videoUrl] : []),
@@ -48,42 +36,38 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     }
   };
 
-  const handleEnableAudio = () => {
-    const video = videoRef.current;
-    if (video) {
-      video.muted = false;
-      video.play().catch(() => {});
-      setAudioUnlocked(true);
-    }
-  };
-
-  // When intro finishes, auto-advance to main if not manually navigated
+  // When intro finishes, auto-advance
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     const onEnded = () => {
-      if (canNext) {
-        playByIndex(currentIndex + 1);
-      }
+      if (canNext) playByIndex(currentIndex + 1);
     };
     video.addEventListener('ended', onEnded);
     return () => video.removeEventListener('ended', onEnded);
   }, [canNext, currentIndex]);
 
-  // When video changes, re-trigger play
+  // Start muted, unmute after 1s to get sound past browser restrictions
   useEffect(() => {
     if (!currentVideoUrl) return;
     const video = videoRef.current;
     if (!video) return;
+
+    video.muted = true;
     video.load();
     video.play().catch(() => {});
+
+    const timer = setTimeout(() => {
+      video.muted = false;
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [currentVideoUrl]);
 
-  // Determine which video to show on mount
+  // Mount: pick starting video
   useEffect(() => {
     if (!shouldShow || currentVideoUrl) return;
-    const start = introVideoUrl ? introVideoUrl : (videoUrl || '');
-    setCurrentVideoUrl(start);
+    setCurrentVideoUrl(introVideoUrl || videoUrl || '');
   }, [shouldShow, introVideoUrl, videoUrl]);
 
   useEffect(() => {
@@ -127,23 +111,6 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
           Your browser does not support the video tag.
         </video>
 
-        {/* Audio unlock prompt — shown until user taps */}
-        {!audioUnlocked && (
-          <button
-            type="button"
-            onClick={handleEnableAudio}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 cursor-pointer z-20"
-            aria-label="Bật âm thanh để xem video"
-          >
-            <div className="flex items-center gap-3 px-6 py-4 bg-white rounded-2xl shadow-2xl">
-              <Volume2 size={28} className="text-teal-600" />
-              <span className="text-lg font-semibold text-gray-900">Bật âm thanh</span>
-            </div>
-            <span className="mt-3 text-sm text-white/80">Nhấn để bật âm thanh video</span>
-          </button>
-        )}
-
-        {/* Prev / Next nav */}
         {hasMultiple && (
           <div className="absolute bottom-16 left-0 right-0 flex items-center justify-center gap-6 pointer-events-none">
             <button
