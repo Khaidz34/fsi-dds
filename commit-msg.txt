@@ -1,0 +1,6 @@
+feat(video): unmute by default + prev/next navigation between intro and main
+
+- Remove muted attribute so audio plays automatically (no need for user gesture)
+- Add SkipBack / SkipForward buttons to manually navigate between intro and main
+- Show position indicator (1/2) when multiple videos available
+- Auto-advance still works when intro ends naturally

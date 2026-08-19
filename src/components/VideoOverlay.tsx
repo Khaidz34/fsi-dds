@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, SkipBack, SkipForward } from 'lucide-react';
 import { useVideoSettings } from '../hooks/useVideoSettings';
 
 interface VideoOverlayProps {
@@ -18,34 +18,63 @@ interface VideoOverlayProps {
  * - User can dismiss via X (hides for session) or Esc key
  * - Admin can re-enable from AdminVideoControl
  * - Plays intro video first, then main video automatically
+ * - Prev/Next buttons to manually navigate between intro and main
  */
 export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, forceVisible = false }) => {
   const { enabled, videoUrl, introVideoUrl, isLoading } = useVideoSettings();
   const [hidden, setHidden] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
+  const [unmuted, setUnmuted] = useState<boolean>(false);
 
   const shouldShow = (forceVisible || enabled) && Boolean(videoUrl || introVideoUrl);
 
-  // When intro finishes, switch to main video
+  // Build the playlist (deduplicated)
+  const playlist: string[] = [
+    introVideoUrl,
+    ...(videoUrl && videoUrl !== introVideoUrl ? [videoUrl] : []),
+  ].filter(Boolean);
+
+  const currentIndex = playlist.indexOf(currentVideoUrl);
+  const isIntro = currentVideoUrl === introVideoUrl && introVideoUrl !== videoUrl;
+  const hasMultiple = playlist.length > 1;
+  const canPrev = hasMultiple && currentIndex > 0;
+  const canNext = hasMultiple && currentIndex < playlist.length - 1;
+
+  const playByIndex = (index: number) => {
+    if (index >= 0 && index < playlist.length) {
+      setCurrentVideoUrl(playlist[index]);
+    }
+  };
+
+  // When intro finishes, auto-advance to main if not manually navigated
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     const onEnded = () => {
-      // intro just ended — switch to main if we haven't already
-      if (currentVideoUrl !== videoUrl && introVideoUrl && videoUrl) {
-        setCurrentVideoUrl(videoUrl);
+      if (canNext) {
+        playByIndex(currentIndex + 1);
       }
     };
     video.addEventListener('ended', onEnded);
     return () => video.removeEventListener('ended', onEnded);
-  }, [currentVideoUrl, videoUrl, introVideoUrl]);
+  }, [canNext, currentIndex, playlist]);
 
-  // Determine which video to show
+  // When video changes, re-trigger play
   useEffect(() => {
-    if (!shouldShow) return;
-    // Always start with intro; fall back to main if no intro
-    const start = introVideoUrl && introVideoUrl !== videoUrl ? introVideoUrl : (videoUrl || '');
+    if (!currentVideoUrl) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.load();
+    video.play().catch(() => {
+      // autoplay may be blocked; user can tap to unmute
+    });
+  }, [currentVideoUrl]);
+
+  // Determine which video to show on mount
+  useEffect(() => {
+    if (!shouldShow || currentVideoUrl) return;
+    const start = introVideoUrl ? introVideoUrl : (videoUrl || '');
     setCurrentVideoUrl(start);
   }, [shouldShow, introVideoUrl, videoUrl]);
 
@@ -62,19 +91,8 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     return () => window.removeEventListener('keydown', onKey);
   }, [shouldShow, canDismiss]);
 
-  // Auto-play once visible
-  useEffect(() => {
-    if (shouldShow && !hidden && videoRef.current) {
-      videoRef.current.play().catch((err) => {
-        console.warn('[VideoOverlay] autoplay blocked:', err);
-      });
-    }
-  }, [shouldShow, hidden, currentVideoUrl]);
-
   if (isLoading && !forceVisible) return null;
   if (!shouldShow || hidden || !currentVideoUrl) return null;
-
-  const isIntro = currentVideoUrl === introVideoUrl && introVideoUrl !== videoUrl;
 
   return (
     <div
@@ -88,6 +106,7 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
             Intro
           </div>
         )}
+
         <video
           key={currentVideoUrl}
           ref={videoRef}
@@ -95,11 +114,39 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
           controls
           autoPlay
           playsInline
-          muted
           className="w-full h-full object-contain"
         >
           Your browser does not support the video tag.
         </video>
+
+        {/* Prev / Next nav */}
+        {hasMultiple && (
+          <div className="absolute bottom-16 left-0 right-0 flex items-center justify-center gap-6 pointer-events-none">
+            <button
+              type="button"
+              onClick={() => playByIndex(currentIndex - 1)}
+              disabled={!canPrev}
+              className="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Video trước"
+            >
+              <SkipBack size={18} />
+            </button>
+
+            <span className="pointer-events-auto text-white text-sm bg-black/60 px-3 py-1 rounded-full">
+              {currentIndex + 1} / {playlist.length}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => playByIndex(currentIndex + 1)}
+              disabled={!canNext}
+              className="pointer-events-auto w-10 h-10 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Video tiếp theo"
+            >
+              <SkipForward size={18} />
+            </button>
+          </div>
+        )}
 
         {canDismiss && (
           <button
