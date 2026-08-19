@@ -1423,12 +1423,14 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
+    <div className={`app-shell desktop-app-shell flex flex-col min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
       {/* Video Overlay (shown to all authenticated users when admin enables it) */}
-      {/* On desktop, force full-width row above sidebar so it never sits next to it */}
-      <div className="w-full lg:basis-full lg:order-1 lg:px-4 lg:pt-6">
+      {/* Always renders as its own full-width row at the top */}
+      <div className="w-full px-4 pt-4">
         <VideoOverlay />
       </div>
+      {/* Sidebar + Main live in a sub-row on desktop, stack on mobile */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
@@ -1694,7 +1696,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sidebar - Hidden on mobile, shown on desktop */}
-      <aside className="desktop-sidebar hidden lg:flex w-72 bg-white border-r border-app-ink/10 flex-col transition-all duration-300 relative silk-texture lg:order-2">
+      <aside className="desktop-sidebar hidden lg:flex w-72 bg-white border-r border-app-ink/10 flex-col transition-all duration-300 relative silk-texture">
         <div className="p-8 flex items-center gap-4">
           {/* FSI DDS Logo */}
           <div className="fsi-logo">
@@ -1860,7 +1862,7 @@ export default function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0 lg:order-3">
+      <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0">
         {/* Header - Hidden on mobile */}
         <header className="desktop-topbar hidden lg:flex h-24 border-b border-app-ink/10 items-center justify-between px-10 shrink-0 bg-white/85 backdrop-blur-md z-20 silk-texture relative">
           {/* Theme transition overlay */}
@@ -4624,6 +4626,7 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
