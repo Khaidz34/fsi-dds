@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, SkipBack, SkipForward } from 'lucide-react';
+import { X, SkipBack, SkipForward, Volume2 } from 'lucide-react';
 import { useVideoSettings } from '../hooks/useVideoSettings';
 
 interface VideoOverlayProps {
@@ -19,13 +19,14 @@ interface VideoOverlayProps {
  * - Admin can re-enable from AdminVideoControl
  * - Plays intro video first, then main video automatically
  * - Prev/Next buttons to manually navigate between intro and main
+ * - Prompts user to enable audio on first interaction
  */
 export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, forceVisible = false }) => {
   const { enabled, videoUrl, introVideoUrl, isLoading } = useVideoSettings();
   const [hidden, setHidden] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
-  const [unmuted, setUnmuted] = useState<boolean>(false);
+  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(false);
 
   const shouldShow = (forceVisible || enabled) && Boolean(videoUrl || introVideoUrl);
 
@@ -47,6 +48,15 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     }
   };
 
+  const handleEnableAudio = () => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = false;
+      video.play().catch(() => {});
+      setAudioUnlocked(true);
+    }
+  };
+
   // When intro finishes, auto-advance to main if not manually navigated
   useEffect(() => {
     const video = videoRef.current;
@@ -58,7 +68,7 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     };
     video.addEventListener('ended', onEnded);
     return () => video.removeEventListener('ended', onEnded);
-  }, [canNext, currentIndex, playlist]);
+  }, [canNext, currentIndex]);
 
   // When video changes, re-trigger play
   useEffect(() => {
@@ -66,9 +76,7 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     const video = videoRef.current;
     if (!video) return;
     video.load();
-    video.play().catch(() => {
-      // autoplay may be blocked; user can tap to unmute
-    });
+    video.play().catch(() => {});
   }, [currentVideoUrl]);
 
   // Determine which video to show on mount
@@ -118,6 +126,22 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
         >
           Your browser does not support the video tag.
         </video>
+
+        {/* Audio unlock prompt — shown until user taps */}
+        {!audioUnlocked && (
+          <button
+            type="button"
+            onClick={handleEnableAudio}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 cursor-pointer z-20"
+            aria-label="Bật âm thanh để xem video"
+          >
+            <div className="flex items-center gap-3 px-6 py-4 bg-white rounded-2xl shadow-2xl">
+              <Volume2 size={28} className="text-teal-600" />
+              <span className="text-lg font-semibold text-gray-900">Bật âm thanh</span>
+            </div>
+            <span className="mt-3 text-sm text-white/80">Nhấn để bật âm thanh video</span>
+          </button>
+        )}
 
         {/* Prev / Next nav */}
         {hasMultiple && (

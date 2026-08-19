@@ -1,6 +1,6 @@
-feat(video): unmute by default + prev/next navigation between intro and main
+feat(video): add audio unlock overlay on first interaction
 
-- Remove muted attribute so audio plays automatically (no need for user gesture)
-- Add SkipBack / SkipForward buttons to manually navigate between intro and main
-- Show position indicator (1/2) when multiple videos available
-- Auto-advance still works when intro ends naturally
+- Replace muted autoplay with an interactive audio-unlock prompt
+- Full-screen overlay with "Bật âm thanh" button lets browser grant audio permission
+- Once tapped, audio stays unlocked for all subsequent videos in the session
+- Video auto-plays (muted) immediately; user taps once to unmute
