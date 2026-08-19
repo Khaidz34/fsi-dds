@@ -1428,8 +1428,7 @@ export default function App() {
 
   return (
     <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
-      {/* Video Overlay is now rendered inside <main> as a dashboard replacement */}
-      <VideoOverlay forceVisible={false} />
+      {/* Video Overlay is rendered inside <main> as a dashboard replacement */}
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
