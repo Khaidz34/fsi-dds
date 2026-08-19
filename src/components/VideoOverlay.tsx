@@ -43,11 +43,11 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true })
 
   return (
     <div
-      className="my-4 rounded-2xl overflow-hidden bg-black shadow-2xl border border-app-accent/20"
+      className="my-4 rounded-2xl overflow-hidden bg-black shadow-2xl border border-app-accent/20 max-w-3xl mx-auto"
       role="region"
       aria-label="Video overlay"
     >
-      <div className="relative aspect-video w-full max-w-4xl mx-auto bg-black">
+      <div className="relative aspect-video w-full bg-black">
         <video
           ref={videoRef}
           src={videoUrl}

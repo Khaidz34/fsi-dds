@@ -1425,7 +1425,10 @@ export default function App() {
   return (
     <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
       {/* Video Overlay (shown to all authenticated users when admin enables it) */}
-      <VideoOverlay />
+      {/* On desktop, force full-width row above sidebar so it never sits next to it */}
+      <div className="w-full lg:basis-full lg:order-1 lg:px-4 lg:pt-6">
+        <VideoOverlay />
+      </div>
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
@@ -1691,7 +1694,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sidebar - Hidden on mobile, shown on desktop */}
-      <aside className="desktop-sidebar hidden lg:flex w-72 bg-white border-r border-app-ink/10 flex-col transition-all duration-300 relative silk-texture">
+      <aside className="desktop-sidebar hidden lg:flex w-72 bg-white border-r border-app-ink/10 flex-col transition-all duration-300 relative silk-texture lg:order-2">
         <div className="p-8 flex items-center gap-4">
           {/* FSI DDS Logo */}
           <div className="fsi-logo">
@@ -1857,7 +1860,7 @@ export default function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0">
+      <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0 lg:order-3">
         {/* Header - Hidden on mobile */}
         <header className="desktop-topbar hidden lg:flex h-24 border-b border-app-ink/10 items-center justify-between px-10 shrink-0 bg-white/85 backdrop-blur-md z-20 silk-texture relative">
           {/* Theme transition overlay */}
