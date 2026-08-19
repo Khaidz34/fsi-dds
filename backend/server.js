@@ -3633,18 +3633,19 @@ app.get('/api/video/settings', async (req, res) => {
 
     const { data: row, error } = await supabase
       .from('banner_settings')
-      .select('video_enabled, video_url, updated_at, updated_by')
+      .select('video_enabled, video_url, intro_video_url, updated_at, updated_by')
       .eq('id', 1)
       .single();
 
     if (error && error.code !== 'PGRST116') {
       console.error('Database error fetching video settings:', error);
-      return res.json({ enabled: false, videoUrl: '/videos/0816.mp4', updatedAt: null, updatedBy: null });
+      return res.json({ enabled: false, videoUrl: '/videos/0816.mp4', introVideoUrl: '/videos/intro.mp4', updatedAt: null, updatedBy: null });
     }
 
     const response = {
       enabled: Boolean(row?.video_enabled),
       videoUrl: row?.video_url || '/videos/0816.mp4',
+      introVideoUrl: row?.intro_video_url || '/videos/intro.mp4',
       updatedAt: row?.updated_at || null,
       updatedBy: row?.updated_by || null
     };
@@ -3654,7 +3655,7 @@ app.get('/api/video/settings', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error fetching video settings:', error);
-    res.json({ enabled: false, videoUrl: '/videos/0816.mp4', updatedAt: null, updatedBy: null });
+    res.json({ enabled: false, videoUrl: '/videos/0816.mp4', introVideoUrl: '/videos/intro.mp4', updatedAt: null, updatedBy: null });
   }
 });
 
@@ -3665,14 +3666,16 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const { enabled, videoUrl } = req.body || {};
+    const { enabled, videoUrl, introVideoUrl } = req.body || {};
     const nextEnabled = Boolean(enabled);
     const nextUrl = (typeof videoUrl === 'string' && videoUrl.trim()) ? videoUrl.trim() : '/videos/0816.mp4';
+    const nextIntroUrl = (typeof introVideoUrl === 'string' && introVideoUrl.trim()) ? introVideoUrl.trim() : '/videos/intro.mp4';
 
     const { data: updated, error } = await dbForWrite('banner_settings')
       .update({
         video_enabled: nextEnabled,
         video_url: nextUrl,
+        intro_video_url: nextIntroUrl,
         updated_at: new Date().toISOString()
       })
       .eq('id', 1)
@@ -3685,7 +3688,7 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
         details: error.message,
         code: error.code,
         hint: error.code === '42703'
-          ? 'Thiếu cột video_enabled / video_url. Chạy CREATE-VIDEO-SETTINGS.sql trên Supabase.'
+          ? 'Thiếu cột video_enabled / video_url / intro_video_url. Chạy ADD-INTRO-VIDEO.sql trên Supabase.'
           : error.code === '42501'
             ? 'RLS chặn UPDATE banner_settings. Cấp quyền UPDATE cho anon role hoặc dùng service_role key.'
             : 'Kiểm tra RLS / schema của banner_settings.'
@@ -3695,12 +3698,13 @@ app.post('/api/video/settings', authenticateToken, async (req, res) => {
     videoCache.data = null;
     videoCache.timestamp = 0;
 
-    console.log(`Video overlay ${nextEnabled ? 'ENABLED' : 'DISABLED'} url=${nextUrl}`);
+    console.log(`Video overlay ${nextEnabled ? 'ENABLED' : 'DISABLED'} intro=${nextIntroUrl} main=${nextUrl}`);
 
     res.json({
       success: true,
       enabled: nextEnabled,
       videoUrl: nextUrl,
+      introVideoUrl: nextIntroUrl,
       updatedAt: new Date().toISOString(),
       updatedBy: req.user.id
     });

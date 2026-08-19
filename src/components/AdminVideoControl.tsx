@@ -10,13 +10,18 @@ interface AdminVideoControlProps {
  * Visible only to admin users
  */
 export const AdminVideoControl: React.FC<AdminVideoControlProps> = ({ user }) => {
-  const { enabled, videoUrl, setEnabled, isSaving, error } = useVideoSettings();
+  const { enabled, videoUrl, introVideoUrl, setEnabled, isSaving, error } = useVideoSettings();
   const [draftUrl, setDraftUrl] = useState<string>(videoUrl);
+  const [draftIntroUrl, setDraftIntroUrl] = useState<string>(introVideoUrl);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   React.useEffect(() => {
     setDraftUrl(videoUrl);
   }, [videoUrl]);
+
+  React.useEffect(() => {
+    setDraftIntroUrl(introVideoUrl);
+  }, [introVideoUrl]);
 
   if (!user || user.role !== 'admin') {
     return (
@@ -33,21 +38,23 @@ export const AdminVideoControl: React.FC<AdminVideoControlProps> = ({ user }) =>
 
   const handleToggle = async () => {
     try {
-      await setEnabled(!enabled, draftUrl);
+      await setEnabled(!enabled, draftUrl, draftIntroUrl);
       showFeedback('ok', `Video đã được ${!enabled ? 'BẬT' : 'TẮT'}`);
     } catch (err) {
       showFeedback('err', `Lỗi: ${(err as Error).message}`);
     }
   };
 
-  const handleUpdateUrl = async () => {
+  const handleUpdateUrls = async () => {
     try {
-      await setEnabled(enabled, draftUrl);
+      await setEnabled(enabled, draftUrl, draftIntroUrl);
       showFeedback('ok', 'Đã cập nhật URL video');
     } catch (err) {
       showFeedback('err', `Lỗi: ${(err as Error).message}`);
     }
   };
+
+  const urlsChanged = draftUrl !== videoUrl || draftIntroUrl !== introVideoUrl;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
@@ -62,21 +69,38 @@ export const AdminVideoControl: React.FC<AdminVideoControlProps> = ({ user }) =>
       </div>
 
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700">
-          URL Video (tương đối tới /public)
-        </label>
-        <input
-          type="text"
-          value={draftUrl}
-          onChange={(e) => setDraftUrl(e.target.value)}
-          disabled={isSaving}
-          placeholder="/videos/0816.mp4"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            URL Video Intro (chạy trước)
+          </label>
+          <input
+            type="text"
+            value={draftIntroUrl}
+            onChange={(e) => setDraftIntroUrl(e.target.value)}
+            disabled={isSaving}
+            placeholder="/videos/intro.mp4"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            URL Video Chính
+          </label>
+          <input
+            type="text"
+            value={draftUrl}
+            onChange={(e) => setDraftUrl(e.target.value)}
+            disabled={isSaving}
+            placeholder="/videos/0816.mp4"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+
         <button
           type="button"
-          onClick={handleUpdateUrl}
-          disabled={isSaving || draftUrl === videoUrl}
+          onClick={handleUpdateUrls}
+          disabled={isSaving || !urlsChanged}
           className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-800 text-sm font-medium rounded-lg"
         >
           Lưu URL
@@ -117,8 +141,8 @@ export const AdminVideoControl: React.FC<AdminVideoControlProps> = ({ user }) =>
       )}
 
       <p className="mt-4 text-xs text-gray-500">
-        💡 Mọi người dùng sẽ thấy overlay trong vòng ~10 giây sau khi BẬT.
-        Video mặc định: <code>/videos/0816.mp4</code>
+        💡 Intro chạy trước, sau đó tự động chuyển sang video chính.
+        Video intro mặc định: <code>/videos/intro.mp4</code> | Video chính: <code>/videos/0816.mp4</code>
       </p>
     </div>
   );

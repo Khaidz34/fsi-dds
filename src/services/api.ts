@@ -319,19 +319,21 @@ export const videoAPI = {
     apiCall<{
       enabled: boolean;
       videoUrl: string;
+      introVideoUrl: string;
       updatedAt: string | null;
       updatedBy: number | null;
     }>('/video/settings'),
 
-  updateSettings: (enabled: boolean, videoUrl?: string) =>
+  updateSettings: (enabled: boolean, videoUrl?: string, introVideoUrl?: string) =>
     apiCall<{
       success: boolean;
       enabled: boolean;
       videoUrl: string;
+      introVideoUrl: string;
       updatedAt: string;
       updatedBy: number;
     }>('/video/settings', {
       method: 'POST',
-      body: JSON.stringify({ enabled, videoUrl })
+      body: JSON.stringify({ enabled, videoUrl, introVideoUrl })
     })
 };

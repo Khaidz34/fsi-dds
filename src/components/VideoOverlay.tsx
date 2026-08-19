@@ -17,13 +17,37 @@ interface VideoOverlayProps {
  * - Polls settings every 10s via useVideoSettings
  * - User can dismiss via X (hides for session) or Esc key
  * - Admin can re-enable from AdminVideoControl
+ * - Plays intro video first, then main video automatically
  */
 export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, forceVisible = false }) => {
-  const { enabled, videoUrl, isLoading } = useVideoSettings();
+  const { enabled, videoUrl, introVideoUrl, isLoading } = useVideoSettings();
   const [hidden, setHidden] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
 
-  const shouldShow = (forceVisible || enabled) && Boolean(videoUrl);
+  const shouldShow = (forceVisible || enabled) && Boolean(videoUrl || introVideoUrl);
+
+  // When intro finishes, switch to main video
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onEnded = () => {
+      // intro just ended — switch to main if we haven't already
+      if (currentVideoUrl !== videoUrl && introVideoUrl && videoUrl) {
+        setCurrentVideoUrl(videoUrl);
+      }
+    };
+    video.addEventListener('ended', onEnded);
+    return () => video.removeEventListener('ended', onEnded);
+  }, [currentVideoUrl, videoUrl, introVideoUrl]);
+
+  // Determine which video to show
+  useEffect(() => {
+    if (!shouldShow) return;
+    // Always start with intro; fall back to main if no intro
+    const start = introVideoUrl && introVideoUrl !== videoUrl ? introVideoUrl : (videoUrl || '');
+    setCurrentVideoUrl(start);
+  }, [shouldShow, introVideoUrl, videoUrl]);
 
   useEffect(() => {
     if (enabled) setHidden(false);
@@ -38,17 +62,19 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     return () => window.removeEventListener('keydown', onKey);
   }, [shouldShow, canDismiss]);
 
-  // Auto-play once visible (browsers may block muted autoplay only without user gesture)
+  // Auto-play once visible
   useEffect(() => {
     if (shouldShow && !hidden && videoRef.current) {
       videoRef.current.play().catch((err) => {
         console.warn('[VideoOverlay] autoplay blocked:', err);
       });
     }
-  }, [shouldShow, hidden, videoUrl]);
+  }, [shouldShow, hidden, currentVideoUrl]);
 
   if (isLoading && !forceVisible) return null;
-  if (!shouldShow || hidden) return null;
+  if (!shouldShow || hidden || !currentVideoUrl) return null;
+
+  const isIntro = currentVideoUrl === introVideoUrl && introVideoUrl !== videoUrl;
 
   return (
     <div
@@ -57,9 +83,15 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
       aria-label="Video overlay"
     >
       <div className="relative aspect-video w-full bg-black">
+        {isIntro && (
+          <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-black/70 text-white text-xs rounded">
+            Intro
+          </div>
+        )}
         <video
+          key={currentVideoUrl}
           ref={videoRef}
-          src={videoUrl}
+          src={currentVideoUrl}
           controls
           autoPlay
           playsInline

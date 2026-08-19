@@ -4,10 +4,11 @@ import { videoAPI } from '../services/api';
 interface VideoSettings {
   enabled: boolean;
   videoUrl: string;
+  introVideoUrl: string;
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
-  setEnabled: (enabled: boolean, videoUrl?: string) => Promise<void>;
+  setEnabled: (enabled: boolean, videoUrl?: string, introVideoUrl?: string) => Promise<void>;
   isSaving: boolean;
 }
 
@@ -19,6 +20,7 @@ interface VideoSettings {
 export const useVideoSettings = (): VideoSettings => {
   const [enabled, setEnabledState] = useState<boolean>(false);
   const [videoUrl, setVideoUrl] = useState<string>('/videos/0816.mp4');
+  const [introVideoUrl, setIntroVideoUrl] = useState<string>('/videos/intro.mp4');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -28,6 +30,7 @@ export const useVideoSettings = (): VideoSettings => {
       const settings = await videoAPI.getSettings();
       setEnabledState(Boolean(settings.enabled));
       if (settings.videoUrl) setVideoUrl(settings.videoUrl);
+      if (settings.introVideoUrl) setIntroVideoUrl(settings.introVideoUrl);
       setError(null);
     } catch (err) {
       console.error('[useVideoSettings] fetch error:', err);
@@ -37,13 +40,14 @@ export const useVideoSettings = (): VideoSettings => {
     }
   }, []);
 
-  const setEnabled = useCallback(async (nextEnabled: boolean, nextUrl?: string) => {
+  const setEnabled = useCallback(async (nextEnabled: boolean, nextUrl?: string, nextIntroUrl?: string) => {
     try {
       setIsSaving(true);
       setError(null);
-      await videoAPI.updateSettings(nextEnabled, nextUrl ?? videoUrl);
+      await videoAPI.updateSettings(nextEnabled, nextUrl ?? videoUrl, nextIntroUrl ?? introVideoUrl);
       setEnabledState(nextEnabled);
       if (nextUrl) setVideoUrl(nextUrl);
+      if (nextIntroUrl) setIntroVideoUrl(nextIntroUrl);
     } catch (err) {
       console.error('[useVideoSettings] save error:', err);
       setError(err as Error);
@@ -51,7 +55,7 @@ export const useVideoSettings = (): VideoSettings => {
     } finally {
       setIsSaving(false);
     }
-  }, [videoUrl]);
+  }, [videoUrl, introVideoUrl]);
 
   useEffect(() => {
     fetchSettings();
@@ -62,6 +66,7 @@ export const useVideoSettings = (): VideoSettings => {
   return {
     enabled,
     videoUrl,
+    introVideoUrl,
     isLoading,
     error,
     refetch: fetchSettings,
