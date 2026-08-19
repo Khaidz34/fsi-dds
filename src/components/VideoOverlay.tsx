@@ -43,34 +43,34 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true })
 
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
+      className="my-4 rounded-2xl overflow-hidden bg-black shadow-2xl border border-app-accent/20"
+      role="region"
       aria-label="Video overlay"
     >
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        controls
-        autoPlay
-        playsInline
-        muted
-        className="max-w-full max-h-full w-auto h-auto"
-        style={{ maxWidth: '100vw', maxHeight: '100vh' }}
-      >
-        Your browser does not support the video tag.
-      </video>
-
-      {canDismiss && (
-        <button
-          type="button"
-          onClick={() => setHidden(true)}
-          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-lg transition-colors"
-          aria-label="Close video"
+      <div className="relative aspect-video w-full max-w-4xl mx-auto bg-black">
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          controls
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-contain"
         >
-          <X size={20} />
-        </button>
-      )}
+          Your browser does not support the video tag.
+        </video>
+
+        {canDismiss && (
+          <button
+            type="button"
+            onClick={() => setHidden(true)}
+            className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center shadow-lg transition-colors"
+            aria-label="Close video"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
