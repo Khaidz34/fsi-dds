@@ -11,6 +11,7 @@ import {
   LogOut, 
   CheckCircle2, 
   Clock, 
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   ShoppingBag,
@@ -683,6 +684,24 @@ export default function App() {
     }
     return orders;
   }, [orders, user?.role, orderFilterUserId]);
+
+  // Phân trang đơn hàng (cả admin và user)
+  const [orderPage, setOrderPage] = useState<number>(1);
+  const [orderPageSize, setOrderPageSize] = useState<number>(10);
+  const totalOrderPages = Math.max(1, Math.ceil(displayedOrders.length / orderPageSize));
+
+  // Tự động điều chỉnh trang hợp lệ
+  useEffect(() => {
+    if (orderPage > totalOrderPages) {
+      setOrderPage(1);
+    }
+  }, [totalOrderPages, orderPage]);
+
+  // Danh sách đơn của trang hiện tại
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (orderPage - 1) * orderPageSize;
+    return displayedOrders.slice(startIndex, startIndex + orderPageSize);
+  }, [displayedOrders, orderPage, orderPageSize]);
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [menuText, setMenuText] = useState('');
   const [multilingualMenus, setMultilingualMenus] = useState<Array<{vi: string, en: string, ja: string}>>([]);
@@ -2934,7 +2953,7 @@ export default function App() {
                                 <span className="text-xs font-bold text-[#1C1917]/60 uppercase tracking-wider">Lọc theo người ăn</span>
                                 {orderFilterUserId !== 'all' && (
                                   <button 
-                                    onClick={() => { setOrderFilterUserId('all'); setShowOrderFilter(false); }}
+                                    onClick={() => { setOrderFilterUserId('all'); setOrderPage(1); setShowOrderFilter(false); }}
                                     className="text-xs text-[#DA251D] hover:underline font-semibold"
                                   >
                                     Xóa lọc
@@ -2957,7 +2976,7 @@ export default function App() {
                                   return (
                                     <button
                                       key={u.id}
-                                      onClick={() => { setOrderFilterUserId(u.id); setShowOrderFilter(false); }}
+                                      onClick={() => { setOrderFilterUserId(u.id); setOrderPage(1); setShowOrderFilter(false); }}
                                       className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex items-center justify-between ${
                                         orderFilterUserId === u.id 
                                           ? 'bg-[#DA251D]/10 text-[#DA251D] font-bold' 
@@ -2984,7 +3003,7 @@ export default function App() {
                         Đang lọc các suất ăn của: <strong>{users.find(u => u.id === orderFilterUserId)?.fullname}</strong> ({displayedOrders.length} suất)
                       </span>
                       <button 
-                        onClick={() => setOrderFilterUserId('all')}
+                        onClick={() => { setOrderFilterUserId('all'); setOrderPage(1); }}
                         className="text-xs text-[#DA251D] font-bold underline hover:opacity-80"
                       >
                         Bỏ lọc
@@ -2993,7 +3012,7 @@ export default function App() {
                   )}
 
                   <div className="space-y-4">
-                    {displayedOrders.map((order) => (
+                    {paginatedOrders.map((order) => (
                       <div 
                         key={order.id} 
                         initial={{ opacity: 0, y: 20 }}
@@ -3105,6 +3124,82 @@ export default function App() {
                       </div>
                     )}
                   </div>
+
+                  {/* Phân trang đơn hàng (admin & user) */}
+                  {displayedOrders.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-[#E5E1D1] flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 text-xs text-[#1C1917]/60 font-semibold">
+                        <span>
+                          Hiển thị <strong className="text-[#1C1917]">{(orderPage - 1) * orderPageSize + 1}</strong> - <strong className="text-[#1C1917]">{Math.min(orderPage * orderPageSize, displayedOrders.length)}</strong> / <strong className="text-[#DA251D]">{displayedOrders.length}</strong> đơn
+                        </span>
+                        <select
+                          value={orderPageSize}
+                          onChange={(e) => {
+                            setOrderPageSize(Number(e.target.value));
+                            setOrderPage(1);
+                          }}
+                          className="px-2.5 py-1.5 bg-white border border-[#E5E1D1] rounded-lg text-xs font-semibold text-[#1C1917] focus:outline-none focus:border-[#DA251D]"
+                        >
+                          <option value={5}>5 đơn / trang</option>
+                          <option value={10}>10 đơn / trang</option>
+                          <option value={20}>20 đơn / trang</option>
+                          <option value={50}>50 đơn / trang</option>
+                        </select>
+                      </div>
+
+                      {totalOrderPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          {/* Nút Prev */}
+                          <button
+                            onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                            disabled={orderPage === 1}
+                            className="p-2 rounded-xl border border-[#E5E1D1] bg-white text-[#1C1917] hover:bg-[#F5F2E9] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Trang trước"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+
+                          {/* Danh sách các trang */}
+                          {Array.from({ length: totalOrderPages }, (_, i) => i + 1)
+                            .filter(p => p === 1 || p === totalOrderPages || Math.abs(p - orderPage) <= 1)
+                            .reduce((acc, p, idx, arr) => {
+                              if (idx > 0 && p - arr[idx - 1] > 1) {
+                                acc.push('...');
+                              }
+                              acc.push(p);
+                              return acc;
+                            }, [])
+                            .map((p, idx) => typeof p === 'number' ? (
+                              <button
+                                key={p}
+                                onClick={() => setOrderPage(p)}
+                                className={`min-w-[36px] h-9 px-2 rounded-xl font-bold text-xs transition-all ${
+                                  orderPage === p
+                                    ? 'bg-[#DA251D] text-white shadow-md shadow-[#DA251D]/20'
+                                    : 'border border-[#E5E1D1] bg-white text-[#1C1917]/70 hover:bg-[#F5F2E9] hover:text-[#DA251D]'
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            ) : (
+                              <span key={`dots-${idx}`} className="px-1 text-xs text-[#1C1917]/40">
+                                ...
+                              </span>
+                            ))}
+
+                          {/* Nút Next */}
+                          <button
+                            onClick={() => setOrderPage(p => Math.min(totalOrderPages, p + 1))}
+                            disabled={orderPage === totalOrderPages}
+                            className="p-2 rounded-xl border border-[#E5E1D1] bg-white text-[#1C1917] hover:bg-[#F5F2E9] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Trang sau"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
