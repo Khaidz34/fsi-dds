@@ -3141,7 +3141,7 @@ app.post('/api/payments', authenticateToken, async (req, res) => {
   }
 });
 
-// Mark payment as paid (admin only)
+// Mark payment as paid (admin only) - Server-side debt calculation & verification
 app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
   try {
     console.log('=== MARK PAID REQUEST ===');
@@ -3155,20 +3155,38 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
 
     const { month } = req.body;
     const userId = Number(req.body.userId ?? req.body.user_id ?? req.body.userid);
-    const amount = Number(req.body.amount);
+    const requestedAmount = req.body.amount !== undefined ? Number(req.body.amount) : undefined;
     
-    if (!userId || !Number.isFinite(userId) || !month || !amount || !Number.isFinite(amount) || amount <= 0) {
-      console.log('❌ Missing required fields:', { userId, month, amount });
-      return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
+    if (!userId || !Number.isFinite(userId) || !month) {
+      console.log('❌ Missing required fields:', { userId, month });
+      return res.status(400).json({ error: 'Thiếu thông tin người dùng hoặc tháng' });
+    }
+
+    // Server-side calculation: Calculate actual remaining debt up to the selected month
+    const userStats = await getUserPaymentStats(supabase, userId, month);
+    const currentRemaining = userStats?.remainingTotal || 0;
+
+    if (currentRemaining <= 0) {
+      return res.status(400).json({ 
+        error: 'Người dùng này không có khoản nợ nào cần thanh toán trong tháng này.',
+        remainingTotal: 0
+      });
+    }
+
+    // Determine effective payment amount:
+    // If requestedAmount is valid and positive, use it capped at currentRemaining; otherwise pay full currentRemaining
+    let effectiveAmount = currentRemaining;
+    if (requestedAmount !== undefined && Number.isFinite(requestedAmount) && requestedAmount > 0) {
+      effectiveAmount = Math.min(requestedAmount, currentRemaining);
     }
 
     const paymentData = {
       user_id: userId,
-      amount: amount,
+      amount: effectiveAmount,
       status: 'completed'
     };
 
-    console.log('Payment data to insert:', paymentData);
+    console.log('Payment data to insert (server-verified):', paymentData);
 
     const { data: payment, error } = await supabase
       .from('payments')
@@ -3183,10 +3201,15 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
 
     console.log('✅ Payment marked successfully:', payment);
 
+    // Invalidate server caches immediately
+    cache.invalidate(`payments:user:${userId}:*`);
+    cache.invalidate('payments:admin:*');
+    cache.invalidate('stats:dashboard:*');
+
     // Calculate how many orders should be marked as paid based on payment amount
     // Each order costs 40,000đ
-    const mealsCount = Math.floor(amount / 40000);
-    console.log(`💰 Payment amount: ${amount}đ = ${mealsCount} meals`);
+    const mealsCount = Math.floor(effectiveAmount / 40000);
+    console.log(`💰 Payment amount: ${effectiveAmount}đ = ${mealsCount} meals`);
     
     // Get unpaid orders for this user in this month (ordered by created_at)
     const startDate = `${month}-01`;
@@ -3198,7 +3221,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     const { data: unpaidOrders, error: fetchError } = await supabase
       .from('orders')
       .select('id, created_at')
-      .eq('ordered_for', userId)  // ✅ ĐÚNG - Tìm orders mà user là người nhận
+      .eq('ordered_for', userId)
       .eq('paid', false)
       .is('deleted_at', null)
       .gte('created_at', `${startDate}T00:00:00Z`)
@@ -3210,7 +3233,6 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     } else {
       console.log(`📋 Found ${unpaidOrders?.length || 0} unpaid orders`);
       
-      // Only mark the first N orders as paid (where N = mealsCount)
       const ordersToMarkPaid = unpaidOrders?.slice(0, mealsCount) || [];
       const orderIds = ordersToMarkPaid.map(o => o.id);
       
@@ -3236,35 +3258,18 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       type: 'payment_marked',
       userId,
       data: {
-        amount,
+        amount: effectiveAmount,
         month,
         timestamp: Date.now()
       }
     });
 
-    // Also send notification to admin (current user) to update their dashboard
-    sendSSENotification(req.user.id, {
-      type: 'payment_marked',
-      userId,
-      data: {
-        amount,
-        month,
-        timestamp: Date.now()
-      }
+    res.json({ 
+      success: true, 
+      payment,
+      amount: effectiveAmount,
+      remainingTotal: Math.max(0, currentRemaining - effectiveAmount)
     });
-
-    // Invalidate cache entries related to this payment
-    // Invalidate admin payments cache for this month
-    cache.invalidate(`payments:admin:${month}`, `payment_marked:user_${userId}`);
-    
-    // Invalidate user-specific payment cache
-    cache.invalidate(`payments:user:${userId}:${month}`, `payment_marked`);
-    
-    // Invalidate all stats caches for this month
-    cache.invalidate(`stats:dashboard:${month}`, `payment_marked`);
-    cache.invalidate(`stats:user:${userId}:${month}`, `payment_marked`);
-
-    res.json({ success: true, payment });
   } catch (error) {
     console.error('❌ Mark paid error:', error);
     res.status(500).json({ error: 'Lỗi server: ' + error.message });

@@ -1,3 +1,12 @@
+/**
+ * SUPABASE REALTIME CLIENT
+ * 
+ * KIẾN TRÚC DATA ACCESS:
+ * - Frontend KHÔNG thực hiện trực tiếp các truy vấn CRUD (SELECT/INSERT/UPDATE/DELETE) qua Supabase client này.
+ * - Mọi thao tác nghiệp vụ, xác thực JWT, tạo/xoá đơn, thanh toán đều tập trung đi qua Backend Express API (src/services/api.ts).
+ * - File này CHỈ phục vụ duy nhất mục đích: lắng nghe sự kiện thay đổi dữ liệu qua WebSocket Realtime (subscribeToTable).
+ */
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;

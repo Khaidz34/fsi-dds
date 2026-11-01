@@ -76,6 +76,7 @@ import { VideoOverlay } from './components/VideoOverlay';
 import PaymentDashboard from './components/PaymentDashboard';
 import { AdminStatsView } from './components/AdminStatsView';
 import { AdminMonthlyCalendar } from './components/AdminMonthlyCalendar';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
 import { AnimatePresence } from './framer-motion-mock';
@@ -3547,12 +3548,14 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <AdminStatsView 
-                  translations={t} 
-                  theme={theme} 
-                  accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
-                  onNavigateToCalendar={() => setActiveTab('invoicing')}
-                />
+                <ErrorBoundary fallbackTitle="Không thể tải tab Thống kê">
+                  <AdminStatsView 
+                    translations={t} 
+                    theme={theme} 
+                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
+                    onNavigateToCalendar={() => setActiveTab('invoicing')}
+                  />
+                </ErrorBoundary>
               </div>
             )}
 
@@ -3955,11 +3958,13 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <AdminMonthlyCalendar 
-                  translations={t} 
-                  theme={theme} 
-                  accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
-                />
+                <ErrorBoundary fallbackTitle="Không thể tải tab Lịch đặt cơm">
+                  <AdminMonthlyCalendar 
+                    translations={t} 
+                    theme={theme} 
+                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                  />
+                </ErrorBoundary>
               </div>
             )}
 
@@ -3979,7 +3984,9 @@ export default function App() {
                     onNavigateToCalendar={() => setActiveTab('invoicing')}
                   />
                 ) : (
-                  <PaymentDashboard translations={t} />
+                  <ErrorBoundary fallbackTitle="Không thể tải tab Thanh toán">
+                    <PaymentDashboard translations={t} />
+                  </ErrorBoundary>
                 )}
               </div>
             )}
