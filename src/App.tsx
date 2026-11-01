@@ -74,7 +74,8 @@ import { AdminBannerControl } from './components/AdminBannerControl';
 import { AdminVideoControl } from './components/AdminVideoControl';
 import { VideoOverlay } from './components/VideoOverlay';
 import PaymentDashboard from './components/PaymentDashboard';
-import { AdminUnifiedStats } from './components/AdminUnifiedStats';
+import { AdminStatsView } from './components/AdminStatsView';
+import { AdminMonthlyCalendar } from './components/AdminMonthlyCalendar';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
 import { AnimatePresence } from './framer-motion-mock';
@@ -3546,10 +3547,11 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <AdminUnifiedStats 
+                <AdminStatsView 
                   translations={t} 
                   theme={theme} 
-                  accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                  accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
+                  onNavigateToCalendar={() => setActiveTab('invoicing')}
                 />
               </div>
             )}
@@ -3953,7 +3955,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <AdminUnifiedStats 
+                <AdminMonthlyCalendar 
                   translations={t} 
                   theme={theme} 
                   accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
@@ -3970,10 +3972,11 @@ export default function App() {
                 className="space-y-8"
               >
                 {user?.role === 'admin' ? (
-                  <AdminUnifiedStats 
+                  <AdminStatsView 
                     translations={t} 
                     theme={theme} 
-                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
+                    onNavigateToCalendar={() => setActiveTab('invoicing')}
                   />
                 ) : (
                   <PaymentDashboard translations={t} />

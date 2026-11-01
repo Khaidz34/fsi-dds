@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Calendar as CalendarIcon, 
   BarChart3, 
   Utensils, 
   DollarSign, 
@@ -8,9 +7,12 @@ import {
   ChevronLeft, 
   ChevronRight, 
   RefreshCw, 
-  Clock, 
-  User as UserIcon, 
-  CalendarCheck
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -22,19 +24,20 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { useMonthlyOrders, Order } from '../hooks/useMonthlyOrders';
-import { usePayments } from '../hooks/usePayments';
 import { ordersAPI } from '../services/api';
 
-interface AdminUnifiedStatsProps {
+interface AdminStatsViewProps {
   translations: any;
   theme?: string;
   accentColor?: string;
+  onNavigateToCalendar?: () => void;
 }
 
-export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
+export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
   translations,
   theme = 'fusion',
-  accentColor = '#DA251D'
+  accentColor = '#DA251D',
+  onNavigateToCalendar
 }) => {
   const t = translations;
   const now = new Date();
@@ -43,16 +46,11 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
   }, []);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  });
-
   const [weeklyData, setWeeklyData] = useState<Array<{ name: string; orders: number; date: string }>>([]);
   const [isWeeklyLoading, setIsWeeklyLoading] = useState(false);
 
-  // Real-time hooks for orders and payment stats for the selected month
-  const { orders, isLoading: isOrdersLoading, refetch: refetchOrders } = useMonthlyOrders(selectedMonth);
-  const { paymentStats, isLoading: isPaymentLoading, refetch: refetchPayments } = usePayments(selectedMonth);
+  // Real-time monthly orders for the selected month
+  const { orders, isLoading, refetch } = useMonthlyOrders(selectedMonth);
 
   // Fetch weekly data
   const fetchWeekly = async () => {
@@ -72,7 +70,7 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
     fetchWeekly();
   }, []);
 
-  // Compute stats from monthly orders
+  // Compute accurate statistics strictly from orders of selectedMonth
   const todayStr = useMemo(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -83,8 +81,8 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
   }, [orders, todayStr]);
 
   const monthOrdersCount = useMemo(() => {
-    return paymentStats?.ordersCount ?? orders.length;
-  }, [orders, paymentStats]);
+    return orders.length;
+  }, [orders]);
 
   const uniqueUsersCount = useMemo(() => {
     const userIds = new Set<number>();
@@ -96,13 +94,20 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
   }, [orders]);
 
   const monthRevenue = useMemo(() => {
-    if (paymentStats && paymentStats.ordersTotal > 0) {
-      return paymentStats.ordersTotal;
-    }
-    return orders.reduce((sum, o) => sum + (o.price || 0), 0);
-  }, [orders, paymentStats]);
+    return orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+  }, [orders]);
 
-  // Compute Top Dishes in the selected month
+  const paidRevenue = useMemo(() => {
+    return orders
+      .filter(o => o.paid === true)
+      .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+  }, [orders]);
+
+  const unpaidRevenue = useMemo(() => {
+    return Math.max(0, monthRevenue - paidRevenue);
+  }, [monthRevenue, paidRevenue]);
+
+  // Top Dishes
   const topDishes = useMemo(() => {
     const counts: { [name: string]: number } = {};
     orders.forEach(o => {
@@ -120,24 +125,33 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
       .slice(0, 5);
   }, [orders]);
 
-  // Group orders by date (YYYY-MM-DD)
-  const ordersByDate = useMemo(() => {
-    const map: { [date: string]: Order[] } = {};
-    orders.forEach(order => {
-      if (order.created_at) {
-        const d = order.created_at.split('T')[0];
-        if (!map[d]) map[d] = [];
-        map[d].push(order);
+  // Daily Breakdown Table
+  const dailyBreakdown = useMemo(() => {
+    const map: { [date: string]: { count: number; revenue: number; paidCount: number } } = {};
+    orders.forEach(o => {
+      if (o.created_at) {
+        const d = o.created_at.split('T')[0];
+        if (!map[d]) map[d] = { count: 0, revenue: 0, paidCount: 0 };
+        map[d].count++;
+        map[d].revenue += (Number(o.price) || 0);
+        if (o.paid === true) map[d].paidCount++;
       }
     });
-    return map;
+
+    return Object.entries(map)
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [orders]);
 
   // Navigate months
+  const [selectedYearNum, selectedMonthNum] = useMemo(() => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    return [y, m - 1]; // 0-indexed
+  }, [selectedMonth]);
+
   const navigateMonth = (direction: 'prev' | 'next') => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    let newYear = year;
-    let newMonth = direction === 'prev' ? month - 1 : month + 1;
+    let newYear = selectedYearNum;
+    let newMonth = direction === 'prev' ? selectedMonthNum : selectedMonthNum + 2;
 
     if (newMonth < 1) {
       newMonth = 12;
@@ -147,79 +161,14 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
       newYear += 1;
     }
 
-    const nextMonthStr = `${newYear}-${String(newMonth).padStart(2, '0')}`;
-    setSelectedMonth(nextMonthStr);
+    setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
   };
 
   const goToCurrentMonth = () => {
     setSelectedMonth(currentMonthStr);
-    setSelectedDate(todayStr);
   };
 
-  const handleRefresh = () => {
-    refetchOrders();
-    refetchPayments();
-    fetchWeekly();
-  };
-
-  // Calendar days generation
-  const [selectedYearNum, selectedMonthNum] = useMemo(() => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    return [y, m - 1]; // 0-indexed month
-  }, [selectedMonth]);
-
-  const calendarDays = useMemo(() => {
-    const firstDay = new Date(selectedYearNum, selectedMonthNum, 1);
-    const lastDay = new Date(selectedYearNum, selectedMonthNum + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay(); // 0 is Sunday, 1 is Monday ...
-
-    const days: Array<{
-      day: number;
-      dateString: string;
-      orderCount: number;
-      orders: Order[];
-      isToday: boolean;
-      isSelected: boolean;
-    } | null> = [];
-
-    // Empty cells before the 1st
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Days in month
-    for (let i = 1; i <= daysInMonth; i++) {
-      const dateString = `${selectedYearNum}-${String(selectedMonthNum + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-      const dayOrders = ordersByDate[dateString] || [];
-      days.push({
-        day: i,
-        dateString,
-        orderCount: dayOrders.length,
-        orders: dayOrders,
-        isToday: dateString === todayStr,
-        isSelected: dateString === selectedDate
-      });
-    }
-
-    return days;
-  }, [selectedYearNum, selectedMonthNum, ordersByDate, todayStr, selectedDate]);
-
-  // Selected date orders
-  const selectedDayOrders = useMemo(() => {
-    if (!selectedDate) return [];
-    return ordersByDate[selectedDate] || [];
-  }, [selectedDate, ordersByDate]);
-
-  const formatOrderTime = (dateStr?: string) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
-    } catch (e) {
-      return '';
-    }
-  };
+  const isCurrentMonthActive = selectedMonth === currentMonthStr;
 
   const formatDisplayDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -228,39 +177,30 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
       const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
       const weekdayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
       const dayName = weekdayNames[dateObj.getDay()];
-      return `${dayName}, ngày ${d}/${m}/${y}`;
+      return `${dayName}, ${d}/${m}/${y}`;
     } catch (e) {
       return dateStr;
     }
   };
 
-  const getOrderBadgeColor = (count: number) => {
-    if (count === 0) return 'text-gray-400 bg-gray-50 border-gray-200';
-    if (count <= 5) return 'text-emerald-700 bg-emerald-50 border-emerald-200';
-    if (count <= 12) return 'text-amber-800 bg-amber-50 border-amber-200';
-    return 'text-rose-700 bg-rose-50 border-rose-200';
-  };
-
-  const isCurrentMonthActive = selectedMonth === currentMonthStr;
-
   return (
-    <div className="admin-unified-stats space-y-6 lg:space-y-8 pb-16">
-      {/* Top Header & Controls */}
+    <div className="admin-stats-view space-y-6 lg:space-y-8 pb-16">
+      {/* Header & Month Navigator */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 rounded-[2rem] p-5 lg:p-6 border border-app-accent/15 shadow-sm">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-app-accent mb-1">
             <BarChart3 size={15} />
-            <span>Trung tâm thống kê & Lịch ăn</span>
+            <span>Báo cáo & Phân tích suất ăn</span>
           </div>
           <h2 className="text-2xl lg:text-3xl font-display font-black tracking-tight text-app-ink">
             Thống kê suất ăn nội bộ
           </h2>
           <p className="text-xs sm:text-sm text-app-ink/60 mt-0.5">
-            Tổng hợp dữ liệu vận hành, doanh thu suất ăn và lịch đặt cơm toàn công ty
+            Tổng hợp dữ liệu vận hành, doanh thu suất ăn và xu hướng theo tháng
           </p>
         </div>
 
-        {/* Month Navigator Toolbar */}
+        {/* Month Selector */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="inline-flex items-center bg-app-accent/5 rounded-2xl border border-app-accent/15 p-1">
             <button
@@ -299,12 +239,12 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
           )}
 
           <button
-            onClick={handleRefresh}
-            disabled={isOrdersLoading || isPaymentLoading}
+            onClick={() => { refetch(); fetchWeekly(); }}
+            disabled={isLoading}
             className="p-2.5 rounded-xl border border-app-accent/20 bg-white text-app-ink/60 hover:text-app-accent hover:bg-app-accent/5 transition-colors disabled:opacity-50"
             title="Làm mới dữ liệu"
           >
-            <RefreshCw size={17} className={isOrdersLoading || isPaymentLoading ? 'animate-spin' : ''} />
+            <RefreshCw size={17} className={isLoading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
@@ -329,7 +269,7 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
             <span className="text-xs font-bold text-app-ink/40 uppercase">suất</span>
           </div>
           <p className="text-[11px] text-app-ink/45 mt-2">
-            Đã chốt suất ăn trong ngày
+            {todayOrdersCount > 0 ? 'Đã chốt suất ăn trong ngày' : 'Chưa có đơn đặt hôm nay'}
           </p>
         </div>
 
@@ -351,7 +291,7 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
             <span className="text-xs font-bold text-app-ink/40 uppercase">suất</span>
           </div>
           <p className="text-[11px] text-app-ink/45 mt-2">
-            Toàn bộ suất cơm đặt trong tháng
+            Tổng số suất đặt trong tháng {selectedMonthNum + 1}
           </p>
         </div>
 
@@ -396,9 +336,11 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
             </span>
             <span className="text-xs font-bold text-app-ink/40 uppercase">đ</span>
           </div>
-          <p className="text-[11px] text-app-ink/45 mt-2">
-            {paymentStats?.paidTotal ? `Đã thu: ${paymentStats.paidTotal.toLocaleString()}đ` : 'Tính theo đơn giá suất ăn'}
-          </p>
+          <div className="flex items-center gap-2 text-[11px] text-app-ink/55 mt-2">
+            <span className="text-emerald-700 font-bold">Thu: {paidRevenue.toLocaleString()}đ</span>
+            <span>•</span>
+            <span className="text-amber-800 font-bold">Nợ: {unpaidRevenue.toLocaleString()}đ</span>
+          </div>
         </div>
       </div>
 
@@ -457,7 +399,7 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
               <h3 className="text-lg lg:text-xl font-display font-bold text-app-ink tracking-tight">
                 Món ăn phổ biến trong tháng
               </h3>
-              <p className="text-xs text-app-ink/50 mt-0.5">Top món ăn được nhân viên ưa chuộng nhất</p>
+              <p className="text-xs text-app-ink/50 mt-0.5">Top món ăn được nhân viên gọi nhiều nhất</p>
             </div>
             <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
               <Utensils size={18} />
@@ -501,211 +443,79 @@ export const AdminUnifiedStats: React.FC<AdminUnifiedStatsProps> = ({
         </div>
       </div>
 
-      {/* Calendar Section: Monthly Orders Calendar */}
-      <div className="lacquer-card bg-white/95 border border-app-accent/15 rounded-3xl p-5 lg:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-app-accent/10">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-app-accent/10 text-app-accent rounded-2xl flex items-center justify-center shrink-0">
-              <CalendarIcon size={22} />
-            </div>
-            <div>
-              <h3 className="text-lg lg:text-xl font-display font-bold text-app-ink tracking-tight">
-                Lịch đặt cơm toàn công ty — Tháng {selectedMonthNum + 1}/{selectedYearNum}
-              </h3>
-              <p className="text-xs sm:text-sm text-app-ink/55">
-                Bấm vào ngày trên lịch để xem danh sách chi tiết các nhân viên đặt cơm
-              </p>
-            </div>
+      {/* Daily Breakdown Table */}
+      <div className="lacquer-card bg-white/95 border border-app-accent/15 rounded-3xl p-5 lg:p-8 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-app-accent/10">
+          <div>
+            <h3 className="text-lg font-display font-bold text-app-ink tracking-tight">
+              Tổng kết suất ăn theo ngày trong tháng {selectedMonthNum + 1}/{selectedYearNum}
+            </h3>
+            <p className="text-xs text-app-ink/55">
+              Danh sách các ngày có phục vụ cơm trong tháng
+            </p>
           </div>
 
-          {/* Quick month jumper inside calendar */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          {onNavigateToCalendar && (
             <button
-              onClick={() => navigateMonth('prev')}
-              className="p-2 hover:bg-app-accent/5 rounded-xl transition-colors text-app-ink/70 hover:text-app-accent"
-              title="Tháng trước"
+              onClick={onNavigateToCalendar}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-app-accent/10 text-app-accent hover:bg-app-accent hover:text-white transition-all text-xs font-bold"
             >
-              <ChevronLeft size={20} />
+              <CalendarIcon size={14} />
+              <span>Xem dạng Lịch đặt cơm</span>
+              <ArrowRight size={14} />
             </button>
-            <span className="text-sm font-black text-app-ink min-w-[100px] text-center">
-              T{selectedMonthNum + 1} / {selectedYearNum}
-            </span>
-            <button
-              onClick={() => navigateMonth('next')}
-              className="p-2 hover:bg-app-accent/5 rounded-xl transition-colors text-app-ink/70 hover:text-app-accent"
-              title="Tháng sau"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
-          {/* Day of Week Headers */}
-          {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((dayName, idx) => (
-            <div 
-              key={dayName} 
-              className={`p-2 text-center text-xs font-black rounded-xl ${
-                idx === 0 ? 'text-rose-600 bg-rose-50/60' : idx === 6 ? 'text-amber-700 bg-amber-50/60' : 'text-app-ink/70 bg-app-accent/5'
-              }`}
-            >
-              {dayName}
-            </div>
-          ))}
-
-          {/* Calendar Days */}
-          {calendarDays.map((cell, idx) => {
-            if (!cell) {
-              return <div key={`empty-${idx}`} className="min-h-[64px] sm:min-h-[82px] rounded-xl bg-gray-50/30" />;
-            }
-
-            const { day, dateString, orderCount, isToday, isSelected } = cell;
-
-            return (
-              <button
-                key={dateString}
-                type="button"
-                onClick={() => setSelectedDate(dateString)}
-                className={`
-                  min-h-[64px] sm:min-h-[82px] rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 flex flex-col items-center justify-between
-                  transition-all text-left relative group
-                  ${isSelected ? 'ring-2 ring-app-accent shadow-md bg-app-accent/5' : 'hover:border-app-accent/30 hover:shadow-sm bg-white'}
-                  ${isToday ? 'border-2 border-red-500/80' : 'border border-app-accent/10'}
-                `}
-              >
-                <div className="w-full flex items-center justify-between">
-                  <span className={`text-xs sm:text-sm font-black ${
-                    isToday ? 'text-red-600' : isSelected ? 'text-app-accent' : 'text-app-ink'
-                  }`}>
-                    {day}
-                  </span>
-                  {isToday && (
-                    <span className="hidden sm:inline-block text-[9px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
-                      Nay
-                    </span>
-                  )}
-                </div>
-
-                {orderCount > 0 ? (
-                  <div className={`w-full text-center py-0.5 sm:py-1 px-1 rounded-lg border text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 ${getOrderBadgeColor(orderCount)}`}>
-                    <Utensils size={10} className="shrink-0 hidden sm:inline" />
-                    <span>{orderCount} <span className="hidden sm:inline">suất</span></span>
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-gray-300 font-medium sm:block hidden">-</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 pt-3 border-t border-app-accent/10 text-xs text-app-ink/65">
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-gray-50 border border-gray-200"></div>
-            <span>Chưa có suất</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-emerald-50 border border-emerald-300 text-emerald-700"></div>
-            <span>1 - 5 suất</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-amber-50 border border-amber-300 text-amber-800"></div>
-            <span>6 - 12 suất</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-rose-50 border border-rose-300 text-rose-700"></div>
-            <span>&gt;12 suất</span>
-          </div>
-        </div>
-
-        {/* Selected Day Details Inspector */}
-        <div className="mt-6 pt-6 border-t border-app-accent/15">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-app-accent/10 text-app-accent flex items-center justify-center">
-                <CalendarCheck size={18} />
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-app-ink">
-                  Danh sách đặt cơm: {formatDisplayDate(selectedDate)}
-                </h4>
-                <p className="text-xs text-app-ink/50">
-                  Tổng cộng: <strong className="text-app-accent font-black">{selectedDayOrders.length} suất ăn</strong>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {selectedDayOrders.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {selectedDayOrders.map((order, i) => {
-                const receiverName = order.receiver?.fullname || order.orderer?.fullname || 'Nhân viên';
-                const isOrderedForOther = order.orderer && order.receiver && order.orderer.id !== order.receiver.id;
-
-                return (
-                  <div
-                    key={order.id || i}
-                    className="p-4 rounded-2xl border border-app-accent/15 bg-white shadow-sm hover:border-app-accent/30 transition-all space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-app-accent/10 text-app-accent font-black text-xs flex items-center justify-center shrink-0">
-                          {receiverName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-app-ink truncate">{receiverName}</p>
-                          {isOrderedForOther && (
-                            <p className="text-[10px] text-app-ink/50 truncate">
-                              Đặt bởi: {order.orderer?.fullname}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {order.created_at && (
-                        <div className="flex items-center gap-1 text-[11px] text-app-ink/50 bg-gray-50 px-2 py-0.5 rounded-md shrink-0 border border-gray-100">
-                          <Clock size={11} />
-                          <span>{formatOrderTime(order.created_at)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 pt-1 text-xs">
-                      {order.dish1?.name && (
-                        <div className="flex items-start gap-1.5 text-app-ink font-semibold">
-                          <span className="text-app-accent font-black">1.</span>
-                          <span>{order.dish1.name}</span>
-                        </div>
-                      )}
-                      {order.dish2?.name && (
-                        <div className="flex items-start gap-1.5 text-app-ink/75">
-                          <span className="text-app-gold font-black">2.</span>
-                          <span>{order.dish2.name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {order.notes && (
-                      <div className="mt-2 pt-2 border-t border-dashed border-gray-100">
-                        <p className="text-[11px] text-app-ink/65 italic bg-amber-50/60 px-2.5 py-1 rounded-lg border border-amber-100/50">
-                          💬 {order.notes}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-10 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200 text-gray-400">
-              <CalendarIcon size={28} className="mx-auto mb-1.5 opacity-40" />
-              <p className="text-sm font-semibold text-app-ink/60">Không có ai đặt cơm vào ngày này</p>
-              <p className="text-xs text-app-ink/40 mt-0.5">Chọn ngày khác trên lịch để xem danh sách</p>
-            </div>
           )}
         </div>
+
+        {dailyBreakdown.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead>
+                <tr className="border-b border-app-accent/10 text-[11px] font-black uppercase text-app-ink/50 tracking-wider">
+                  <th className="py-3 px-3">Ngày</th>
+                  <th className="py-3 px-3 text-center">Số suất ăn</th>
+                  <th className="py-3 px-3 text-right">Doanh thu</th>
+                  <th className="py-3 px-3 text-center">Đã thanh toán</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-app-accent/5">
+                {dailyBreakdown.map((row) => (
+                  <tr key={row.date} className="hover:bg-app-accent/5 transition-colors">
+                    <td className="py-3 px-3 font-bold text-app-ink">
+                      {formatDisplayDate(row.date)}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className="inline-flex items-center gap-1 font-black px-2.5 py-0.5 rounded-full text-xs bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <Utensils size={11} />
+                        {row.count} suất
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right font-black text-app-ink">
+                      {row.revenue.toLocaleString()}đ
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                        row.paidCount === row.count 
+                          ? 'bg-emerald-100 text-emerald-800' 
+                          : row.paidCount > 0 
+                          ? 'bg-amber-100 text-amber-800' 
+                          : 'bg-rose-50 text-rose-700'
+                      }`}>
+                        {row.paidCount}/{row.count} suất
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-10 text-gray-400 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+            <CalendarIcon size={28} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm font-semibold text-app-ink/60">Tháng {selectedMonthNum + 1}/{selectedYearNum} chưa có đơn đặt cơm nào</p>
+            <p className="text-xs text-app-ink/40 mt-1">Dữ liệu sẽ tự động hiển thị khi nhân viên đặt món</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ export interface Order {
   notes?: string;
   rating?: number;
   created_at: string;
+  paid?: boolean;
   dish1?: { id: number; name: string; sort_order: number };
   dish2?: { id: number; name: string; sort_order: number };
   orderer?: { id: number; fullname: string };
