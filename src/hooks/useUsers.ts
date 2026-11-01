@@ -8,6 +8,7 @@ export interface User {
   username: string;
   fullname: string;
   role: 'user' | 'admin';
+  created_at?: string;
 }
 
 export const useUsers = () => {
@@ -29,10 +30,20 @@ export const useUsers = () => {
     }
   };
 
+  const updateUser = async (id: number, data: { fullname?: string; role?: string; username?: string; password?: string }) => {
+    try {
+      const result = await usersAPI.update(id, data);
+      await fetchUsers();
+      return result;
+    } catch (err) {
+      throw err;
+    }
+  };
+
   const updateUserRole = async (id: number, role: string) => {
     try {
       const updatedUser = await usersAPI.updateRole(id, role);
-      setUsers(prev => prev.map(user => user.id === id ? updatedUser : user));
+      setUsers(prev => prev.map(user => user.id === id ? { ...user, ...updatedUser } : user));
       return updatedUser;
     } catch (err) {
       throw err;
@@ -69,6 +80,7 @@ export const useUsers = () => {
     isLoading,
     error,
     refetch: fetchUsers,
+    updateUser,
     updateUserRole,
     deleteUser
   };

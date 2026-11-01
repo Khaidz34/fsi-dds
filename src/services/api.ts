@@ -112,6 +112,12 @@ export const usersAPI = {
   
   getList: () => apiCall<Array<{id: number, fullname: string}>>('/users/list'),
   
+  update: (id: number, data: { fullname?: string; role?: string; username?: string; password?: string }) =>
+    apiCall<{ success: boolean; user: any }>(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
   updateRole: (id: number, role: string) =>
     apiCall<any>(`/users/${id}/role`, {
       method: 'PATCH',

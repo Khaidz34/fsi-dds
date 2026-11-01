@@ -124,7 +124,7 @@ const TRANSLATIONS = {
     menu: 'Thực đơn',
     orders: 'Đơn hàng',
     settings: 'Cài đặt',
-    paymentCalendar: 'Thanh toán',
+    paymentCalendar: 'Thống Kê Tháng',
     protein: 'Đạm',
     carbs: 'Tinh bột',
     fat: 'Béo',
@@ -255,7 +255,7 @@ const TRANSLATIONS = {
     menu: 'Menu',
     orders: 'Orders',
     settings: 'Settings',
-    paymentCalendar: 'Payment',
+    paymentCalendar: 'Monthly Stats',
     protein: 'Protein',
     carbs: 'Carbs',
     fat: 'Fat',
@@ -386,7 +386,7 @@ const TRANSLATIONS = {
     menu: 'メニュー',
     orders: '注文',
     settings: '設定',
-    paymentCalendar: '支払い',
+    paymentCalendar: '月間統計',
     protein: 'タンパク質',
     carbs: '炭水化物',
     fat: '脂質',
@@ -642,7 +642,7 @@ export default function App() {
   
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
-  const { users } = useUsers();
+  const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers();
   const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
@@ -663,6 +663,26 @@ export default function App() {
   const { bannerType } = useBannerSettings();
   
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+
+  // Lọc các suất cơm theo user (trang admin)
+  const [orderFilterUserId, setOrderFilterUserId] = useState<number | 'all'>('all');
+  const [showOrderFilter, setShowOrderFilter] = useState(false);
+
+  // Modal chỉnh sửa user (trang admin)
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editUserFullname, setEditUserFullname] = useState('');
+  const [editUserUsername, setEditUserUsername] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'user' | 'admin'>('user');
+  const [editUserPassword, setEditUserPassword] = useState('');
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
+  // Danh sách suất cơm (lọc theo user nếu admin chọn)
+  const displayedOrders = useMemo(() => {
+    if (user?.role === 'admin' && orderFilterUserId !== 'all') {
+      return orders.filter(o => o.receiver?.id === orderFilterUserId || o.ordered_for === orderFilterUserId || o.user_id === orderFilterUserId);
+    }
+    return orders;
+  }, [orders, user?.role, orderFilterUserId]);
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [menuText, setMenuText] = useState('');
   const [multilingualMenus, setMultilingualMenus] = useState<Array<{vi: string, en: string, ja: string}>>([]);
@@ -2879,7 +2899,7 @@ export default function App() {
                 <div className="lacquer-card p-4 lg:p-10 lotus-pattern">
                   <div className="flex items-center justify-between mb-10">
                     <h3 className="text-2xl font-display font-bold tracking-tight">{user?.role === 'admin' ? t.admin.allOrders : t.orderHistory}</h3>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       {user?.role === 'admin' && (
                         <button 
                           onClick={handleExportMenu}
@@ -2889,17 +2909,91 @@ export default function App() {
                           {t.exportMenu}
                         </button>
                       )}
-                      <button className="p-3 bg-[#F5F2E9] rounded-xl border border-[#E5E1D1] text-[#1C1917]/40 hover:text-[#DA251D] transition-colors">
-                        <Filter size={20} />
-                      </button>
-                      <button className="p-3 bg-[#F5F2E9] rounded-xl border border-[#E5E1D1] text-[#1C1917]/40 hover:text-[#DA251D] transition-colors">
-                        <Search size={20} />
-                      </button>
+                      {user?.role === 'admin' && (
+                        <div className="relative">
+                          <button 
+                            onClick={() => setShowOrderFilter(!showOrderFilter)}
+                            className={`p-3 rounded-xl border transition-all flex items-center gap-2 ${
+                              orderFilterUserId !== 'all' 
+                                ? 'bg-[#DA251D] text-white border-[#DA251D] shadow-sm' 
+                                : 'bg-[#F5F2E9] border-[#E5E1D1] text-[#1C1917]/60 hover:text-[#DA251D]'
+                            }`}
+                            title="Lọc các suất cơm theo user"
+                          >
+                            <Filter size={20} />
+                            {orderFilterUserId !== 'all' && (
+                              <span className="text-xs font-bold truncate max-w-[120px]">
+                                {users.find(u => u.id === orderFilterUserId)?.fullname || 'Đã lọc'}
+                              </span>
+                            )}
+                          </button>
+                          
+                          {showOrderFilter && (
+                            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#E5E1D1] p-4 z-50">
+                              <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#E5E1D1]">
+                                <span className="text-xs font-bold text-[#1C1917]/60 uppercase tracking-wider">Lọc theo người ăn</span>
+                                {orderFilterUserId !== 'all' && (
+                                  <button 
+                                    onClick={() => { setOrderFilterUserId('all'); setShowOrderFilter(false); }}
+                                    className="text-xs text-[#DA251D] hover:underline font-semibold"
+                                  >
+                                    Xóa lọc
+                                  </button>
+                                )}
+                              </div>
+                              <div className="max-h-60 overflow-y-auto space-y-1">
+                                <button
+                                  onClick={() => { setOrderFilterUserId('all'); setShowOrderFilter(false); }}
+                                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${
+                                    orderFilterUserId === 'all' 
+                                      ? 'bg-[#DA251D]/10 text-[#DA251D] font-bold' 
+                                      : 'hover:bg-gray-100 text-[#1C1917]'
+                                  }`}
+                                >
+                                  Tất cả người dùng ({orders.length} đơn)
+                                </button>
+                                {users.map(u => {
+                                  const userOrderCount = orders.filter(o => o.receiver?.id === u.id || o.ordered_for === u.id || o.user_id === u.id).length;
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => { setOrderFilterUserId(u.id); setShowOrderFilter(false); }}
+                                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex items-center justify-between ${
+                                        orderFilterUserId === u.id 
+                                          ? 'bg-[#DA251D]/10 text-[#DA251D] font-bold' 
+                                          : 'hover:bg-gray-100 text-[#1C1917]'
+                                      }`}
+                                    >
+                                      <span className="truncate">{u.fullname}</span>
+                                      <span className="text-xs text-gray-400 font-mono ml-2">({userOrderCount})</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
+                  {orderFilterUserId !== 'all' && (
+                    <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-sm">
+                      <span className="text-[#DA251D] font-semibold flex items-center gap-2">
+                        <Filter size={16} />
+                        Đang lọc các suất ăn của: <strong>{users.find(u => u.id === orderFilterUserId)?.fullname}</strong> ({displayedOrders.length} suất)
+                      </span>
+                      <button 
+                        onClick={() => setOrderFilterUserId('all')}
+                        className="text-xs text-[#DA251D] font-bold underline hover:opacity-80"
+                      >
+                        Bỏ lọc
+                      </button>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
-                    {orders.map((order) => (
+                    {displayedOrders.map((order) => (
                       <div 
                         key={order.id} 
                         initial={{ opacity: 0, y: 20 }}
@@ -2997,7 +3091,7 @@ export default function App() {
                       </div>
                     ))}
                     
-                    {orders.length === 0 && (
+                    {displayedOrders.length === 0 && (
                       <div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -3975,17 +4069,51 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {users.map((user) => (
-                            <tr key={user.id} className="border-b border-[#E5E1D1]/50 last:border-0">
-                              <td className="py-4 font-bold text-sm text-[#1C1917]">{user.fullname}</td>
-                              <td className="py-4 text-sm text-[#1C1917]/60">{user.username}</td>
+                          {users.map((userItem) => (
+                            <tr key={userItem.id} className="border-b border-[#E5E1D1]/50 last:border-0 hover:bg-[#FDF4E3]/30 transition-colors">
+                              <td className="py-4 font-bold text-sm text-[#1C1917]">{userItem.fullname}</td>
+                              <td className="py-4 text-sm text-[#1C1917]/60 font-mono">{userItem.username}</td>
                               <td className="py-4">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${user.role === 'admin' ? 'bg-[#DA251D]/10 text-[#DA251D]' : 'bg-emerald-100 text-emerald-700'}`}>
-                                  {user.role}
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${userItem.role === 'admin' ? 'bg-[#DA251D]/10 text-[#DA251D]' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  {userItem.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
                                 </span>
                               </td>
                               <td className="py-4">
-                                <button className="text-[#DA251D] text-xs font-bold hover:underline">Chỉnh sửa</button>
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingUser(userItem);
+                                      setEditUserFullname(userItem.fullname || '');
+                                      setEditUserUsername(userItem.username || '');
+                                      setEditUserRole(userItem.role || 'user');
+                                      setEditUserPassword('');
+                                    }}
+                                    className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                                    title="Chỉnh sửa tài khoản"
+                                  >
+                                    <Edit size={14} />
+                                    Chỉnh sửa
+                                  </button>
+                                  {userItem.id !== user?.id && (
+                                    <button 
+                                      onClick={async () => {
+                                        if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${userItem.fullname}" (${userItem.username}) không?\n\nLƯU Ý: Hành động này không thể hoàn tác!`)) {
+                                          try {
+                                            await deleteUser(userItem.id);
+                                            alert('Đã xóa người dùng thành công!');
+                                          } catch (err) {
+                                            alert('Lỗi khi xóa người dùng: ' + (err.message || 'Lỗi server'));
+                                          }
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-1"
+                                      title="Xóa tài khoản"
+                                    >
+                                      <Trash2 size={14} />
+                                      Xóa
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -4503,6 +4631,132 @@ export default function App() {
                     Cập nhật
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Chỉnh sửa tài khoản */}
+      <AnimatePresence>
+        {editingUser && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+            <div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isSavingUser && setEditingUser(null)}
+              className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
+            />
+            <div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#E5E1D1] p-6 z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-[#E5E1D1] mb-5">
+                <h3 className="text-xl font-bold text-[#1C1917]">Chỉnh sửa tài khoản</h3>
+                <button 
+                  onClick={() => !isSavingUser && setEditingUser(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1917]/60 mb-1.5">
+                    Họ và tên *
+                  </label>
+                  <input
+                    type="text"
+                    value={editUserFullname}
+                    onChange={(e) => setEditUserFullname(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-[#E5E1D1] rounded-xl text-sm focus:outline-none focus:border-[#DA251D] focus:ring-1 focus:ring-[#DA251D]"
+                    placeholder="Nguyễn Văn A"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1917]/60 mb-1.5">
+                    Tên đăng nhập *
+                  </label>
+                  <input
+                    type="text"
+                    value={editUserUsername}
+                    onChange={(e) => setEditUserUsername(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-[#E5E1D1] rounded-xl text-sm focus:outline-none focus:border-[#DA251D] focus:ring-1 focus:ring-[#DA251D]"
+                    placeholder="nguyenvana"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1917]/60 mb-1.5">
+                    Vai trò
+                  </label>
+                  <select
+                    value={editUserRole}
+                    onChange={(e) => setEditUserRole(e.target.value as 'user' | 'admin')}
+                    className="w-full px-3 py-2.5 border border-[#E5E1D1] rounded-xl text-sm bg-white focus:outline-none focus:border-[#DA251D] focus:ring-1 focus:ring-[#DA251D]"
+                  >
+                    <option value="user">Nhân viên (user)</option>
+                    <option value="admin">Quản trị viên (admin)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1917]/60 mb-1.5">
+                    Mật khẩu mới (tùy chọn)
+                  </label>
+                  <input
+                    type="password"
+                    value={editUserPassword}
+                    onChange={(e) => setEditUserPassword(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-[#E5E1D1] rounded-xl text-sm focus:outline-none focus:border-[#DA251D] focus:ring-1 focus:ring-[#DA251D]"
+                    placeholder="Để trống nếu không muốn đổi mật khẩu"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-4 border-t border-[#E5E1D1]">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  disabled={isSavingUser}
+                  className="flex-1 px-4 py-2.5 border border-[#E5E1D1] text-[#1C1917] rounded-xl font-bold text-sm hover:bg-[#F5F2E9] transition-colors disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingUser || !editUserFullname.trim() || !editUserUsername.trim()}
+                  onClick={async () => {
+                    if (!editUserFullname.trim() || !editUserUsername.trim()) {
+                      alert('Vui lòng nhập đầy đủ họ tên và tên đăng nhập');
+                      return;
+                    }
+                    try {
+                      setIsSavingUser(true);
+                      await updateUser(editingUser.id, {
+                        fullname: editUserFullname.trim(),
+                        username: editUserUsername.trim(),
+                        role: editUserRole,
+                        password: editUserPassword.trim() || undefined
+                      });
+                      alert('Cập nhật tài khoản thành công!');
+                      setEditingUser(null);
+                    } catch (err) {
+                      alert('Lỗi cập nhật: ' + (err.message || 'Lỗi server'));
+                    } finally {
+                      setIsSavingUser(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-[#DA251D] text-white rounded-xl font-bold text-sm hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50"
+                >
+                  {isSavingUser ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
               </div>
             </div>
           </div>

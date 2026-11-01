@@ -1294,6 +1294,123 @@ app.get('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
+// Update user (admin only)
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const userId = parseInt(req.params.id);
+    const { fullname, role, username, password } = req.body;
+
+    const updateData = {};
+    if (fullname && fullname.trim()) updateData.fullname = fullname.trim();
+    if (role && ['user', 'admin'].includes(role)) updateData.role = role;
+    if (username && username.trim()) updateData.username = username.trim().toLowerCase();
+    if (password && password.trim()) {
+      updateData.password = await bcrypt.hash(password.trim(), 10);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'Không có thông tin cần cập nhật' });
+    }
+
+    // Kiểm tra username trùng lặp nếu có thay đổi
+    if (updateData.username) {
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', updateData.username)
+        .neq('id', userId)
+        .maybeSingle();
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'Tên đăng nhập đã tồn tại' });
+      }
+    }
+
+    const { data: updatedUser, error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', userId)
+        .select('id, username, fullname, role, created_at')
+        .single();
+
+    if (error) {
+      console.error('Update user error:', error);
+      return res.status(500).json({ error: 'Lỗi database: ' + error.message });
+    }
+
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Update user role (admin only)
+app.patch('/api/users/:id/role', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const userId = parseInt(req.params.id);
+    const { role } = req.body;
+
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Vai trò không hợp lệ' });
+    }
+
+    const { data: updatedUser, error } = await supabase
+        .from('users')
+        .update({ role })
+        .eq('id', userId)
+        .select('id, username, fullname, role, created_at')
+        .single();
+
+    if (error) {
+      console.error('Update user role error:', error);
+      return res.status(500).json({ error: 'Lỗi database: ' + error.message });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Delete user (admin only)
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const userId = parseInt(req.params.id);
+    if (req.user.id === userId) {
+      return res.status(400).json({ error: 'Không thể tự xóa tài khoản của chính mình' });
+    }
+
+    const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+    if (error) {
+      console.error('Delete user error:', error);
+      return res.status(500).json({ error: 'Lỗi database: ' + error.message });
+    }
+
+    res.json({ success: true, message: 'Đã xóa người dùng thành công' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // =====================================================
 // Payment Query Builder - Optimized JOIN queries
 // =====================================================
