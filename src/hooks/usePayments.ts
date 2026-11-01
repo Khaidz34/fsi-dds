@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
-import { realtimeManager } from '../services/realtime';
 
 export interface PaymentStats {
   month: string;
@@ -24,16 +23,15 @@ export const usePayments = (month?: string) => {
   const [error, setError] = useState<string | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchPaymentStats = async (isInitial: boolean = false) => {
+  const fetchPaymentStats = async (isInitial: boolean = false, isSilent: boolean = false) => {
     try {
-      // Clear any pending fetch
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
 
       if (isInitial) {
         setIsLoading(true);
-      } else {
+      } else if (!isSilent) {
         setIsRefreshing(true);
       }
       setError(null);
@@ -41,8 +39,6 @@ export const usePayments = (month?: string) => {
       if (user?.role === 'admin') {
         const response = await paymentsAPI.getAll(month);
 
-        // Preferred: server-computed totals across ALL users with debt.
-        // (Summing response.data would only cover the first page of 20 users.)
         if (response?.summary) {
           const summary = response.summary;
           setPaymentStats({
@@ -58,19 +54,17 @@ export const usePayments = (month?: string) => {
           return;
         }
 
-        // Fallback for an older backend without `summary`
-        // Handle both old format (array) and new format (object with data property)
         const data = Array.isArray(response) ? response : response?.data || [];
         
-        const totalStats = data.reduce((acc, curr) => ({
+        const totalStats = data.reduce((acc: any, curr: any) => ({
           month: month || new Date().toISOString().slice(0, 7),
-          ordersCount: acc.ordersCount + curr.ordersCount,
-          ordersTotal: acc.ordersTotal + curr.ordersTotal,
-          paidCount: acc.paidCount + curr.paidCount,
-          paidTotal: acc.paidTotal + curr.paidTotal,
-          remainingCount: acc.remainingCount + curr.remainingCount,
-          remainingTotal: acc.remainingTotal + curr.remainingTotal,
-          overpaidTotal: acc.overpaidTotal + (curr.overpaidTotal || 0)
+          ordersCount: acc.ordersCount + (Number(curr.ordersCount) || 0),
+          ordersTotal: acc.ordersTotal + (Number(curr.ordersTotal) || 0),
+          paidCount: acc.paidCount + (Number(curr.paidCount) || 0),
+          paidTotal: acc.paidTotal + (Number(curr.paidTotal) || 0),
+          remainingCount: acc.remainingCount + (Number(curr.remainingCount) || 0),
+          remainingTotal: acc.remainingTotal + (Number(curr.remainingTotal) || 0),
+          overpaidTotal: acc.overpaidTotal + (Number(curr.overpaidTotal) || 0)
         }), {
           month: month || new Date().toISOString().slice(0, 7),
           ordersCount: 0,
@@ -88,7 +82,6 @@ export const usePayments = (month?: string) => {
         setPaymentStats(totalStats);
       } else {
         const response = await paymentsAPI.getMy(month);
-        // Handle both old format (object) and new format (object with data property)
         const data = response?.data ? response.data[0] : response;
         setPaymentStats(data);
       }
@@ -107,7 +100,7 @@ export const usePayments = (month?: string) => {
     } finally {
       if (isInitial) {
         setIsLoading(false);
-      } else {
+      } else if (!isSilent) {
         setIsRefreshing(false);
       }
     }
@@ -115,57 +108,41 @@ export const usePayments = (month?: string) => {
 
   useEffect(() => {
     if (user?.id) {
-      const initialFetch = async () => {
-        await fetchPaymentStats(true);
+      // Fetch initial
+      fetchPaymentStats(true, false);
+
+      // Realtime subscription for payments table (silent update)
+      const paymentsChannelName = `payments_stats_${user.role}_${user.id}`;
+      const paymentsSubscription = subscribeToTable('payments', () => {
+        console.log('💰 Realtime: Payment update detected, updating stats silently...');
+        fetchPaymentStats(false, true);
+      }, paymentsChannelName);
+
+      // Realtime subscription for orders table (silent update)
+      const ordersChannelName = `orders_stats_${user.role}_${user.id}`;
+      const ordersSubscription = subscribeToTable('orders', () => {
+        console.log('📦 Realtime: Order update detected, updating stats silently...');
+        fetchPaymentStats(false, true);
+      }, ordersChannelName);
+
+      // Silent fallback poll every 30 seconds (no spinner, no screen flickering)
+      const fallbackPoll = setInterval(() => {
+        fetchPaymentStats(false, true);
+      }, 30000);
+
+      return () => {
+        clearInterval(fallbackPoll);
+        unsubscribeFromTable(paymentsSubscription);
+        unsubscribeFromTable(ordersSubscription);
       };
-      
-      initialFetch();
-      
-      if (user?.role === 'admin') {
-        // Admin: Poll every 3 seconds to monitor all users
-        const pollInterval = setInterval(() => {
-          console.log('🔄 Polling payment stats (admin)...');
-          fetchPaymentStats(false);
-        }, 3000);
-
-        return () => {
-          clearInterval(pollInterval);
-        };
-      } else {
-        // User: Subscribe to realtime updates on payments and orders tables
-        // Only refresh when admin marks payment or when orders change
-        console.log('👂 Subscribing to payment & order updates (user)...');
-        
-        const paymentsSubscription = subscribeToTable('payments', () => {
-          console.log('💰 Payment update received, refreshing stats...');
-          fetchPaymentStats(false);
-        }, `payments_user_${user.id}`);
-
-        const ordersSubscription = subscribeToTable('orders', () => {
-          console.log('📦 Order update received, refreshing stats...');
-          fetchPaymentStats(false);
-        }, `orders_user_${user.id}`);
-
-        return () => {
-          unsubscribeFromTable(paymentsSubscription);
-          unsubscribeFromTable(ordersSubscription);
-        };
-      }
     }
-  }, [user?.id, user?.role]);
-
-  // Separate effect for month changes - just refetch data
-  useEffect(() => {
-    if (user?.id) {
-      fetchPaymentStats(false);
-    }
-  }, [month]);
+  }, [user?.id, user?.role, month]);
 
   return {
     paymentStats,
     isLoading,
     isRefreshing,
     error,
-    refetch: () => fetchPaymentStats(false)
+    refetch: () => fetchPaymentStats(false, false)
   };
 };

@@ -125,14 +125,16 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     setMonthlyOrders(calendarData);
   }, [orders, currentMonth]);
 
-  const loadAutoPaymentInfo = async () => {
+  const loadAutoPaymentInfo = async (isSilent: boolean = false) => {
     if (!user || user.role === 'admin') {
       setAutoPaymentInfo(null);
       return;
     }
 
     try {
-      setIsAutoPaymentLoading(true);
+      if (!isSilent) {
+        setIsAutoPaymentLoading(true);
+      }
       setAutoPaymentError(null);
       setAutoPaymentQrFailed(false);
       const info = await paymentsAPI.getAutoInfo(currentMonth);
@@ -141,7 +143,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
       console.error('Auto payment info error:', error);
       setAutoPaymentError(error instanceof Error ? error.message : 'Không tải được thông tin thanh toán tự động');
     } finally {
-      setIsAutoPaymentLoading(false);
+      if (!isSilent) {
+        setIsAutoPaymentLoading(false);
+      }
     }
   };
 
@@ -160,28 +164,33 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     }
   };
 
-  const loadPaymentHistory = async () => {
+  const loadPaymentHistory = async (isSilent: boolean = false) => {
     if (!user || user.role === 'admin') {
       setPaymentHistory([]);
       return;
     }
 
     try {
-      setIsPaymentHistoryLoading(true);
+      if (!isSilent) {
+        setIsPaymentHistoryLoading(true);
+      }
       const response = await paymentsAPI.getMyHistory(currentMonth, 50);
       setPaymentHistory(Array.isArray(response?.data) ? response.data : []);
     } catch (error) {
       console.error('My payment history error:', error);
       setPaymentHistory([]);
     } finally {
-      setIsPaymentHistoryLoading(false);
+      if (!isSilent) {
+        setIsPaymentHistoryLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadAutoPaymentInfo();
+    const isFirstTime = !autoPaymentInfo;
+    loadAutoPaymentInfo(!isFirstTime);
     loadAutoPaymentUsage();
-    loadPaymentHistory();
+    loadPaymentHistory(!isFirstTime);
   }, [currentMonth, user?.id, user?.role, paymentStats?.remainingTotal]);
 
   useEffect(() => {
@@ -477,14 +486,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
         <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all `}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
-            {isRefreshing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
-              </div>
-            )}
             <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
               <ShoppingBag className="text-app-accent" size={24} />
             </div>
@@ -499,14 +503,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all `}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
-            {isRefreshing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
-              </div>
-            )}
             <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
               <CheckCircle className="text-app-accent" size={24} />
             </div>
@@ -521,14 +520,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all `}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
-            {isRefreshing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
-              </div>
-            )}
             <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
               <Clock className="text-app-accent" size={24} />
             </div>
@@ -548,14 +542,9 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all ${isRefreshing ? 'opacity-60' : ''}`}
+          className={`payment-stat-card lacquer-card bg-white/95 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-app-accent/15 shadow-sm transition-all `}
         >
           <div className="flex items-center gap-3 sm:gap-4 relative">
-            {isRefreshing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 rounded-xl">
-                <div className="w-6 h-6 border-2 border-app-accent/20 border-t-app-accent rounded-full animate-spin"></div>
-              </div>
-            )}
             <div className="payment-stat-icon w-9 h-9 sm:w-12 sm:h-12 bg-app-accent/10 rounded-xl flex items-center justify-center">
               <DollarSign className="text-app-accent" size={24} />
             </div>

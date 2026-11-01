@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ordersAPI } from '../services/api';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,15 +23,14 @@ export const useMonthlyOrders = (month: string) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (isSilent: boolean = false) => {
     try {
-      setIsLoading(true);
+      if (!isSilent) {
+        setIsLoading(true);
+      }
       setError(null);
-      // Get all orders (not just today)
       const data = await ordersAPI.getAll();
-      // Filter by month
       const filteredData = data.filter(order => 
         order.created_at && order.created_at.startsWith(month)
       );
@@ -39,33 +38,36 @@ export const useMonthlyOrders = (month: string) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải đơn hàng');
     } finally {
-      setIsLoading(false);
+      if (!isSilent) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchOrders();
-    
-    // Only setup polling for admin users
-    if (user?.role === 'admin') {
-      // Poll for new orders every 3 seconds
-      pollIntervalRef.current = setInterval(() => {
-        fetchOrders();
-      }, 3000);
+    fetchOrders(false);
 
-      return () => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-        }
-      };
-    }
-    // For regular users, no auto refresh - data only updates on manual refetch
+    // Setup realtime subscription to orders table (silent updates)
+    const ordersChannel = subscribeToTable('orders', () => {
+      console.log('📦 Realtime: Order update received in monthly orders, refreshing silently...');
+      fetchOrders(true);
+    }, 'monthly_orders_realtime');
+
+    // Silent fallback poll every 30 seconds
+    const fallbackPoll = setInterval(() => {
+      fetchOrders(true);
+    }, 30000);
+
+    return () => {
+      clearInterval(fallbackPoll);
+      unsubscribeFromTable(ordersChannel);
+    };
   }, [month, user?.role]);
 
   return {
     orders,
     isLoading,
     error,
-    refetch: fetchOrders
+    refetch: () => fetchOrders(false)
   };
 };
