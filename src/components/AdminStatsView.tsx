@@ -10,9 +10,7 @@ import {
   Calendar as CalendarIcon,
   CheckCircle2,
   Clock,
-  ArrowRight,
-  TrendingUp,
-  AlertCircle
+  ArrowRight
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -23,7 +21,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { useMonthlyOrders, Order } from '../hooks/useMonthlyOrders';
+import { useMonthlyOrders } from '../hooks/useMonthlyOrders';
 import { ordersAPI } from '../services/api';
 
 interface AdminStatsViewProps {
@@ -49,7 +47,7 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
   const [weeklyData, setWeeklyData] = useState<Array<{ name: string; orders: number; date: string }>>([]);
   const [isWeeklyLoading, setIsWeeklyLoading] = useState(false);
 
-  // Real-time monthly orders for the selected month
+  // Real-time monthly orders for the selected month (instant in-memory cache)
   const { orders, isLoading, refetch } = useMonthlyOrders(selectedMonth);
 
   // Fetch weekly data
@@ -143,25 +141,17 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [orders]);
 
-  // Navigate months
+  // Navigate months using native Date to avoid any indexing errors
   const [selectedYearNum, selectedMonthNum] = useMemo(() => {
     const [y, m] = selectedMonth.split('-').map(Number);
-    return [y, m - 1]; // 0-indexed
+    return [y, m]; // 1-indexed (e.g. 10 for October, 11 for November)
   }, [selectedMonth]);
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    let newYear = selectedYearNum;
-    let newMonth = direction === 'prev' ? selectedMonthNum : selectedMonthNum + 2;
-
-    if (newMonth < 1) {
-      newMonth = 12;
-      newYear -= 1;
-    } else if (newMonth > 12) {
-      newMonth = 1;
-      newYear += 1;
-    }
-
-    setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + (direction === 'prev' ? -1 : 1), 1);
+    const nextStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    setSelectedMonth(nextStr);
   };
 
   const goToCurrentMonth = () => {
@@ -213,7 +203,7 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
 
             <div className="px-3 py-1 text-center min-w-[120px]">
               <p className="text-xs font-black uppercase tracking-wider text-app-ink">
-                Tháng {selectedMonthNum + 1} / {selectedYearNum}
+                Tháng {selectedMonthNum} / {selectedYearNum}
               </p>
               {isCurrentMonthActive && (
                 <span className="text-[10px] font-bold text-app-accent">Tháng này</span>
@@ -280,7 +270,7 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
               <BarChart3 size={20} />
             </div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-              T{selectedMonthNum + 1}/{selectedYearNum}
+              T{selectedMonthNum}/{selectedYearNum}
             </span>
           </div>
           <p className="text-xs font-bold text-app-ink/50 uppercase tracking-wider mb-1">
@@ -291,7 +281,7 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
             <span className="text-xs font-bold text-app-ink/40 uppercase">suất</span>
           </div>
           <p className="text-[11px] text-app-ink/45 mt-2">
-            Tổng số suất đặt trong tháng {selectedMonthNum + 1}
+            Tổng số suất đặt trong tháng {selectedMonthNum}
           </p>
         </div>
 
@@ -448,7 +438,7 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-app-accent/10">
           <div>
             <h3 className="text-lg font-display font-bold text-app-ink tracking-tight">
-              Tổng kết suất ăn theo ngày trong tháng {selectedMonthNum + 1}/{selectedYearNum}
+              Tổng kết suất ăn theo ngày trong tháng {selectedMonthNum}/{selectedYearNum}
             </h3>
             <p className="text-xs text-app-ink/55">
               Danh sách các ngày có phục vụ cơm trong tháng
@@ -512,7 +502,7 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
         ) : (
           <div className="text-center py-10 text-gray-400 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
             <CalendarIcon size={28} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm font-semibold text-app-ink/60">Tháng {selectedMonthNum + 1}/{selectedYearNum} chưa có đơn đặt cơm nào</p>
+            <p className="text-sm font-semibold text-app-ink/60">Tháng {selectedMonthNum}/{selectedYearNum} chưa có đơn đặt cơm nào</p>
             <p className="text-xs text-app-ink/40 mt-1">Dữ liệu sẽ tự động hiển thị khi nhân viên đặt món</p>
           </div>
         )}

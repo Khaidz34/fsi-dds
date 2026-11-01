@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ordersAPI } from '../services/api';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,56 +19,96 @@ export interface Order {
   receiver?: { id: number; fullname: string };
 }
 
+// Global in-memory cache shared across components and month switches
+let cachedAllOrders: Order[] | null = null;
+let fetchPromise: Promise<Order[]> | null = null;
+const listeners = new Set<(orders: Order[]) => void>();
+
+const notifyListeners = (orders: Order[]) => {
+  listeners.forEach(listener => {
+    try {
+      listener(orders);
+    } catch (e) {
+      console.error('Error notifying orders listener:', e);
+    }
+  });
+};
+
 export const useMonthlyOrders = (month: string) => {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [allOrders, setAllOrders] = useState<Order[]>(() => cachedAllOrders || []);
+  const [isLoading, setIsLoading] = useState(() => !cachedAllOrders);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchOrders = async (isSilent: boolean = false) => {
+  // Subscribe to changes from the global cache
+  useEffect(() => {
+    const handleUpdate = (newOrders: Order[]) => {
+      setAllOrders(newOrders);
+      setIsLoading(false);
+    };
+    listeners.add(handleUpdate);
+    return () => {
+      listeners.delete(handleUpdate);
+    };
+  }, []);
+
+  const loadAllOrders = useCallback(async (isSilent: boolean = false) => {
     try {
-      if (!isSilent) {
+      if (!isSilent && !cachedAllOrders) {
         setIsLoading(true);
       }
       setError(null);
-      const data = await ordersAPI.getAll();
-      const filteredData = data.filter(order => 
-        order.created_at && order.created_at.startsWith(month)
-      );
-      setOrders(filteredData);
+
+      if (!fetchPromise) {
+        fetchPromise = ordersAPI.getAll().finally(() => {
+          fetchPromise = null;
+        });
+      }
+
+      const data = await fetchPromise;
+      const validData = Array.isArray(data) ? data : [];
+      cachedAllOrders = validData;
+      notifyListeners(validData);
+      setAllOrders(validData);
     } catch (err) {
+      console.error('Error loading orders in useMonthlyOrders:', err);
       setError(err instanceof Error ? err.message : 'Lỗi khi tải đơn hàng');
     } finally {
-      if (!isSilent) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
-  };
+  }, []);
 
+  // Fetch once on mount or when user changes
   useEffect(() => {
-    fetchOrders(false);
+    if (user?.id) {
+      loadAllOrders(!!cachedAllOrders);
 
-    // Setup realtime subscription to orders table (silent updates)
-    const ordersChannel = subscribeToTable('orders', () => {
-      console.log('📦 Realtime: Order update received in monthly orders, refreshing silently...');
-      fetchOrders(true);
-    }, 'monthly_orders_realtime');
+      // Subscribe to realtime orders table once per user
+      const channelName = `realtime_monthly_orders_${user.id}`;
+      const channel = subscribeToTable('orders', () => {
+        console.log('📦 Realtime: Order update received, refreshing global cache silently...');
+        loadAllOrders(true);
+      }, channelName);
 
-    // Silent fallback poll every 30 seconds
-    const fallbackPoll = setInterval(() => {
-      fetchOrders(true);
-    }, 30000);
+      return () => {
+        unsubscribeFromTable(channel);
+      };
+    }
+  }, [user?.id, loadAllOrders]);
 
-    return () => {
-      clearInterval(fallbackPoll);
-      unsubscribeFromTable(ordersChannel);
-    };
-  }, [month, user?.role]);
+  // Instant in-memory filter by month - ZERO LATENCY, NO RACE CONDITIONS!
+  const orders = useMemo(() => {
+    if (!month) return allOrders;
+    return allOrders.filter(order => 
+      order.created_at && order.created_at.startsWith(month)
+    );
+  }, [allOrders, month]);
 
   return {
     orders,
-    isLoading,
+    allOrders,
+    isLoading: isLoading && allOrders.length === 0,
     error,
-    refetch: () => fetchOrders(false)
+    refetch: () => loadAllOrders(false)
   };
 };

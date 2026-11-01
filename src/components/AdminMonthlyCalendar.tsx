@@ -6,7 +6,6 @@ import {
   RefreshCw, 
   Utensils, 
   Clock, 
-  User as UserIcon,
   CalendarCheck
 } from 'lucide-react';
 import { useMonthlyOrders, Order } from '../hooks/useMonthlyOrders';
@@ -29,11 +28,9 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
   }, []);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  });
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
-  // Real-time monthly orders for the selected month
+  // Real-time monthly orders for the selected month (instant in-memory cache)
   const { orders, isLoading, refetch } = useMonthlyOrders(selectedMonth);
 
   const todayStr = useMemo(() => {
@@ -54,25 +51,18 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
     return map;
   }, [orders]);
 
-  // Navigate months
+  // Navigate months using native Date constructor
   const [selectedYearNum, selectedMonthNum] = useMemo(() => {
     const [y, m] = selectedMonth.split('-').map(Number);
-    return [y, m - 1]; // 0-indexed
+    return [y, m]; // 1-indexed (e.g. 10 for October, 11 for November)
   }, [selectedMonth]);
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    let newYear = selectedYearNum;
-    let newMonth = direction === 'prev' ? selectedMonthNum : selectedMonthNum + 2;
-
-    if (newMonth < 1) {
-      newMonth = 12;
-      newYear -= 1;
-    } else if (newMonth > 12) {
-      newMonth = 1;
-      newYear += 1;
-    }
-
-    setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + (direction === 'prev' ? -1 : 1), 1);
+    const nextStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    setSelectedMonth(nextStr);
+    setSelectedDate(''); // Reset selected date to auto-pick for new month
   };
 
   const goToCurrentMonth = () => {
@@ -80,10 +70,27 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
     setSelectedDate(todayStr);
   };
 
+  // Determine active selected date within the current month
+  const activeSelectedDate = useMemo(() => {
+    if (selectedDate && selectedDate.startsWith(selectedMonth)) {
+      return selectedDate;
+    }
+    // If viewing current month and today is in it
+    if (selectedMonth === currentMonthStr) {
+      return todayStr;
+    }
+    // Pick the latest date with orders in this month, or the 1st
+    const datesWithOrders = Object.keys(ordersByDate).sort();
+    if (datesWithOrders.length > 0) {
+      return datesWithOrders[datesWithOrders.length - 1];
+    }
+    return `${selectedMonth}-01`;
+  }, [selectedDate, selectedMonth, currentMonthStr, todayStr, ordersByDate]);
+
   // Calendar days generation
   const calendarDays = useMemo(() => {
-    const firstDay = new Date(selectedYearNum, selectedMonthNum, 1);
-    const lastDay = new Date(selectedYearNum, selectedMonthNum + 1, 0);
+    const firstDay = new Date(selectedYearNum, selectedMonthNum - 1, 1);
+    const lastDay = new Date(selectedYearNum, selectedMonthNum, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay(); // 0 is Sunday, 1 is Monday ...
 
@@ -103,7 +110,7 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
 
     // Days in month
     for (let i = 1; i <= daysInMonth; i++) {
-      const dateString = `${selectedYearNum}-${String(selectedMonthNum + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const dateString = `${selectedYearNum}-${String(selectedMonthNum).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
       const dayOrders = ordersByDate[dateString] || [];
       days.push({
         day: i,
@@ -111,25 +118,25 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
         orderCount: dayOrders.length,
         orders: dayOrders,
         isToday: dateString === todayStr,
-        isSelected: dateString === selectedDate
+        isSelected: dateString === activeSelectedDate
       });
     }
 
     return days;
-  }, [selectedYearNum, selectedMonthNum, ordersByDate, todayStr, selectedDate]);
+  }, [selectedYearNum, selectedMonthNum, ordersByDate, todayStr, activeSelectedDate]);
 
   // Selected date orders
   const selectedDayOrders = useMemo(() => {
-    if (!selectedDate) return [];
-    return ordersByDate[selectedDate] || [];
-  }, [selectedDate, ordersByDate]);
+    if (!activeSelectedDate) return [];
+    return ordersByDate[activeSelectedDate] || [];
+  }, [activeSelectedDate, ordersByDate]);
 
   const activeDaysCount = useMemo(() => {
     return Object.keys(ordersByDate).length;
   }, [ordersByDate]);
 
   const avgMealsPerDay = useMemo(() => {
-    if (activeDaysCount === 0) return 0;
+    if (activeDaysCount === 0) return '0';
     return (orders.length / activeDaysCount).toFixed(1);
   }, [orders.length, activeDaysCount]);
 
@@ -175,7 +182,7 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
             <span>Lịch đặt cơm công ty</span>
           </div>
           <h2 className="text-2xl lg:text-3xl font-display font-black tracking-tight text-app-ink">
-            Lịch đặt cơm — Tháng {selectedMonthNum + 1}/{selectedYearNum}
+            Lịch đặt cơm — Tháng {selectedMonthNum}/{selectedYearNum}
           </h2>
           <p className="text-xs sm:text-sm text-app-ink/60 mt-0.5">
             Xem số lượng suất ăn từng ngày và danh sách chi tiết nhân viên đặt cơm
@@ -195,7 +202,7 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
 
             <div className="px-3 py-1 text-center min-w-[120px]">
               <p className="text-xs font-black uppercase tracking-wider text-app-ink">
-                Tháng {selectedMonthNum + 1} / {selectedYearNum}
+                Tháng {selectedMonthNum} / {selectedYearNum}
               </p>
               {isCurrentMonthActive && (
                 <span className="text-[10px] font-bold text-app-accent">Tháng này</span>
@@ -355,7 +362,7 @@ export const AdminMonthlyCalendar: React.FC<AdminMonthlyCalendarProps> = ({
               </div>
               <div>
                 <h4 className="text-base font-bold text-app-ink">
-                  Danh sách đặt cơm: {formatDisplayDate(selectedDate)}
+                  Danh sách đặt cơm: {formatDisplayDate(activeSelectedDate)}
                 </h4>
                 <p className="text-xs text-app-ink/50">
                   Tổng cộng: <strong className="text-app-accent font-black">{selectedDayOrders.length} suất ăn</strong>
