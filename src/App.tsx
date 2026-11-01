@@ -2915,6 +2915,12 @@ export default function App() {
                               <p className="text-sm font-bold text-[#1C1917]">
                                 {order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : 'N/A'}
                               </p>
+                              {order.created_at && (
+                                <p className="text-xs font-semibold text-emerald-600 flex items-center justify-center md:justify-start gap-1 mt-0.5" title="Giờ đặt cơm">
+                                  <Clock size={12} className="inline flex-shrink-0" />
+                                  <span>{new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </p>
+                              )}
                             </div>
                             
                             {/* Người ăn */}
@@ -4402,6 +4408,12 @@ export default function App() {
                   <p className="text-sm text-gray-600">
                     {getDishName(editingOrder.dish1, currentLang)} {editingOrder.dish2?.name ? `+ ${getDishName(editingOrder.dish2, currentLang)}` : ''}
                   </p>
+                  {editingOrder.created_at && (
+                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1 font-medium">
+                      <Clock size={12} className="inline text-emerald-600" />
+                      <span>Đặt lúc: {new Date(editingOrder.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ({new Date(editingOrder.created_at).toLocaleDateString('vi-VN')})</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Dish 1 Selection */}
