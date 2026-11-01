@@ -586,45 +586,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             </button>
           </div>
 
-          {autoPaymentUsage && (
-            <div className="payment-quota-card payment-inner-card mb-5 rounded-xl border border-app-accent/15 bg-app-accent/5 p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase font-bold text-app-accent">Lượt chuyển khoản tự động</p>
-                  <p className="text-xl sm:text-2xl font-black text-app-ink mt-1">
-                    {autoPaymentUsageHeadline}
-                  </p>
-                  <p className="text-xs sm:text-sm text-app-ink/65 mt-1 leading-snug">
-                    {autoPaymentUsageDescription}
-                  </p>
-                  {autoPaymentUsage.providerSynced && (
-                    <p className="text-xs text-app-accent mt-1">
-                      Đã đồng bộ từ SePay: {autoPaymentUsage.providerUsed?.toLocaleString() || 0} lượt đã dùng.
-                    </p>
-                  )}
-                </div>
-
-                {autoPaymentUsage.limit && (
-                  <div className="w-full sm:w-56">
-                    <div className="flex items-center justify-between text-xs font-bold text-app-accent mb-2">
-                      <span>Đã dùng</span>
-                      <span>{autoPaymentUsagePercent}%</span>
-                    </div>
-                    <div className="h-3 bg-white rounded-full overflow-hidden border border-app-accent/10">
-                      <div
-                        className={`h-full rounded-full ${autoPaymentQuotaClass}`}
-                        style={{ width: `${autoPaymentUsagePercent}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {autoPaymentUsage.remaining === 0 && autoPaymentUsage.limit && (
-                <div className="mt-3 rounded-lg border border-app-gold/30 bg-app-gold/10 px-3 py-2 text-sm text-app-ink">
+          {autoPaymentUsage && autoPaymentUsage.remaining === 0 && autoPaymentUsage.limit && (
+            <div className="payment-quota-card payment-inner-card mb-5 rounded-xl border border-app-gold/30 bg-app-gold/10 p-3 sm:p-4 text-app-ink">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={18} className="text-app-gold shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm">
                   Gói tự động đã hết lượt trong tháng. Giao diện đã chuyển sang thanh toán trực tiếp qua tài khoản TPBank; admin sẽ kiểm tra và xác nhận thủ công.
-                </div>
-              )}
+                </p>
+              </div>
             </div>
           )}
 

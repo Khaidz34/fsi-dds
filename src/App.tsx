@@ -74,6 +74,7 @@ import { AdminBannerControl } from './components/AdminBannerControl';
 import { AdminVideoControl } from './components/AdminVideoControl';
 import { VideoOverlay } from './components/VideoOverlay';
 import PaymentDashboard from './components/PaymentDashboard';
+import { AdminUnifiedStats } from './components/AdminUnifiedStats';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
 import { AnimatePresence } from './framer-motion-mock';
@@ -125,7 +126,7 @@ const TRANSLATIONS = {
     menu: 'Thực đơn',
     orders: 'Đơn hàng',
     settings: 'Cài đặt',
-    paymentCalendar: 'Thống Kê Tháng',
+    paymentCalendar: 'Thanh toán',
     protein: 'Đạm',
     carbs: 'Tinh bột',
     fat: 'Béo',
@@ -256,7 +257,7 @@ const TRANSLATIONS = {
     menu: 'Menu',
     orders: 'Orders',
     settings: 'Settings',
-    paymentCalendar: 'Monthly Stats',
+    paymentCalendar: 'Payment',
     protein: 'Protein',
     carbs: 'Carbs',
     fat: 'Fat',
@@ -387,7 +388,7 @@ const TRANSLATIONS = {
     menu: 'メニュー',
     orders: '注文',
     settings: '設定',
-    paymentCalendar: '月間統計',
+    paymentCalendar: '支払い',
     protein: 'タンパク質',
     carbs: '炭水化物',
     fat: '脂質',
@@ -868,7 +869,7 @@ export default function App() {
     }
 
     if (activeTab === 'menu') return 'Chọn món, kiểm tra tùy chọn và đặt cơm trong một màn hình';
-    if (activeTab === 'payment-calendar') return 'Theo dõi công nợ, QR thanh toán và lịch đặt theo tháng';
+    if (activeTab === 'payment-calendar') return 'Theo dõi công nợ, QR thanh toán và lịch ăn cá nhân';
     if (activeTab === 'orders') return 'Xem lại các suất cơm đã đặt và trạng thái gần nhất';
     return 'Tổng quan đặt cơm, thanh toán và hoạt động trong tuần';
   }, [activeTab, user?.role]);
@@ -1593,16 +1594,18 @@ export default function App() {
                       refetchOrders();
                     }} 
                   />
-                  <MobileSidebarItem 
-                    icon={<Calendar size={18} />} 
-                    label={t.paymentCalendar} 
-                    active={activeTab === 'payment-calendar'} 
-                    onClick={() => {
-                      setActiveTab('payment-calendar');
-                      setIsMobileMenuOpen(false);
-                      refetchOrders();
-                    }} 
-                  />
+                  {user?.role !== 'admin' && (
+                    <MobileSidebarItem 
+                      icon={<Calendar size={18} />} 
+                      label={t.paymentCalendar} 
+                      active={activeTab === 'payment-calendar'} 
+                      onClick={() => {
+                        setActiveTab('payment-calendar');
+                        setIsMobileMenuOpen(false);
+                        refetchOrders();
+                      }} 
+                    />
+                  )}
                   <MobileSidebarItem 
                     icon={<MessageSquare size={18} />} 
                     label={t.feedback} 
@@ -1774,12 +1777,14 @@ export default function App() {
                 refetchOrders();
               }} 
             />
-            <SidebarItem 
-              icon={<Calendar size={20} />} 
-              label={t.paymentCalendar} 
-              active={activeTab === 'payment-calendar'} 
-              onClick={() => setActiveTab('payment-calendar')} 
-            />
+            {user?.role !== 'admin' && (
+              <SidebarItem 
+                icon={<Calendar size={20} />} 
+                label={t.paymentCalendar} 
+                active={activeTab === 'payment-calendar'} 
+                onClick={() => setActiveTab('payment-calendar')} 
+              />
+            )}
             <SidebarItem 
               icon={<MessageSquare size={20} />} 
               label={t.admin.feedback} 
@@ -1874,15 +1879,27 @@ export default function App() {
             <span className="text-xs font-medium">{user?.role === 'admin' ? t.admin.allOrders : t.orders}</span>
           </button>
           
-          <button
-            onClick={() => setActiveTab('payment-calendar')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-              activeTab === 'payment-calendar' ? 'text-app-accent bg-app-accent/5' : 'text-gray-500'
-            }`}
-          >
-            <Calendar size={20} />
-            <span className="text-xs font-medium">{t.paymentCalendar}</span>
-          </button>
+          {user?.role !== 'admin' ? (
+            <button
+              onClick={() => setActiveTab('payment-calendar')}
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'payment-calendar' ? 'text-app-accent bg-app-accent/5' : 'text-gray-500'
+              }`}
+            >
+              <Calendar size={20} />
+              <span className="text-xs font-medium">{t.paymentCalendar}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                activeTab === 'stats' ? 'text-app-accent bg-app-accent/5' : 'text-gray-500'
+              }`}
+            >
+              <BarChart3 size={20} />
+              <span className="text-xs font-medium">{t.admin.statistics}</span>
+            </button>
+          )}
           
           {user?.role === 'admin' && (
             <button
@@ -3529,83 +3546,11 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                {/* Statistics Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <StatCard 
-                    icon={<Utensils className="text-[#DA251D]" />} 
-                    label={t.admin.ordersToday} 
-                    value={statsData?.todayOrders?.toString() || "0"} 
-                    unit={t.units.orders} 
-                  />
-                  <StatCard 
-                    icon={<BarChart3 className="text-[#4ADE80]" />} 
-                    label={t.admin.monthlyOrders} 
-                    value={statsData?.monthOrders?.toString() || "0"} 
-                    unit={t.units.orders} 
-                  />
-                  <StatCard 
-                    icon={<UserIcon className="text-[#3B82F6]" />} 
-                    label={t.admin.users} 
-                    value={statsData?.uniqueUsers?.toString() || "0"} 
-                    unit={t.units.people} 
-                  />
-                  <StatCard 
-                    icon={<DollarSign className="text-[#F59E0B]" />} 
-                    label={t.admin.monthlyRevenue} 
-                    value={statsData?.monthRevenue?.toLocaleString() || "0"} 
-                    unit="đ" 
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Weekly Orders Chart */}
-                  <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-8 shadow-sm">
-                    <h3 className="text-xl font-display font-bold tracking-tight mb-6">Đơn hàng theo tuần</h3>
-                    <div className="h-[300px] w-full min-h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%" minHeight={300}>
-                        <BarChart data={weeklyData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E1D1" vertical={false} />
-                          <XAxis 
-                            dataKey="name" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fill: '#1C1917', fontSize: 12, fontWeight: 700 }} 
-                          />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#1C1917', fontSize: 12, fontWeight: 700 }} />
-                          <Tooltip 
-                            cursor={{ fill: '#F5F2E9' }}
-                            contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #DA251D20', borderRadius: '12px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
-                          />
-                          <Bar dataKey="orders" fill="#DA251D" radius={[10, 10, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Top Dishes */}
-                  <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-8 shadow-sm">
-                    <h3 className="text-xl font-display font-bold tracking-tight mb-6">Món ăn phổ biến</h3>
-                    <div className="space-y-4">
-                      {statsData?.topDishes?.map((dish, index) => (
-                        <div key={dish.name} className="flex items-center justify-between p-4 bg-[#FDF4E3]/50 rounded-2xl border border-[#F5E6D3]">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${
-                              index === 0 ? 'bg-[#DA251D] text-white' : 'bg-[#FDF4E3] text-[#2D241E]/40'
-                            }`}>
-                              {index + 1}
-                            </div>
-                            <p className="font-bold text-sm">{dish.name}</p>
-                          </div>
-                          <span className="text-sm font-black text-[#DA251D]">{dish.orderCount}</span>
-                        </div>
-                      )) || (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>{t.noData.noDataGeneral}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <AdminUnifiedStats 
+                  translations={t} 
+                  theme={theme} 
+                  accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                />
               </div>
             )}
 
@@ -4008,7 +3953,11 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <PaymentDashboard translations={t} />
+                <AdminUnifiedStats 
+                  translations={t} 
+                  theme={theme} 
+                  accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                />
               </div>
             )}
 
@@ -4020,7 +3969,15 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <PaymentDashboard translations={t} />
+                {user?.role === 'admin' ? (
+                  <AdminUnifiedStats 
+                    translations={t} 
+                    theme={theme} 
+                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                  />
+                ) : (
+                  <PaymentDashboard translations={t} />
+                )}
               </div>
             )}
 
