@@ -8,10 +8,13 @@ build/
 
 # Environment files
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+!.env.*.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+!backend/.env.*.example
 
 # Database files
 *.db
@@ -51,9 +54,6 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
-
-# dotenv environment variables file
-.env
 
 # IDE files
 .vscode/

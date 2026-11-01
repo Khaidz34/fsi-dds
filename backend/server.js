@@ -94,6 +94,20 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Secure JWT Secret handling - Enforce in production, ephemeral random in development
+const JWT_SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === 'production'
+    ? (() => {
+        console.error('❌ FATAL: JWT_SECRET environment variable is missing in production!');
+        process.exit(1);
+      })()
+    : crypto.randomBytes(32).toString('hex')
+);
+
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
+  console.warn('⚠️  JWT_SECRET is not set in environment. Generated random ephemeral secret for development.');
+}
+
 let supabase = null;
 let supabaseAdmin = null;
 let supabaseConfigured = false;
@@ -121,30 +135,6 @@ if (!supabaseUrl || !supabaseKey) {
 
 const dbForWrite = (table) => (supabaseAdmin || supabase).from(table);
 
-// #region agent log - Supabase config debug (H1)
-try {
-  fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': 'e63c99'
-    },
-    body: JSON.stringify({
-      sessionId: 'e63c99',
-      runId: 'initial',
-      hypothesisId: 'H1',
-      location: 'backend/server.js:SupabaseConfig',
-      message: 'Supabase configuration status at startup',
-      data: {
-        hasUrl: !!supabaseUrl,
-        hasKey: !!supabaseKey,
-        supabaseConfigured
-      },
-      timestamp: Date.now()
-    })
-  }).catch(() => {});
-} catch {}
-// #endregion
 
 // Middleware
 app.use(cors({
@@ -159,13 +149,12 @@ app.use(cors({
       'http://127.0.0.1:5500',
       'https://fsi-dds-fontend.onrender.com',
       'https://fsi-dds.onrender.com',
-      /^http:\/\/localhost:\d+$/,
-      /^http:\/\/127\.0\.0\.1:\d+$/,
-      /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
-      /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
-      /^https:\/\/.*\.onrender\.com$/,
-      /^https:\/\/.*\.railway\.app$/,
-      /^https:\/\/.*\.vercel\.app$/,
+      'https://khaidz34.github.io',
+      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+      /^http:\/\/localhost:\\d+$/,
+      /^http:\/\/127\.0\.0\.1:\\d+$/,
+      /^http:\/\/192\.168\.\\d+\.\\d+:\\d+$/,
+      /^http:\/\/10\.\\d+\.\\d+\.\\d+:\\d+$/
     ];
     
     const isAllowed = allowedOrigins.some(pattern => {
@@ -197,58 +186,30 @@ app.use(express.json());
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rate limiting middleware - Per-user and per-IP limits
-const rateLimitStore = {};
-const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX_PER_IP = 500; // 500 requests per minute per IP
-const RATE_LIMIT_MAX_PER_USER = 100; // 100 requests per minute per user
+// Rate Limiting using express-rate-limit
+// Trust reverse proxy (e.g. Render, Vercel) for accurate client IP detection
+app.set('trust proxy', 1);
 
-const rateLimitMiddleware = (req, res, next) => {
-  const now = Date.now();
-  const ip = req.ip || req.connection.remoteAddress;
-  const userId = req.user?.id || 'anonymous';
-  
-  // Initialize rate limit tracking
-  if (!rateLimitStore[ip]) {
-    rateLimitStore[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
-  }
-  
-  // Reset if window expired
-  if (now > rateLimitStore[ip].resetTime) {
-    rateLimitStore[ip] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
-  }
-  
-  rateLimitStore[ip].count++;
-  
-  // Check IP-based rate limit
-  if (rateLimitStore[ip].count > RATE_LIMIT_MAX_PER_IP) {
-    console.warn(`⚠️  Rate limit exceeded for IP ${ip}`);
-    return res.status(429).json({ error: 'Too many requests from this IP' });
-  }
-  
-  // Check user-based rate limit (if authenticated)
-  if (req.user?.id) {
-    const userKey = `user_${userId}`;
-    if (!rateLimitStore[userKey]) {
-      rateLimitStore[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
-    }
-    
-    if (now > rateLimitStore[userKey].resetTime) {
-      rateLimitStore[userKey] = { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
-    }
-    
-    rateLimitStore[userKey].count++;
-    
-    if (rateLimitStore[userKey].count > RATE_LIMIT_MAX_PER_USER) {
-      console.warn(`⚠️  Rate limit exceeded for user ${userId}`);
-      return res.status(429).json({ error: 'Too many requests' });
-    }
-  }
-  
-  next();
-};
+// General rate limiter for API endpoints (generous for 20+ office users sharing an IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3000, // 3000 requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path.startsWith('/api/sse'), // SSE streams are long-lived and shouldn't count against limit
+  message: { error: 'Quá nhiều yêu cầu từ địa chỉ IP này. Vui lòng thử lại sau.' }
+});
 
-app.use(rateLimitMiddleware);
+// Strict rate limiter for Authentication endpoints to prevent brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 60, // 60 attempts per 15 minutes per IP (safe for office coworkers, blocks automated attackers)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Quá nhiều lần thử đăng nhập/đăng ký. Vui lòng thử lại sau 15 phút để bảo vệ tài khoản.' }
+});
+
+app.use('/api/', apiLimiter);
 
 // Token validation cache
 const tokenCache = new Map();
@@ -264,7 +225,7 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+    const decoded = jwt.verify(token, JWT_SECRET);
     
     // Check cache first
     const cacheKey = `user_${decoded.userId}`;
@@ -393,7 +354,7 @@ app.get('/health/db', async (req, res) => {
 });
 
 // Auth Routes
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -418,7 +379,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -435,7 +396,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { username, password, fullname } = req.body;
 
@@ -479,7 +440,7 @@ app.post('/api/auth/register', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: newUser.id, username: newUser.username, role: newUser.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -557,27 +518,7 @@ app.get('/api/test', (req, res) => {
 // Basic API routes
 app.get('/api/menu/today', async (req, res) => {
   try {
-    // #region agent log - Menu today entry (H1,H3)
-    try {
-      fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Debug-Session-Id': 'e63c99'
-        },
-        body: JSON.stringify({
-          sessionId: 'e63c99',
-          runId: 'initial',
-          hypothesisId: 'H3',
-          location: 'backend/server.js:/api/menu/today',
-          message: 'Entered /api/menu/today handler',
-          data: {},
-          timestamp: Date.now()
-        })
-      }).catch(() => {});
-    } catch {}
-    // #endregion
-
+    
     // Check if Supabase is configured
     if (!supabaseConfigured || !supabase) {
       console.warn('⚠️  Supabase not configured, returning empty menu');
@@ -622,31 +563,7 @@ app.get('/api/menu/today', async (req, res) => {
 
     const { data: menu, error } = await Promise.race([dbPromise, timeoutPromise]);
 
-    // #region agent log - Menu today DB result (H3)
-    try {
-      fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Debug-Session-Id': 'e63c99'
-        },
-        body: JSON.stringify({
-          sessionId: 'e63c99',
-          runId: 'initial',
-          hypothesisId: 'H3',
-          location: 'backend/server.js:/api/menu/today',
-          message: 'Result from Supabase menus query',
-          data: {
-            hasError: !!error,
-            errorMessage: error ? error.message : null,
-            hasMenu: !!menu
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {});
-    } catch {}
-    // #endregion
-
+    
     if (error && error.code !== 'PGRST116') {
       console.error('Menu database error:', error.message);
       return res.status(500).json({ 
@@ -674,29 +591,7 @@ app.get('/api/menu/today', async (req, res) => {
     res.json(menu);
   } catch (error) {
     console.error('Menu error:', error.message);
-    // #region agent log - Menu today catch (H3)
-    try {
-      fetch('http://127.0.0.1:7544/ingest/5638254c-5d2a-45e0-9641-548cdef6fb1b', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Debug-Session-Id': 'e63c99'
-        },
-        body: JSON.stringify({
-          sessionId: 'e63c99',
-          runId: 'initial',
-          hypothesisId: 'H3',
-          location: 'backend/server.js:/api/menu/today',
-          message: 'Caught error in /api/menu/today',
-          data: {
-            errorMessage: error instanceof Error ? error.message : String(error)
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {});
-    } catch {}
-    // #endregion
-    res.status(500).json({ 
+        res.status(500).json({ 
       error: 'Menu service temporarily unavailable',
       message: error.message,
       dishes: [] 
@@ -3145,7 +3040,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
 });
 
 // SSE endpoint for real-time payment updates
-app.get('/api/sse/payments', (req, res) => {
+app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
   try {
     // Get token from query parameter (EventSource doesn't support custom headers)
     let token = req.query.token;
@@ -3159,32 +3054,22 @@ app.get('/api/sse/payments', (req, res) => {
     }
     
     if (!token) {
-      console.log('❌ SSE: No token provided');
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Access token required' })}\n\n`);
-      res.end();
-      return;
+      console.warn('❌ SSE: No token provided');
+      return res.status(401).json({ error: 'Access token required for real-time updates' });
     }
 
     // Verify token
     let userId;
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      const decoded = jwt.verify(token, JWT_SECRET);
       userId = decoded.userId;
       
       if (!userId) {
         throw new Error('No userId in token');
       }
     } catch (err) {
-      console.log('❌ SSE: Invalid token:', err.message);
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Invalid token' })}\n\n`);
-      res.end();
-      return;
+      console.warn('❌ SSE: Invalid token:', err.message);
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
 
     console.log(`🔌 SSE connection established for user ${userId}`);

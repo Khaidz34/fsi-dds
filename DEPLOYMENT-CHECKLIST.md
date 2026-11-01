@@ -49,7 +49,7 @@
 ### Supabase Credentials (Already Set in render.yaml)
 ```
 SUPABASE_URL=https://bsmylhwyfmzbqnytnhzh.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzbXlsaHd5Zm16YnFueXRuaHpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4OTE0NjUsImV4cCI6MjA4OTQ2NzQ2NX0.ZaIpSI1GwxaGTFfCCjuf19-EHoOlqkKxCqgZFq20vHM
+SUPABASE_ANON_KEY=your-supabase-anon-key-here
 ```
 
 ## Build Process
