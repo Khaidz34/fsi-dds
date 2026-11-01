@@ -149,6 +149,7 @@ app.use(cors({
       'http://127.0.0.1:5500',
       'https://fsi-dds-fontend.onrender.com',
       'https://fsi-dds.onrender.com',
+      'https://fsi-dds-order.onrender.com',
       'https://khaidz34.github.io',
       ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
       /^http:\/\/localhost:\\d+$/,
