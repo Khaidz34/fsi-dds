@@ -68,14 +68,29 @@ import { useFeedback } from './hooks/useFeedback';
 import { useNotifications } from './hooks/useNotifications';
 import { useBannerSettings } from './hooks/useBannerSettings';
 import { Login } from './components/Login';
-import { FusionSliceGame } from './components/FusionSliceGame';
 import { BannerDisplay } from './components/BannerDisplay';
-import { AdminBannerControl } from './components/AdminBannerControl';
-import { AdminVideoControl } from './components/AdminVideoControl';
-import { VideoOverlay } from './components/VideoOverlay';
-import PaymentDashboard from './components/PaymentDashboard';
-import { AdminStatsView } from './components/AdminStatsView';
-import { AdminMonthlyCalendar } from './components/AdminMonthlyCalendar';
+
+// Lazy-loaded heavy components for faster initial load & lower memory on low-spec server/clients
+const PaymentDashboard = React.lazy(() => import('./components/PaymentDashboard'));
+const AdminStatsView = React.lazy(() => import('./components/AdminStatsView').then(m => ({ default: m.AdminStatsView })));
+const AdminMonthlyCalendar = React.lazy(() => import('./components/AdminMonthlyCalendar').then(m => ({ default: m.AdminMonthlyCalendar })));
+const FusionSliceGame = React.lazy(() => import('./components/FusionSliceGame').then(m => ({ default: m.FusionSliceGame })));
+const AdminBannerControl = React.lazy(() => import('./components/AdminBannerControl').then(m => ({ default: m.AdminBannerControl })));
+const AdminVideoControl = React.lazy(() => import('./components/AdminVideoControl').then(m => ({ default: m.AdminVideoControl })));
+const VideoOverlay = React.lazy(() => import('./components/VideoOverlay').then(m => ({ default: m.VideoOverlay })));
+
+const TabLoadingSkeleton = () => (
+  <div className="p-8 space-y-4 animate-pulse">
+    <div className="h-8 bg-slate-200/70 rounded-xl w-1/3"></div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="h-28 bg-slate-200/60 rounded-2xl"></div>
+      <div className="h-28 bg-slate-200/60 rounded-2xl"></div>
+      <div className="h-28 bg-slate-200/60 rounded-2xl"></div>
+      <div className="h-28 bg-slate-200/60 rounded-2xl"></div>
+    </div>
+    <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
+  </div>
+);
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
@@ -2030,7 +2045,7 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="desktop-dashboard w-full"
               >
-                <VideoOverlay forceVisible />
+                <React.Suspense fallback={null}><VideoOverlay forceVisible /></React.Suspense>
               </div>
             )}
 
@@ -2235,10 +2250,10 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Banner Management Control */}
-                <AdminBannerControl user={user} />
+                <React.Suspense fallback={null}><AdminBannerControl user={user} /></React.Suspense>
 
                 {/* Video Overlay Control */}
-                <AdminVideoControl user={user} />
+                <React.Suspense fallback={null}><AdminVideoControl user={user} /></React.Suspense>
 
                 {/* Admin Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -3549,12 +3564,14 @@ export default function App() {
                 className="space-y-8"
               >
                 <ErrorBoundary fallbackTitle="Không thể tải tab Thống kê">
-                  <AdminStatsView 
-                    translations={t} 
-                    theme={theme} 
-                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
-                    onNavigateToCalendar={() => setActiveTab('invoicing')}
-                  />
+                  <React.Suspense fallback={<TabLoadingSkeleton />}>
+                    <AdminStatsView 
+                      translations={t} 
+                      theme={theme} 
+                      accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
+                      onNavigateToCalendar={() => setActiveTab('invoicing')}
+                    />
+                  </React.Suspense>
                 </ErrorBoundary>
               </div>
             )}
@@ -3959,11 +3976,13 @@ export default function App() {
                 className="space-y-8"
               >
                 <ErrorBoundary fallbackTitle="Không thể tải tab Lịch đặt cơm">
-                  <AdminMonthlyCalendar 
-                    translations={t} 
-                    theme={theme} 
-                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
-                  />
+                  <React.Suspense fallback={<TabLoadingSkeleton />}>
+                    <AdminMonthlyCalendar 
+                      translations={t} 
+                      theme={theme} 
+                      accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'} 
+                    />
+                  </React.Suspense>
                 </ErrorBoundary>
               </div>
             )}
@@ -3977,15 +3996,19 @@ export default function App() {
                 className="space-y-8"
               >
                 {user?.role === 'admin' ? (
-                  <AdminStatsView 
-                    translations={t} 
-                    theme={theme} 
-                    accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
-                    onNavigateToCalendar={() => setActiveTab('invoicing')}
-                  />
+                  <React.Suspense fallback={<TabLoadingSkeleton />}>
+                    <AdminStatsView 
+                      translations={t} 
+                      theme={theme} 
+                      accentColor={theme === 'corporate' ? '#00A693' : '#DA251D'}
+                      onNavigateToCalendar={() => setActiveTab('invoicing')}
+                    />
+                  </React.Suspense>
                 ) : (
                   <ErrorBoundary fallbackTitle="Không thể tải tab Thanh toán">
-                    <PaymentDashboard translations={t} />
+                    <React.Suspense fallback={<TabLoadingSkeleton />}>
+                      <PaymentDashboard translations={t} />
+                    </React.Suspense>
                   </ErrorBoundary>
                 )}
               </div>

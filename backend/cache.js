@@ -22,7 +22,34 @@ class CacheLayer {
       sets: 0
     };
     this.invalidationLog = [];
-    this.maxLogSize = 1000;
+    this.maxLogSize = 100; // Keep log small to preserve memory on low-spec server
+    this.maxEntries = 500; // Cap total cached keys
+
+    // Periodic memory cleanup every 10 minutes to evict expired keys
+    this.cleanupInterval = setInterval(() => {
+      this.pruneExpired();
+    }, 10 * 60 * 1000);
+
+    if (this.cleanupInterval && typeof this.cleanupInterval.unref === 'function') {
+      this.cleanupInterval.unref();
+    }
+  }
+
+  /**
+   * Prune expired entries from memory to keep RAM usage low
+   */
+  pruneExpired() {
+    const now = Date.now();
+    let prunedCount = 0;
+    for (const [key, entry] of this.store.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        this.store.delete(key);
+        prunedCount++;
+      }
+    }
+    if (prunedCount > 0) {
+      console.log(`🧹 Cache sweep: evicted ${prunedCount} expired entries (remaining: ${this.store.size})`);
+    }
   }
 
   /**
@@ -56,6 +83,19 @@ class CacheLayer {
    * @param {number} ttl - Time to live in milliseconds
    */
   set(key, data, ttl) {
+    // If cache grows too large, prune expired keys first
+    if (this.store.size >= this.maxEntries) {
+      this.pruneExpired();
+      // If still too large, evict the 50 oldest keys (FIFO)
+      if (this.store.size >= this.maxEntries) {
+        let removed = 0;
+        for (const oldKey of this.store.keys()) {
+          this.store.delete(oldKey);
+          if (++removed >= 50) break;
+        }
+      }
+    }
+
     this.store.set(key, {
       data,
       timestamp: Date.now(),
