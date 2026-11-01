@@ -535,7 +535,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             <div className="min-w-0">
               <p className="payment-stat-label text-[11px] sm:text-sm text-app-ink/45 font-semibold">{translations.paymentDashboard.unpaid}</p>
               <p className="payment-stat-value text-lg sm:text-2xl font-black text-app-accent">{paymentStats?.remainingTotal?.toLocaleString() || '0'}đ</p>
-              {paymentStats?.overpaidTotal && paymentStats.overpaidTotal > 0 && (
+              {(paymentStats?.overpaidTotal ?? 0) > 0 && (
                 <p className="text-xs text-app-accent mt-1">
                   Đã thanh toán thừa: {paymentStats.overpaidTotal.toLocaleString()}đ
                 </p>

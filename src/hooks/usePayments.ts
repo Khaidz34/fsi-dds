@@ -40,6 +40,25 @@ export const usePayments = (month?: string) => {
       
       if (user?.role === 'admin') {
         const response = await paymentsAPI.getAll(month);
+
+        // Preferred: server-computed totals across ALL users with debt.
+        // (Summing response.data would only cover the first page of 20 users.)
+        if (response?.summary) {
+          const summary = response.summary;
+          setPaymentStats({
+            month: month || new Date().toISOString().slice(0, 7),
+            ordersCount: Number(summary.ordersCount) || 0,
+            ordersTotal: Number(summary.ordersTotal) || 0,
+            paidCount: Number(summary.paidCount) || 0,
+            paidTotal: Number(summary.paidTotal) || 0,
+            remainingCount: Math.max(0, Number(summary.remainingCount) || 0),
+            remainingTotal: Math.max(0, Number(summary.remainingTotal) || 0),
+            overpaidTotal: Number(summary.overpaidTotal) || 0
+          });
+          return;
+        }
+
+        // Fallback for an older backend without `summary`
         // Handle both old format (array) and new format (object with data property)
         const data = Array.isArray(response) ? response : response?.data || [];
         

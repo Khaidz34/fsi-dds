@@ -1,4 +1,5 @@
 require('dotenv').config();
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -1447,6 +1448,25 @@ const normalizePaymentStatsRow = (row) => {
   };
 };
 
+// Supabase/PostgREST silently caps every response at 1000 rows (db-max-rows).
+// A plain `await supabase.from(...).select(...)` therefore returns only the first
+// 1000 rows once a table grows past that, with NO error. Totals computed from such
+// a truncated result are wrong (orders go missing while payments are still fully
+// counted, so a user's debt collapses to 0 and the user disappears from the list).
+// This helper walks the table page by page until every row has been read.
+const SUPABASE_PAGE_SIZE = 1000;
+const fetchAllRows = async (buildQuery) => {
+  const rows = [];
+  for (let from = 0; ; from += SUPABASE_PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(from, from + SUPABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < SUPABASE_PAGE_SIZE) break;
+  }
+  return rows;
+};
+
 const buildPaymentStatsQueryDirect = async (supabase, month, limit = 20, offset = 0) => {
   const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
   const validOffset = Math.max(parseInt(offset) || 0, 0);
@@ -1456,28 +1476,25 @@ const buildPaymentStatsQueryDirect = async (supabase, month, limit = 20, offset 
   const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
 
-  const { data: users, error: usersError } = await supabase
+  // Stable ordering (id) is required so that paging with .range() never skips/repeats rows.
+  const users = await fetchAllRows(() => supabase
     .from('users')
     .select('id, fullname, username')
     .eq('role', 'user')
-    .order('fullname');
+    .order('id', { ascending: true }));
 
-  if (usersError) throw usersError;
-
-  const { data: orders, error: ordersError } = await supabase
+  const orders = await fetchAllRows(() => supabase
     .from('orders')
     .select('id, user_id, ordered_for, price, paid, created_at')
     .is('deleted_at', null)
-    .lt('created_at', `${nextMonth}T00:00:00Z`);
+    .lt('created_at', `${nextMonth}T00:00:00Z`)
+    .order('id', { ascending: true }));
 
-  if (ordersError) throw ordersError;
-
-  const { data: payments, error: paymentsError } = await supabase
+  const payments = await fetchAllRows(() => supabase
     .from('payments')
     .select('id, user_id, amount, created_at')
-    .lt('created_at', `${nextMonth}T00:00:00Z`);
-
-  if (paymentsError) throw paymentsError;
+    .lt('created_at', `${nextMonth}T00:00:00Z`)
+    .order('id', { ascending: true }));
 
   const statsByUserId = new Map((users || []).map(user => [Number(user.id), {
     userId: user.id,
@@ -1591,24 +1608,27 @@ const getUserPaymentStats = async (supabase, userId, month) => {
   
   // FIX: Only count orders where user is the one who PAYS
   // If ordered_for is set, that person pays. Otherwise, user_id pays.
+  // Compare as Numbers: ids/prices can arrive as strings depending on column type or driver,
+  // and a strict === between "12" and 12 would silently drop the order from the user's debt.
+  const payerUserId = Number(userId);
   const ordersForPayment = orders?.filter(order => {
     // If ordered_for is set, only count if user is the one paying (ordered_for = userId)
     if (order.ordered_for) {
-      return order.ordered_for === userId;
+      return Number(order.ordered_for) === payerUserId;
     }
     // If ordered_for is not set, user_id is the one paying
-    return order.user_id === userId;
+    return Number(order.user_id) === payerUserId;
   }) || [];
   
-  const ordersTotal = ordersForPayment.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
-  const paymentRecordsTotal = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  const ordersTotal = ordersForPayment.reduce((sum, order) => sum + Number(order.price || 0), 0) || 0;
+  const paymentRecordsTotal = payments?.reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
   
   // Count paid and unpaid orders based on 'paid' field
   const paidOrders = ordersForPayment?.filter(order => order.paid === true) || [];
   const unpaidOrders = ordersForPayment?.filter(order => order.paid === false || !order.paid) || [];
   const paidCount = paidOrders.length;
   const remainingCount = unpaidOrders.length;
-  const paidOrdersTotal = paidOrders.reduce((sum, order) => sum + (order.price || 0), 0) || 0;
+  const paidOrdersTotal = paidOrders.reduce((sum, order) => sum + Number(order.price || 0), 0) || 0;
   const paidTotal = Math.max(paymentRecordsTotal, paidOrdersTotal);
   const remainingTotal = Math.max(0, ordersTotal - paidTotal);
   
@@ -2245,13 +2265,30 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
   if (error.code === '23505') {
     const { data: existingEvent } = await supabase
       .from('auto_payment_transactions')
-      .select('id, payment_id, status')
+      .select('id, payment_id, status, created_at')
       .eq('provider', eventData.provider)
       .eq('transaction_id', eventData.transaction_id)
       .limit(1)
       .single();
 
+    // Already turned into a payment -> duplicate.
     if (existingEvent?.payment_id) {
+      return { supported: true, duplicate: true, event: existingEvent };
+    }
+
+    // Another delivery of the same transaction is being processed RIGHT NOW (or finished).
+    // Previously this case fell through and a SECOND payment row was inserted. That is how a
+    // slow first response (e.g. Render cold start) + the provider's retry 1 minute later
+    // produced two payments for one bank transfer.
+    // Only an event that FAILED, or one stuck in "processing" for a long time (server crashed
+    // mid-way), may be retried.
+    const STALE_PROCESSING_MS = 10 * 60 * 1000;
+    const createdAtMs = existingEvent?.created_at ? new Date(existingEvent.created_at).getTime() : NaN;
+    const isStaleProcessing = existingEvent?.status === 'processing'
+      && Number.isFinite(createdAtMs)
+      && Date.now() - createdAtMs > STALE_PROCESSING_MS;
+
+    if (existingEvent && existingEvent.status !== 'failed' && !isStaleProcessing) {
       return { supported: true, duplicate: true, event: existingEvent };
     }
 
@@ -2317,9 +2354,9 @@ const markOrdersPaidForPayment = async ({ userId, month, amount }) => {
 
   const payableOrders = (unpaidOrders || []).filter((order) => {
     if (order.ordered_for) {
-      return order.ordered_for === userId;
+      return Number(order.ordered_for) === Number(userId);
     }
-    return order.user_id === userId;
+    return Number(order.user_id) === Number(userId);
   });
 
   let availableAmount = remainingAmount;
@@ -2585,8 +2622,24 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
         const totalPages = Math.ceil(total / validLimit);
         const currentPage = Math.floor(validOffset / validLimit) + 1;
         
+        // Totals across ALL users with debt, so the admin header does not have to
+        // sum only the 20 rows of the current page.
+        const summary = normalizedAllData.reduce((acc, row) => ({
+          ordersCount: acc.ordersCount + row.ordersCount,
+          ordersTotal: acc.ordersTotal + row.ordersTotal,
+          paidCount: acc.paidCount + row.paidCount,
+          paidTotal: acc.paidTotal + row.paidTotal,
+          remainingCount: acc.remainingCount + row.remainingCount,
+          remainingTotal: acc.remainingTotal + row.remainingTotal,
+          overpaidTotal: acc.overpaidTotal + row.overpaidTotal
+        }), {
+          ordersCount: 0, ordersTotal: 0, paidCount: 0, paidTotal: 0,
+          remainingCount: 0, remainingTotal: 0, overpaidTotal: 0
+        });
+
         res.json({
           data: normalizedData,
+          summary: { month: currentMonth, ...summary },
           pagination: {
             total,
             page: currentPage,
@@ -2857,6 +2910,12 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
 
     const transaction = extractAutoPaymentTransaction(req.body);
     const paymentCode = parseAutoPaymentCode(transaction.description);
+
+    // Without a transaction id there was NO duplicate protection at all. Provider retries
+    // resend the identical body, so a hash of the body is a safe stand-in id.
+    if (!transaction.transactionId) {
+      transaction.transactionId = `body-${crypto.createHash('sha1').update(JSON.stringify(req.body || {})).digest('hex')}`;
+    }
 
     const eventReservation = await reserveAutoPaymentEvent({
       source: 'bank-webhook',
