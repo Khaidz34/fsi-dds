@@ -2,10 +2,15 @@ name: Keep Render Backend Warm
 
 on:
   schedule:
-    # Chạy mỗi 12 phút trong khung giờ 00:00 - 06:40 UTC (tức 07:00 - 13:40 giờ Việt Nam), Thứ 2 đến Thứ 6
-    # Tránh server Render free tier bị ngủ đông (spin-down sau 15 phút) trong giờ đặt cơm
-    - cron: '*/12 0-6 * * 1-5'
-  workflow_dispatch: # Cho phép trigger thủ công từ tab Actions trên GitHub
+    # 1. Đánh thức server sớm từ 06:40 và 06:50 sáng VN (tức 23:40, 23:50 UTC Chủ Nhật - Thứ Năm)
+    # Giúp server tỉnh táo hoàn toàn trước khi nhân viên vào lúc 7:00
+    - cron: '40,50 23 * * 0-4'
+
+    # 2. Giữ ấm liên tục mỗi 10 phút từ 07:00 đến 13:50 trưa VN (tức 00:00 - 06:50 UTC Thứ Hai - Thứ Sáu)
+    # Đảm bảo không bao giờ chạm ngưỡng 15 phút ngủ đông của Render
+    - cron: '*/10 0-6 * * 1-5'
+
+  workflow_dispatch: # Cho phép trigger thủ công từ tab Actions trên GitHub bất cứ lúc nào
 
 jobs:
   ping-backend:
@@ -17,7 +22,7 @@ jobs:
         run: |
           echo "Pinging https://fsi-dds.onrender.com/health at $(date)..."
           # Gửi request tới endpoint /health (siêu nhẹ, không tốn tài nguyên DB)
-          # max-time 90 giây đủ để đánh thức server nếu đang trong quá trình spin-up
+          # max-time 90 giây đủ để đợi server khởi động nếu đang ngủ đông
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 https://fsi-dds.onrender.com/health)
           echo "Response HTTP Status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -eq 200 ]; then
