@@ -71,6 +71,7 @@ import { Login } from './components/Login';
 import { BannerDisplay } from './components/BannerDisplay';
 
 // Lazy-loaded heavy components for faster initial load & lower memory on low-spec server/clients
+const DailyQuote = React.lazy(() => import('./components/DailyQuote'));
 const PaymentDashboard = React.lazy(() => import('./components/PaymentDashboard'));
 const AdminStatsView = React.lazy(() => import('./components/AdminStatsView').then(m => ({ default: m.AdminStatsView })));
 const AdminMonthlyCalendar = React.lazy(() => import('./components/AdminMonthlyCalendar').then(m => ({ default: m.AdminMonthlyCalendar })));
@@ -2065,14 +2066,16 @@ export default function App() {
                 )}
 
                 <div className="hidden lg:grid grid-cols-3 gap-4">
+                  {/* Daily Quote Mini Card */}
                   <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Suất tuần này</p>
-                      <p className="mt-2 text-3xl font-black text-app-ink">{weeklyOrderTotal}</p>
-                      <p className="mt-1 text-xs font-semibold text-app-ink/45">{t.weeklyActivity}</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Suy ngẫm hôm nay</p>
+                      <p className="mt-1 text-sm font-semibold text-app-ink leading-snug line-clamp-2">
+                        {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
-                      <Utensils size={24} />
+                    <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
+                      <Sparkles size={24} />
                     </div>
                   </div>
 
@@ -2116,42 +2119,13 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8">
-                  {/* Chart Section */}
-                  <div className="desktop-panel lg:col-span-7 xl:col-span-8 lacquer-card p-4 lg:p-7 xl:p-8 relative overflow-hidden">
-                    <div className="flex items-start justify-between gap-4 mb-6">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60 mb-2">Hoạt động tuần</p>
-                        <h3 className="text-xl font-display font-bold tracking-tight">{t.weeklyActivity}</h3>
-                        <p className="mt-1 text-sm text-app-ink/45">Theo dõi nhịp đặt cơm để dễ kiểm soát số lượng mỗi ngày.</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${theme === 'corporate' ? 'bg-[#00A693]' : 'bg-[#DA251D]'}`} />
-                        <span className="text-xs text-[#1C1917]/40 font-bold uppercase tracking-widest">Suất cơm</span>
-                      </div>
-                    </div>
-                    <div className="h-[320px] xl:h-[360px] w-full min-h-[320px]">
-                      <ResponsiveContainer width="100%" height="100%" minHeight={320}>
-                        <BarChart data={weeklyData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E1D1" vertical={false} />
-                          <XAxis 
-                            dataKey="name" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fill: '#1C1917', fontSize: 12, fontWeight: 700 }} 
-                          />
-                          <YAxis hide />
-                          <Tooltip 
-                            cursor={{ fill: '#F5F2E9' }}
-                            contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #DA251D20', borderRadius: '12px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }}
-                          />
-                          <Bar dataKey="orders" radius={[10, 10, 10, 10]}>
-                            {weeklyData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={index === 3 ? (theme === 'corporate' ? '#00A693' : '#DA251D') : (theme === 'corporate' ? '#00A69330' : '#DA251D30')} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                  {/* Daily Quote Section */}
+                  <div className="desktop-panel lg:col-span-7 xl:col-span-8 lacquer-card overflow-hidden h-full min-h-[320px] xl:min-h-[360px]">
+                    <React.Suspense fallback={
+                      <div className="w-full h-full min-h-[320px] xl:min-h-[360px] bg-stone-100 animate-pulse rounded-2xl" />
+                    }>
+                      <DailyQuote />
+                    </React.Suspense>
                   </div>
 
                   {/* Payment QR Section */}
