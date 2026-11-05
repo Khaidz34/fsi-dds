@@ -1,259 +1,304 @@
 /**
- * DailyQuote – Hiển thị câu triết lý cuộc sống mỗi ngày một câu,
- * với hình nền phù hợp phong cách suy tư, sâu sắc.
- * Câu đổi theo ngày trong năm (seed = dayOfYear).
+ * DailyQuote – Hiển thị câu danh ngôn / triết lý sống mỗi ngày
+ * với hình nền nhiếp ảnh thiên nhiên độ phân giải cao phù hợp nội dung.
+ * Đổi tự động theo ngày trong năm, đồng thời cho phép bấm đổi câu linh hoạt.
  */
 
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { Sparkles, Quote as QuoteIcon, RefreshCw } from 'lucide-react';
 
-interface Quote {
+interface QuoteItem {
   text: string;
   author: string;
-  /** Unsplash photo ID – dùng làm hình nền */
+  theme: string;
   photoId: string;
-  /** Màu chủ đạo để tô text phù hợp với ảnh */
-  overlayClass: string;
 }
 
-const QUOTES: Quote[] = [
+const QUOTES: QuoteItem[] = [
   {
     text: 'Đừng chạy theo hạnh phúc – hãy trở thành hạnh phúc.',
     author: 'Lão Tử',
-    photoId: '1518495973542-4542adad0122', // misty forest
-    overlayClass: 'from-stone-900/80 via-stone-800/50 to-transparent',
+    theme: 'An lạc nội tâm',
+    photoId: '1470071459604-3b5ec3a7fe05', // Rừng thông mờ sương tĩnh lặng
   },
   {
-    text: 'Sóng không biết mình đẹp cho đến khi vỡ tan.',
+    text: 'Sóng không biết mình đẹp cho đến khi vỡ tan. Sóng quên rằng mình chính là đại dương.',
     author: 'Thiền ngữ',
-    photoId: '1505118380757-91f5f5632de0', // ocean wave
-    overlayClass: 'from-blue-950/80 via-blue-900/50 to-transparent',
+    theme: 'Giác ngộ & Buông bỏ',
+    photoId: '1505118380757-91f5f5632de0', // Ngọn sóng đại dương xanh biếc cuộn trào
   },
   {
     text: 'Mỗi khoảnh khắc hiện tại là nơi duy nhất bạn thực sự tồn tại.',
     author: 'Thích Nhất Hạnh',
-    photoId: '1441974231531-c6227db76b6e', // sunlit path
-    overlayClass: 'from-emerald-950/75 via-emerald-800/40 to-transparent',
+    theme: 'Chánh niệm hiện tại',
+    photoId: '1441974231531-c6227db76b6e', // Vạt nắng vàng xuyên qua tán rừng già
   },
   {
     text: 'Im lặng không phải là trống rỗng – đó là nơi sự thật cư ngụ.',
     author: 'Thiền ngữ',
-    photoId: '1470770841072-f978cf4d019e', // calm lake reflection
-    overlayClass: 'from-slate-950/80 via-slate-800/50 to-transparent',
+    theme: 'Tĩnh lặng tâm hồn',
+    photoId: '1470770841072-f978cf4d019e', // Hồ nước phẳng lặng như gương phản chiếu dãy núi
   },
   {
     text: 'Cuộc đời không phải là vấn đề cần giải quyết, mà là một thực tại cần trải nghiệm.',
     author: 'Søren Kierkegaard',
-    photoId: '1490730141103-6cac27aaab94', // person on mountain top
-    overlayClass: 'from-neutral-950/80 via-neutral-700/50 to-transparent',
+    theme: 'Trải nghiệm sống',
+    photoId: '1506744038136-46273834b3fb', // Thung lũng kỳ vĩ Yosemite dưới ánh hoàng hôn
   },
   {
-    text: 'Gốc rễ của đau khổ là bám víu.',
+    text: 'Gốc rễ của đau khổ là bám víu. Buông bỏ mang lại tự do đích thực.',
     author: 'Phật Thích Ca',
-    photoId: '1507003211169-0a1dd7228f2d', // lone tree in fog
-    overlayClass: 'from-zinc-950/80 via-zinc-700/50 to-transparent',
+    theme: 'Tự do tâm hồn',
+    photoId: '1507003211169-0a1dd7228f2d', // Cây cổ thụ đơn độc kiên cường trong sương
   },
   {
-    text: 'Người không sợ chết thì không có gì để mất.',
+    text: 'Người biết đủ là người giàu có nhất thế gian.',
     author: 'Lão Tử – Đạo Đức Kinh',
-    photoId: '1454496522488-7a8e488e8606', // starry night sky
-    overlayClass: 'from-indigo-950/85 via-indigo-900/50 to-transparent',
+    theme: 'Tâm thái biết đủ',
+    photoId: '1472214103451-9374bd1c798e', // Đồi cỏ xanh mướt trải dài trong nắng sớm
   },
   {
-    text: 'Biết người là trí tuệ. Biết mình là giác ngộ.',
-    author: 'Lão Tử',
-    photoId: '1529688499388-6f21e42f50e2', // mirror lake mountains
-    overlayClass: 'from-teal-950/80 via-teal-800/50 to-transparent',
-  },
-  {
-    text: 'Không có con đường nào dẫn đến hạnh phúc – hạnh phúc chính là con đường.',
+    text: 'Không có con đường nào dẫn đến hạnh phúc – hạnh phúc chính là con đường bạn đang đi.',
     author: 'Thích Nhất Hạnh',
-    photoId: '1506905925346-21bda4d32df4', // trail through forest
-    overlayClass: 'from-green-950/80 via-green-800/40 to-transparent',
+    theme: 'Hành trình cuộc sống',
+    photoId: '1426604966848-d7adac402bff', // Con đường mòn ven hồ dẫn vào rặng núi
   },
   {
-    text: 'Sự phù du của mọi thứ không phải là lý do để buồn – mà là lý do để trân quý.',
+    text: 'Sự phù du của mọi thứ không phải là lý do để buồn – mà là lý do để trân quý từng phút giây.',
     author: 'Marcus Aurelius',
-    photoId: '1469474968028-56623f02e42e', // autumn leaves
-    overlayClass: 'from-amber-950/80 via-amber-800/50 to-transparent',
+    theme: 'Trân trọng hiện tại',
+    photoId: '1469474968028-56623f02e42e', // Rừng lá thu vàng rực rỡ trong nắng
   },
   {
-    text: 'Đôi khi câu hỏi quan trọng hơn câu trả lời.',
-    author: 'Ursula K. Le Guin',
-    photoId: '1516912481851-ca9ad2191ade', // open book in nature
-    overlayClass: 'from-rose-950/80 via-rose-900/50 to-transparent',
+    text: 'Hãy nhìn sâu vào thiên nhiên, và bạn sẽ thấu hiểu mọi thứ rõ ràng hơn.',
+    author: 'Albert Einstein',
+    theme: 'Thiên nhiên & Trí tuệ',
+    photoId: '1447752875215-b2761acb3c5d', // Ánh sáng mặt trời chiếu rọi rừng sâu
   },
   {
-    text: 'Ánh sáng không chinh phục bóng tối – nó chỉ làm bóng tối biến mất.',
-    author: 'Thiền ngữ Thiên Chúa Giáo',
-    photoId: '1500534314209-a157d0e7c9f1', // light through clouds
-    overlayClass: 'from-sky-950/80 via-sky-800/40 to-transparent',
+    text: 'Ánh sáng không chinh phục bóng tối – nó chỉ làm bóng tối biến mất bằng sự hiện diện của mình.',
+    author: 'Thiền ngữ',
+    theme: 'Ánh sáng nội tâm',
+    photoId: '1499209974431-9dddcece7f88', // Bình minh rạng ngời nơi đường chân trời biển cả
   },
   {
-    text: 'Mọi con người đều là một bí ẩn, và mọi khoảnh khắc là một sự mặc khải.',
-    author: 'Ralph Waldo Emerson',
-    photoId: '1451187580459-43490279c0fa', // galaxy view
-    overlayClass: 'from-violet-950/85 via-violet-900/50 to-transparent',
+    text: 'Bạn là một phần kỳ diệu của vũ trụ bao la, đang trải nghiệm chính mình.',
+    author: 'Carl Sagan',
+    theme: 'Vũ trụ & Bản thể',
+    photoId: '1451187580459-43490279c0fa', // Dải ngân hà và muôn ngàn tinh tú rực sáng
   },
   {
-    text: 'Hãy là sự thay đổi mà bạn muốn thấy trên thế giới.',
+    text: 'Hãy là sự thay đổi tích cực mà bạn muốn thấy trên thế giới.',
     author: 'Mahatma Gandhi',
-    photoId: '1504701954957-2010ec3bcec1', // sunrise over mountains
-    overlayClass: 'from-orange-950/80 via-orange-800/45 to-transparent',
+    theme: 'Hành động & Lan toả',
+    photoId: '1504701954957-2010ec3bcec1', // Con đường đón bình minh rực rỡ trên núi cao
   },
   {
-    text: 'Tâm trí yên tĩnh là kho báu quý giá nhất.',
+    text: 'Tâm trí yên tĩnh là nơi nuôi dưỡng những ý tưởng sáng suốt nhất.',
     author: 'Thiền ngữ',
-    photoId: '1476611338391-6f395a0dd082', // peaceful mountain scene
-    overlayClass: 'from-stone-950/80 via-stone-700/50 to-transparent',
+    theme: 'Bình an tĩnh tại',
+    photoId: '1470240731273-7821a6eeb6bd', // Hồ nước trong vắt soi bóng đỉnh núi tuyết
   },
   {
-    text: 'Dòng sông không sợ chảy qua đá – nó kiên nhẫn tìm đường.',
-    author: 'Thiền ngữ Nhật Bản',
-    photoId: '1500534314209-a157d0e7c9f1', // mountain stream
-    overlayClass: 'from-cyan-950/80 via-cyan-800/45 to-transparent',
-  },
-  {
-    text: 'Đời người như bọt nước – xuất hiện rồi tan biến, nhưng đại dương vẫn còn đó.',
-    author: 'Phật Thích Ca',
-    photoId: '1505118380757-91f5f5632de0', // sea foam
-    overlayClass: 'from-blue-950/80 via-blue-800/50 to-transparent',
-  },
-  {
-    text: 'Kẻ mạnh không phải là người không bao giờ ngã, mà là người biết đứng dậy.',
-    author: 'Khổng Tử',
-    photoId: '1490730141103-6cac27aaab94', // cliff edge strength
-    overlayClass: 'from-gray-950/80 via-gray-700/50 to-transparent',
-  },
-  {
-    text: 'Chấp nhận những gì không thể thay đổi. Thay đổi những gì không thể chấp nhận.',
-    author: 'Angela Davis',
-    photoId: '1441974231531-c6227db76b6e', // crossroads in forest
-    overlayClass: 'from-emerald-950/80 via-emerald-700/40 to-transparent',
-  },
-  {
-    text: 'Cuộc sống không đo bằng số lần bạn thở, mà bằng những khoảnh khắc khiến bạn nín thở.',
-    author: 'Maya Angelou',
-    photoId: '1506905925346-21bda4d32df4', // breathtaking view
-    overlayClass: 'from-teal-950/80 via-teal-700/40 to-transparent',
-  },
-  {
-    text: 'Chỉ khi ta ngừng tìm kiếm, ta mới thực sự tìm thấy.',
-    author: 'Carl Jung',
-    photoId: '1454496522488-7a8e488e8606', // person sitting alone
-    overlayClass: 'from-indigo-950/85 via-indigo-800/45 to-transparent',
-  },
-  {
-    text: 'Đau khổ là không thể tránh, nhưng đau khổ không nhất thiết phải kéo dài.',
-    author: 'Haruki Murakami',
-    photoId: '1469474968028-56623f02e42e', // melancholy autumn
-    overlayClass: 'from-amber-950/80 via-amber-700/50 to-transparent',
-  },
-  {
-    text: 'Tự do thực sự không phải là làm bất cứ điều gì mình muốn, mà là không làm điều mình không muốn.',
-    author: 'Jean-Paul Sartre',
-    photoId: '1507003211169-0a1dd7228f2d', // open field, freedom
-    overlayClass: 'from-zinc-950/80 via-zinc-700/50 to-transparent',
-  },
-  {
-    text: 'Nước có thể vừa mềm mại nhất vừa cứng rắn nhất – tất cả phụ thuộc vào thời gian.',
+    text: 'Dòng nước không tranh giành với đá – nó kiên nhẫn chảy qua và mài mòn tất cả.',
     author: 'Lão Tử',
-    photoId: '1529688499388-6f21e42f50e2', // river carving stone
-    overlayClass: 'from-blue-950/80 via-blue-800/50 to-transparent',
+    theme: 'Nhu thắng cương',
+    photoId: '1518837695005-2083093ee35b', // Sóng biển lấp lánh ánh hoàng hôn
   },
   {
-    text: 'Người hiểu biết không nói nhiều. Người nói nhiều không hiểu biết.',
-    author: 'Lão Tử – Đạo Đức Kinh',
-    photoId: '1476611338391-6f395a0dd082', // peaceful solitude
-    overlayClass: 'from-stone-950/80 via-stone-700/50 to-transparent',
+    text: 'Mọi việc đều có thời điểm của nó. Hãy kiên nhẫn và tin tưởng vào tiến trình cuộc sống.',
+    author: 'Ecclesiastes',
+    theme: 'Kiên nhẫn & Niềm tin',
+    photoId: '1509114397022-ed747cca3f65', // Đồi cát sa mạc uốn lượn dưới hoàng hôn
   },
   {
-    text: 'Mọi vết thương đều có thể trở thành cửa sổ của tâm hồn.',
+    text: 'Kỳ tích không phải là đi trên mặt nước, mà là bước đi bình an trên mặt đất này.',
+    author: 'Thích Nhất Hạnh',
+    theme: 'Chân giá trị cuộc sống',
+    photoId: '1506905925346-21bda4d32df4', // Thảo nguyên hoa dại bạt ngàn dưới chân núi
+  },
+  {
+    text: 'Đau khổ là không thể tránh khỏi, nhưng lựa chọn vượt lên hay đắm chìm là ở chính bạn.',
+    author: 'Haruki Murakami',
+    theme: 'Bản lĩnh sống',
+    photoId: '1464822759023-fed622ff2c3b', // Rặng núi hùng vĩ ẩn hiện trong mây bạc
+  },
+  {
+    text: 'Tự do thực sự là khi bạn tìm thấy sự bình yên và không cần sự công nhận từ bên ngoài.',
+    author: 'Jean-Paul Sartre',
+    theme: 'Tự do tự tại',
+    photoId: '1519681393784-d120267933ba', // Bầu trời đêm ngàn sao trên đỉnh núi tuyết
+  },
+  {
+    text: 'Nước càng sâu càng tĩnh lặng. Người càng thông tuệ càng khiêm nhường.',
+    author: 'Ngạn ngữ Á Đông',
+    theme: 'Khiêm nhường & Sâu sắc',
+    photoId: '1501785888041-af3ef285b470', // Chiếc thuyền gỗ cô đơn trên mặt hồ tĩnh lặng
+  },
+  {
+    text: 'Người hiểu người là thông minh. Người thấu hiểu chính mình mới là bậc giác ngộ.',
+    author: 'Lão Tử',
+    theme: 'Thấu hiểu bản thân',
+    photoId: '1454496522488-7a8e488e8606', // Đỉnh núi vươn cao chạm dải ngân hà
+  },
+  {
+    text: 'Vết nứt chính là nơi ánh sáng kỳ diệu đi vào tâm hồn bạn.',
     author: 'Rumi',
-    photoId: '1500534314209-a157d0e7c9f1', // light through cracks
-    overlayClass: 'from-rose-950/80 via-rose-800/50 to-transparent',
+    theme: 'Hy vọng & Tái sinh',
+    photoId: '1433086966358-54859d0ed716', // Thác nước nguyên sinh tuôn trào sức sống
   },
   {
-    text: 'Đừng lo lắng về việc ai đó lấy đi ý tưởng của bạn. Nếu nó thực sự hay, bạn sẽ phải nhét nó vào đầu người khác.',
-    author: 'Howard Aiken',
-    photoId: '1518495973542-4542adad0122', // creative mind
-    overlayClass: 'from-violet-950/80 via-violet-800/50 to-transparent',
+    text: 'Đừng chờ đợi cơ hội hoàn hảo, hãy biến ngày hôm nay thành cơ hội tuyệt vời nhất.',
+    author: 'Ralph Waldo Emerson',
+    theme: 'Chủ động đón ngày mới',
+    photoId: '1470252649378-9c29740c9fa8', // Thung lũng xanh đón ánh nắng sớm ban mai
   },
   {
-    text: 'Cơn bão không kéo dài mãi. Và sau bão, trời lại xanh hơn bao giờ hết.',
+    text: 'Cơn bão nào rồi cũng sẽ tan. Và sau cơn bão, bầu trời lại trong xanh hơn bao giờ hết.',
     author: 'Thiền ngữ',
-    photoId: '1451187580459-43490279c0fa', // after storm
-    overlayClass: 'from-sky-950/80 via-sky-800/40 to-transparent',
+    theme: 'Vượt qua thử thách',
+    photoId: '1534447677768-be436bb09401', // Cực quang huyền ảo nhảy múa trên bầu trời đêm
   },
   {
-    text: 'Ta là ai không quan trọng bằng ta đang trở thành ai.',
+    text: 'Ta là ai của ngày hôm qua không quan trọng bằng ta đang chọn trở thành ai hôm nay.',
     author: 'C.S. Lewis',
-    photoId: '1504701954957-2010ec3bcec1', // journey road
-    overlayClass: 'from-orange-950/80 via-orange-800/45 to-transparent',
+    theme: 'Phát triển bản thân',
+    photoId: '1418065460487-3e41a6c84dc5', // Rừng thông cao vút chạm tới trời xanh
   },
   {
-    text: 'Sự khiêm tốn không phải là nghĩ xấu về mình, mà là nghĩ ít về mình hơn.',
+    text: 'Sự khiêm tốn không phải là nghĩ mình thấp kém, mà là bớt bận tâm về cái tôi của mình.',
     author: 'C.S. Lewis',
-    photoId: '1470770841072-f978cf4d019e', // humble nature
-    overlayClass: 'from-green-950/80 via-green-800/45 to-transparent',
+    theme: 'Buông bỏ bản ngã',
+    photoId: '1465146344425-f00d5f5c8f07', // Cánh đồng hoa dại rực rỡ trong nắng chiều
+  },
+  {
+    text: 'Hạnh phúc không phải là có tất cả mọi thứ, mà là trân trọng những gì mình đang có.',
+    author: 'Khuyết danh',
+    theme: 'Lòng biết ơn',
+    photoId: '1507525428034-b723cf961d3e', // Bờ biển nhiệt đới trong vắt êm đềm
+  },
+  {
+    text: 'Mỗi ngày là một khởi đầu mới. Hãy hít thật sâu, mỉm cười và tiến bước.',
+    author: 'Khuyết danh',
+    theme: 'Khởi đầu tươi sáng',
+    photoId: '1472214103451-9374bd1c798e', // Bình minh trên đồi xanh bát ngát
+  },
+  {
+    text: 'Lòng biết ơn biến những điều bình dị thành điều kỳ diệu của cuộc sống.',
+    author: 'Melody Beattie',
+    theme: 'Tri ân cuộc sống',
+    photoId: '1441974231531-c6227db76b6e', // Rừng cây ngập tràn ánh nắng ấm áp
+  },
+  {
+    text: 'Giữ tâm tĩnh tại giữa thế giới hối hả – đó chính là sức mạnh lớn nhất của bạn.',
+    author: 'Marcus Aurelius',
+    theme: 'Sức mạnh nội tâm',
+    photoId: '1464822759023-fed622ff2c3b', // Biển mây trập trùng bao quanh đỉnh núi hùng vĩ
   },
   {
     text: 'Khi bạn thay đổi cách nhìn, những thứ bạn nhìn sẽ thay đổi.',
     author: 'Wayne Dyer',
-    photoId: '1516912481851-ca9ad2191ade', // new perspective
-    overlayClass: 'from-teal-950/80 via-teal-700/40 to-transparent',
+    theme: 'Góc nhìn & Tầm nhìn mới',
+    photoId: '1490730141103-6cac27aaab94', // Người đứng trên đỉnh núi cao phóng tầm mắt qua biển mây
   },
 ];
 
-/** Lấy câu theo ngày trong năm (0‑based) */
-function getDailyQuote(): Quote {
+/** Lấy chỉ số quote theo ngày trong năm */
+function getDayOfYearIndex(): number {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
   const diff = now.getTime() - start.getTime();
   const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return QUOTES[dayOfYear % QUOTES.length];
+  return dayOfYear % QUOTES.length;
 }
 
 const DailyQuote: React.FC = () => {
-  const quote = useMemo(() => getDailyQuote(), []);
+  const defaultIndex = useMemo(() => getDayOfYearIndex(), []);
+  const [currentIndex, setCurrentIndex] = useState<number>(defaultIndex);
+  const [imageLoaded, setImageLoaded] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<boolean>(false);
 
-  const bgUrl = `https://images.unsplash.com/photo-${quote.photoId}?auto=format&fit=crop&w=800&q=80`;
+  const quote = QUOTES[currentIndex % QUOTES.length];
+
+  // URL ảnh Unsplash độ phân giải cao được căn chỉnh đúng tỉ lệ
+  const photoUrl = imageError
+    ? 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=85'
+    : `https://images.unsplash.com/photo-${quote.photoId}?auto=format&fit=crop&w=1200&q=85`;
+
+  const handleNextQuote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageLoaded(false);
+    setImageError(false);
+    setCurrentIndex(prev => (prev + 1) % QUOTES.length);
+  };
 
   return (
-    <div className="relative w-full h-full min-h-[320px] xl:min-h-[360px] rounded-2xl overflow-hidden shadow-lg group">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-        style={{ backgroundImage: `url(${bgUrl})` }}
-        aria-hidden="true"
+    <div className="relative w-full h-full min-h-[320px] xl:min-h-[360px] rounded-2xl overflow-hidden shadow-lg group bg-slate-900 select-none">
+      {/* Background Image với hiệu ứng load mượt và zoom nhẹ khi hover */}
+      <img
+        src={photoUrl}
+        alt={quote.theme}
+        onLoad={() => setImageLoaded(true)}
+        onError={() => setImageError(true)}
+        className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 group-hover:scale-105 ${
+          imageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-102'
+        }`}
       />
 
-      {/* Gradient overlay */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-t ${quote.overlayClass}`}
-        aria-hidden="true"
+      {/* Cinematic Gradient Overlays để chữ luôn sáng rõ trên mọi nền ảnh */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/25 pointer-events-none" 
+        aria-hidden="true" 
+      />
+      <div 
+        className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/30 pointer-events-none" 
+        aria-hidden="true" 
       />
 
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-end p-6 xl:p-8">
-        {/* Decorative quotation mark */}
-        <span
-          className="block text-white/25 font-serif text-8xl leading-none select-none mb-1"
-          aria-hidden="true"
-        >
-          "
-        </span>
+      {/* Lớp nội dung trên nền ảnh */}
+      <div className="relative z-10 w-full h-full min-h-[320px] xl:min-h-[360px] p-6 sm:p-7 xl:p-8 flex flex-col justify-between">
+        {/* Top Header Badge & Nút đổi câu */}
+        <div className="flex items-center justify-between gap-3 w-full">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-sm transition-colors">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <span className="text-xs font-semibold tracking-wide uppercase">Suy ngẫm hôm nay</span>
+            <span className="text-white/40 text-xs">•</span>
+            <span className="text-amber-200/90 text-xs font-medium">{quote.theme}</span>
+          </div>
 
-        <blockquote className="space-y-3">
-          <p className="text-white text-lg xl:text-xl font-semibold leading-relaxed drop-shadow-md">
-            {quote.text}
-          </p>
-          <footer className="flex items-center gap-2">
-            <span className="block w-8 h-px bg-white/50" aria-hidden="true" />
-            <cite className="text-white/70 text-sm font-medium not-italic tracking-wide">
-              {quote.author}
-            </cite>
-          </footer>
-        </blockquote>
+          <button
+            type="button"
+            onClick={handleNextQuote}
+            title="Đổi sang câu suy ngẫm khác"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/35 hover:bg-black/60 backdrop-blur-md border border-white/15 text-white/80 hover:text-white text-xs font-medium transition-all duration-200 group/btn"
+          >
+            <RefreshCw className="w-3.5 h-3.5 group-hover/btn:rotate-180 transition-transform duration-500" />
+            <span className="hidden sm:inline">Đổi câu khác</span>
+          </button>
+        </div>
+
+        {/* Quote Content Section */}
+        <div className="space-y-3 xl:space-y-4 max-w-2xl mt-auto">
+          {/* Decorative Quote Icon */}
+          <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center text-amber-300 shadow-sm">
+            <QuoteIcon className="w-5 h-5 fill-amber-300/20" />
+          </div>
+
+          {/* Câu danh ngôn */}
+          <blockquote className="space-y-3">
+            <p className="text-white text-lg sm:text-xl xl:text-2xl font-serif font-medium leading-relaxed sm:leading-relaxed xl:leading-relaxed tracking-wide drop-shadow-md">
+              "{quote.text}"
+            </p>
+
+            {/* Tác giả */}
+            <footer className="flex items-center gap-3 pt-1">
+              <span className="block w-8 sm:w-10 h-0.5 bg-amber-400/80 rounded-full shadow-sm" aria-hidden="true" />
+              <cite className="text-amber-200/95 text-sm sm:text-base font-medium tracking-wide not-italic drop-shadow">
+                {quote.author}
+              </cite>
+            </footer>
+          </blockquote>
+        </div>
       </div>
     </div>
   );
