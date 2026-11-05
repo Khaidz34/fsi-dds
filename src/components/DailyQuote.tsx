@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Quote as QuoteIcon, RefreshCw } from 'lucide-react';
+import { Sparkles, Quote as QuoteIcon } from 'lucide-react';
 
 interface QuoteItem {
   text: string;
@@ -213,24 +213,18 @@ function getDayOfYearIndex(): number {
 }
 
 const DailyQuote: React.FC = () => {
-  const defaultIndex = useMemo(() => getDayOfYearIndex(), []);
-  const [currentIndex, setCurrentIndex] = useState<number>(defaultIndex);
+  const quote = useMemo(() => {
+    const idx = getDayOfYearIndex();
+    return QUOTES[idx];
+  }, []);
+
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
   const [imageError, setImageError] = useState<boolean>(false);
-
-  const quote = QUOTES[currentIndex % QUOTES.length];
 
   // URL ảnh Unsplash độ phân giải cao được căn chỉnh đúng tỉ lệ
   const photoUrl = imageError
     ? 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=85'
     : `https://images.unsplash.com/photo-${quote.photoId}?auto=format&fit=crop&w=1200&q=85`;
-
-  const handleNextQuote = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setImageLoaded(false);
-    setImageError(false);
-    setCurrentIndex(prev => (prev + 1) % QUOTES.length);
-  };
 
   return (
     <div className="relative w-full h-full min-h-[320px] xl:min-h-[360px] rounded-2xl overflow-hidden shadow-lg group bg-slate-900 select-none">
@@ -251,49 +245,37 @@ const DailyQuote: React.FC = () => {
         aria-hidden="true" 
       />
       <div 
-        className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/30 pointer-events-none" 
+        className="absolute inset-0 bg-gradient-to-r from-black/55 via-transparent to-black/30 pointer-events-none" 
         aria-hidden="true" 
       />
 
       {/* Lớp nội dung trên nền ảnh */}
-      <div className="relative z-10 w-full h-full min-h-[320px] xl:min-h-[360px] p-6 sm:p-7 xl:p-8 flex flex-col justify-between">
-        {/* Top Header Badge & Nút đổi câu */}
-        <div className="flex items-center justify-between gap-3 w-full">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/50 backdrop-blur-md border border-white/20 text-white shadow-sm transition-colors">
+      <div className="relative z-10 w-full h-full min-h-[320px] xl:min-h-[360px] p-6 sm:p-8 xl:p-10 flex flex-col justify-between">
+        {/* Top Header Badge */}
+        <div className="flex items-center justify-start w-full">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span className="text-xs font-semibold tracking-wide uppercase">Suy ngẫm hôm nay</span>
-            <span className="text-white/40 text-xs">•</span>
-            <span className="text-amber-200/90 text-xs font-medium">{quote.theme}</span>
+            <span className="text-amber-200/90 text-xs font-semibold tracking-wide uppercase">{quote.theme}</span>
           </div>
-
-          <button
-            type="button"
-            onClick={handleNextQuote}
-            title="Đổi sang câu suy ngẫm khác"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/35 hover:bg-black/60 backdrop-blur-md border border-white/15 text-white/80 hover:text-white text-xs font-medium transition-all duration-200 group/btn"
-          >
-            <RefreshCw className="w-3.5 h-3.5 group-hover/btn:rotate-180 transition-transform duration-500" />
-            <span className="hidden sm:inline">Đổi câu khác</span>
-          </button>
         </div>
 
         {/* Quote Content Section */}
-        <div className="space-y-3 xl:space-y-4 max-w-2xl mt-auto">
+        <div className="space-y-4 xl:space-y-5 max-w-3xl mt-auto">
           {/* Decorative Quote Icon */}
-          <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center text-amber-300 shadow-sm">
-            <QuoteIcon className="w-5 h-5 fill-amber-300/20" />
+          <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-center text-amber-300 shadow-sm">
+            <QuoteIcon className="w-5 h-5 fill-amber-300/25" />
           </div>
 
-          {/* Câu danh ngôn */}
-          <blockquote className="space-y-3">
-            <p className="text-white text-lg sm:text-xl xl:text-2xl font-serif font-medium leading-relaxed sm:leading-relaxed xl:leading-relaxed tracking-wide drop-shadow-md">
+          {/* Câu danh ngôn (Font chữ to, rõ ràng, dễ đọc) */}
+          <blockquote className="space-y-3.5">
+            <p className="text-white text-xl sm:text-2xl md:text-3xl xl:text-4xl font-serif font-medium leading-relaxed sm:leading-relaxed md:leading-relaxed tracking-wide drop-shadow-lg">
               "{quote.text}"
             </p>
 
             {/* Tác giả */}
             <footer className="flex items-center gap-3 pt-1">
-              <span className="block w-8 sm:w-10 h-0.5 bg-amber-400/80 rounded-full shadow-sm" aria-hidden="true" />
-              <cite className="text-amber-200/95 text-sm sm:text-base font-medium tracking-wide not-italic drop-shadow">
+              <span className="block w-10 sm:w-12 h-0.5 bg-amber-400/80 rounded-full shadow-sm" aria-hidden="true" />
+              <cite className="text-amber-200/95 text-base sm:text-lg font-medium tracking-wide not-italic drop-shadow">
                 {quote.author}
               </cite>
             </footer>

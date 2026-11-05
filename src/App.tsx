@@ -2069,7 +2069,7 @@ export default function App() {
                   {/* Daily Quote Mini Card */}
                   <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Suy ngẫm hôm nay</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Hôm nay</p>
                       <p className="mt-1 text-sm font-semibold text-app-ink leading-snug line-clamp-2">
                         {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
                       </p>

@@ -125,13 +125,7 @@ export const usePayments = (month?: string) => {
         fetchPaymentStats(false, true);
       }, ordersChannelName);
 
-      // Silent fallback poll every 30 seconds (no spinner, no screen flickering)
-      const fallbackPoll = setInterval(() => {
-        fetchPaymentStats(false, true);
-      }, 30000);
-
       return () => {
-        clearInterval(fallbackPoll);
         unsubscribeFromTable(paymentsSubscription);
         unsubscribeFromTable(ordersSubscription);
       };

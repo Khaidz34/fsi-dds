@@ -16,9 +16,9 @@ export const useDashboardStats = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = async () => {
+  const fetchStats = async (isSilent = false) => {
     try {
-      setIsLoading(true);
+      if (!isSilent) setIsLoading(true);
       setError(null);
       const data = await statsAPI.getAdminDashboard();
       setStats(data);
@@ -37,12 +37,12 @@ export const useDashboardStats = () => {
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      fetchStats();
+      fetchStats(false);
       
-      // Setup Supabase Realtime subscription for stats
+      // Setup Supabase Realtime subscription for stats (silent update, no flicker)
       const channel = subscribeToTable('orders', () => {
         console.log('📊 Stats update detected via Realtime');
-        fetchStats();
+        fetchStats(true);
       }, 'stats_changes');
 
       return () => {
@@ -53,8 +53,8 @@ export const useDashboardStats = () => {
 
   return {
     stats,
-    isLoading,
+    isLoading: isLoading && !stats,
     error,
-    refetch: fetchStats
+    refetch: () => fetchStats(false)
   };
 };

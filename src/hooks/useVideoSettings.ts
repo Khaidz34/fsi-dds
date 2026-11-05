@@ -59,8 +59,6 @@ export const useVideoSettings = (): VideoSettings => {
 
   useEffect(() => {
     fetchSettings();
-    const interval = setInterval(fetchSettings, 10000);
-    return () => clearInterval(interval);
   }, [fetchSettings]);
 
   return {

@@ -240,21 +240,12 @@ export const useAdminPayments = (month?: string) => {
       fetchPaymentHistory();
       fetchAutoPaymentUsage();
       
-      // Use polling with longer interval to reduce server load
-      const pollInterval = setInterval(() => {
-        console.log('🔄 Polling admin payments...');
-        fetchUserPayments(false, true, 1);
-        fetchPaymentHistory();
-        fetchAutoPaymentUsage();
-      }, 10000); // Poll every 10 seconds (reduced from 3 seconds)
-
       const ordersChannel = subscribeToTable('orders', () => {
         console.log('Order update detected, refreshing admin payments...');
         fetchUserPayments(false, true, 1);
       }, 'admin_payments_orders_changes');
 
       return () => {
-        clearInterval(pollInterval);
         unsubscribeFromTable(ordersChannel);
       };
     }
