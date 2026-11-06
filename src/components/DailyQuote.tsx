@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Quote as QuoteIcon } from 'lucide-react';
+import { Quote as QuoteIcon } from 'lucide-react';
 
 interface QuoteItem {
   text: string;
@@ -231,7 +231,7 @@ const DailyQuote: React.FC = () => {
       {/* Background Image với hiệu ứng load mượt và zoom nhẹ khi hover */}
       <img
         src={photoUrl}
-        alt={quote.theme}
+        alt={quote.author ? `Triết lý - ${quote.author}` : "Triết lý cuộc sống"}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
         className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 group-hover:scale-105 ${
@@ -250,15 +250,7 @@ const DailyQuote: React.FC = () => {
       />
 
       {/* Lớp nội dung trên nền ảnh */}
-      <div className="relative z-10 w-full h-full min-h-[320px] xl:min-h-[360px] p-6 sm:p-8 xl:p-10 flex flex-col justify-between">
-        {/* Top Header Badge */}
-        <div className="flex items-center justify-start w-full">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span className="text-amber-200/90 text-xs font-semibold tracking-wide uppercase">{quote.theme}</span>
-          </div>
-        </div>
-
+      <div className="relative z-10 w-full h-full min-h-[320px] xl:min-h-[360px] p-6 sm:p-8 xl:p-10 flex flex-col justify-end">
         {/* Quote Content Section */}
         <div className="space-y-4 xl:space-y-5 max-w-3xl mt-auto">
           {/* Decorative Quote Icon */}
