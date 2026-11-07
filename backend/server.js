@@ -2154,8 +2154,18 @@ const isFailedAutoPayment = (transaction) => {
 };
 
 const buildVietQrUrl = ({ amount, code, transferContent }) => {
-  const bankId = process.env.AUTO_PAYMENT_BANK_ID;
-  const accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO;
+  let bankId = process.env.AUTO_PAYMENT_BANK_ID || 'TPBank';
+  let accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO || '00972905328';
+
+  // Override old account number if still in env
+  if (accountNo === '00004446755' || !accountNo) {
+    accountNo = '00972905328';
+  }
+  accountNo = accountNo.replace(/\s+/g, '');
+
+  if (bankId === '970423' || bankId.toUpperCase() === 'TPB') {
+    bankId = 'TPBank';
+  }
 
   if (!bankId || !accountNo || !amount || amount <= 0) {
     return null;
@@ -2167,23 +2177,24 @@ const buildVietQrUrl = ({ amount, code, transferContent }) => {
     addInfo: transferContent || code
   });
 
-  if (process.env.AUTO_PAYMENT_ACCOUNT_NAME) {
-    params.set('accountName', process.env.AUTO_PAYMENT_ACCOUNT_NAME);
-  }
+  const accountName = process.env.AUTO_PAYMENT_ACCOUNT_NAME || 'NGUYEN DAC KHAI';
+  params.set('accountName', accountName);
 
   return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(accountNo)}-${encodeURIComponent(template)}.png?${params.toString()}`;
 };
 
 const getAutoPaymentBankInfo = () => {
-  const bankId = process.env.AUTO_PAYMENT_BANK_ID || '';
-  const accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO || '';
-  const accountName = process.env.AUTO_PAYMENT_ACCOUNT_NAME || '';
+  let bankId = process.env.AUTO_PAYMENT_BANK_ID || 'TPBank';
+  let accountNo = process.env.AUTO_PAYMENT_ACCOUNT_NO || '00972905328';
+  const accountName = process.env.AUTO_PAYMENT_ACCOUNT_NAME || 'NGUYEN DAC KHAI';
 
-  if (!bankId || !accountNo) {
-    return null;
+  if (accountNo === '00004446755' || !accountNo) {
+    accountNo = '00972905328';
   }
+  accountNo = accountNo.replace(/\s+/g, '');
 
-  return { bankId, accountNo, accountName };
+  // Luôn trả về tên ngân hàng hiển thị là TPBank
+  return { bankId: 'TPBank', accountNo, accountName };
 };
 
 const isMissingOptionalPaymentSchema = (error) => {

@@ -940,6 +940,19 @@ export default function App() {
 
   const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
+  const getBankDisplayName = (bankId?: string) => {
+    if (!bankId) return 'TPBank';
+    if (bankId === '970423' || bankId.toUpperCase() === 'TPB' || bankId.toUpperCase() === 'TPBANK') {
+      return 'TPBank';
+    }
+    return bankId;
+  };
+
+  const getEffectiveAccountNo = (accountNo?: string) => {
+    if (!accountNo || accountNo === '00004446755') return '0097 2905 328';
+    return accountNo;
+  };
+
   const buildDashboardVietQrUrl = (bankId: string, info: DashboardAutoPaymentInfo) => {
     const amount = Math.max(0, Math.round(Number(info.amount || info.remainingTotal || 0)));
     const params = new URLSearchParams({
@@ -951,7 +964,12 @@ export default function App() {
       params.set('accountName', info.bank.accountName);
     }
 
-    return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(info.bank?.accountNo || '')}-compact2.png?${params.toString()}`;
+    const safeAccountNo = (info.bank?.accountNo === '00004446755' || !info.bank?.accountNo)
+      ? '00972905328'
+      : info.bank.accountNo.replace(/\s+/g, '');
+    const safeBankId = (bankId === '970423' || bankId === 'TPB' || !bankId) ? 'TPBank' : bankId;
+
+    return `https://img.vietqr.io/image/${encodeURIComponent(safeBankId)}-${encodeURIComponent(safeAccountNo)}-compact2.png?${params.toString()}`;
   };
 
   const loadDashboardAutoPaymentInfo = useCallback(async () => {
@@ -997,14 +1015,26 @@ export default function App() {
     const fallbackState = img.dataset.fallbackState || 'primary';
 
     if (fallbackState === 'primary') {
+      img.dataset.fallbackState = 'tpbank';
+      img.src = buildDashboardVietQrUrl('TPBank', info);
+      return;
+    }
+
+    if (fallbackState === 'tpbank') {
+      img.dataset.fallbackState = '970423';
+      img.src = buildDashboardVietQrUrl('970423', info);
+      return;
+    }
+
+    if (fallbackState === '970423') {
       img.dataset.fallbackState = 'tpb';
       img.src = buildDashboardVietQrUrl('TPB', info);
       return;
     }
 
     if (fallbackState === 'tpb') {
-      img.dataset.fallbackState = 'tpbank';
-      img.src = buildDashboardVietQrUrl('TPBank', info);
+      img.dataset.fallbackState = 'static';
+      img.src = '/QR.png';
       return;
     }
 
@@ -2182,8 +2212,8 @@ export default function App() {
                         ) : dashboardAutoPaymentInfo?.bank ? (
                           <>
                             <div className="font-bold">{dashboardAutoPaymentInfo.bank.accountName || 'Tài khoản thanh toán'}</div>
-                            <div className="font-mono">{dashboardAutoPaymentInfo.bank.accountNo}</div>
-                            <div className="font-semibold">{dashboardAutoPaymentInfo.bank.bankId}</div>
+                            <div className="font-mono">{getEffectiveAccountNo(dashboardAutoPaymentInfo.bank.accountNo)}</div>
+                            <div className="font-semibold">{getBankDisplayName(dashboardAutoPaymentInfo.bank.bankId)}</div>
                             {dashboardAutoPaymentInfo.code && (
                               <div className="font-mono text-xs opacity-90">{dashboardAutoPaymentInfo.transferContent || dashboardAutoPaymentInfo.code}</div>
                             )}

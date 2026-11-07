@@ -295,6 +295,19 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     setCustomPaymentAmount(String(normalizedAmount));
   };
 
+  const getBankDisplayName = (bankId?: string) => {
+    if (!bankId) return 'TPBank';
+    if (bankId === '970423' || bankId.toUpperCase() === 'TPB' || bankId.toUpperCase() === 'TPBANK') {
+      return 'TPBank';
+    }
+    return bankId;
+  };
+
+  const getEffectiveAccountNo = (accountNo?: string) => {
+    if (!accountNo || accountNo === '00004446755') return '0097 2905 328';
+    return accountNo;
+  };
+
   const buildClientVietQrUrl = (bankId: string, info: AutoPaymentInfo, amount: number) => {
     const safeAmount = normalizePaymentAmount(amount, getMaxAutoPaymentAmount(info));
     const params = new URLSearchParams({
@@ -306,17 +319,22 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
       params.set('accountName', info.bank.accountName);
     }
 
-    return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(info.bank?.accountNo || '')}-compact2.png?${params.toString()}`;
+    const safeAccountNo = (info.bank?.accountNo === '00004446755' || !info.bank?.accountNo)
+      ? '00972905328'
+      : info.bank.accountNo.replace(/\s+/g, '');
+    const safeBankId = (bankId === '970423' || bankId === 'TPB' || !bankId) ? 'TPBank' : bankId;
+
+    return `https://img.vietqr.io/image/${encodeURIComponent(safeBankId)}-${encodeURIComponent(safeAccountNo)}-compact2.png?${params.toString()}`;
   };
 
   const getCurrentQrUrl = (info: AutoPaymentInfo) => {
     const safeAmount = normalizePaymentAmount(selectedPaymentAmount, getMaxAutoPaymentAmount(info));
 
-    if (autoPaymentQrFailed || !info.bankConfigured || !info.bank?.accountNo || safeAmount <= 0) {
+    if (autoPaymentQrFailed || !info.bankConfigured || safeAmount <= 0) {
       return null;
     }
 
-    return buildClientVietQrUrl(info.bank.bankId, info, safeAmount);
+    return buildClientVietQrUrl(info.bank?.bankId || 'TPBank', info, safeAmount);
   };
 
   const handleQrImageError = (event: React.SyntheticEvent<HTMLImageElement>, info: AutoPaymentInfo) => {
@@ -325,14 +343,26 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     const safeAmount = normalizePaymentAmount(selectedPaymentAmount, getMaxAutoPaymentAmount(info));
 
     if (fallbackState === 'primary') {
+      img.dataset.fallbackState = 'tpbank';
+      img.src = buildClientVietQrUrl('TPBank', info, safeAmount);
+      return;
+    }
+
+    if (fallbackState === 'tpbank') {
+      img.dataset.fallbackState = '970423';
+      img.src = buildClientVietQrUrl('970423', info, safeAmount);
+      return;
+    }
+
+    if (fallbackState === '970423') {
       img.dataset.fallbackState = 'tpb';
       img.src = buildClientVietQrUrl('TPB', info, safeAmount);
       return;
     }
 
     if (fallbackState === 'tpb') {
-      img.dataset.fallbackState = 'tpbank';
-      img.src = buildClientVietQrUrl('TPBank', info, safeAmount);
+      img.dataset.fallbackState = 'static';
+      img.src = '/QR.png';
       return;
     }
 
@@ -744,15 +774,15 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   <div className="payment-bank-card rounded-xl border border-app-accent/15 bg-white/95 divide-y divide-app-accent/10">
                     <div className="flex items-center justify-between gap-3 p-4">
                       <span className="text-sm text-app-ink/50">Ngân hàng</span>
-                      <span className="font-semibold text-app-ink text-right">{autoPaymentInfo.bank.bankId}</span>
+                      <span className="font-semibold text-app-ink text-right">{getBankDisplayName(autoPaymentInfo.bank.bankId)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3 p-4">
                       <span className="text-sm text-app-ink/50">Số tài khoản</span>
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-app-ink truncate">{autoPaymentInfo.bank.accountNo}</span>
+                        <span className="font-semibold text-app-ink truncate font-mono">{getEffectiveAccountNo(autoPaymentInfo.bank.accountNo)}</span>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(autoPaymentInfo.bank?.accountNo || '', 'account')}
+                          onClick={() => copyToClipboard(getEffectiveAccountNo(autoPaymentInfo.bank?.accountNo).replace(/\s+/g, ''), 'account')}
                           className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
                           title="Copy số tài khoản"
                         >
@@ -772,14 +802,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   </div>
                 )}
 
-                <div className="payment-help-note rounded-xl border border-app-accent/20 bg-app-accent/5 p-3 sm:p-4 text-xs sm:text-sm text-app-ink/70 leading-relaxed">
+                <div className="payment-help-note rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 sm:p-4 text-xs sm:text-sm text-app-ink leading-relaxed shadow-sm">
                   {isAutoPaymentQuotaExhausted ? (
                     <>
-                      Quét mã này bằng app ngân hàng hoặc chuyển khoản trực tiếp vào tài khoản TPBank ở trên. Vui lòng giữ nội dung <span className="font-bold">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</span> để admin đối chiếu và xác nhận thủ công.
+                      Quét mã này bằng app ngân hàng hoặc chuyển khoản trực tiếp vào tài khoản TPBank ở trên. Vui lòng <strong className="font-bold text-red-600 uppercase">GIỮ NGUYÊN NỘI DUNG CHUYỂN KHOẢN</strong> &ldquo;<strong className="font-bold text-app-accent select-all bg-white/80 px-1.5 py-0.5 rounded border border-app-accent/20">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</strong>&rdquo;, nếu không giao dịch đó sẽ <strong className="font-bold text-red-600">không được hệ thống tự động ghi nhận</strong> là đã thanh toán.
                     </>
                   ) : (
                     <>
-                      Quét mã này bằng app ngân hàng, sau đó kiểm tra số tiền đã chọn và nội dung <span className="font-bold">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</span> trước khi xác nhận. Khi tiền vào, webhook sẽ tự ghi nhận theo đúng số tiền ngân hàng gửi về.
+                      Vui lòng <strong className="font-bold text-red-600 uppercase">GIỮ NGUYÊN NỘI DUNG CHUYỂN KHOẢN</strong> &ldquo;<strong className="font-bold text-app-accent select-all bg-white/80 px-1.5 py-0.5 rounded border border-app-accent/20">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</strong>&rdquo;, nếu không giao dịch đó sẽ <strong className="font-bold text-red-600">không được hệ thống tự động ghi nhận</strong> là đã thanh toán.
                     </>
                   )}
                 </div>
