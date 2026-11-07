@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 import { 
   Calendar as CalendarIcon, 
@@ -88,7 +88,13 @@ interface PaymentDashboardProps {
 const DEFAULT_MEAL_PRICE = 40000;
 
 const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const actualCurrentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const [currentMonth, setCurrentMonth] = useState(actualCurrentMonth);
+  const isPastMonth = currentMonth < actualCurrentMonth;
+  const isViewingCurrentMonth = currentMonth === actualCurrentMonth;
+  const goToCurrentMonth = () => {
+    setCurrentMonth(actualCurrentMonth);
+  };
   const { user } = useAuth();
   const { paymentStats, isLoading, isRefreshing, refetch } = usePayments(currentMonth);
   const { orders } = useMonthlyOrders(currentMonth);
@@ -639,16 +645,57 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 <p className="text-sm mt-1">{autoPaymentError}</p>
               </div>
             </div>
-          ) : autoPaymentInfo?.isPaid ? (
-            <div className="flex items-start gap-3 rounded-xl border border-app-accent/20 bg-app-accent/5 p-4 text-app-ink">
-              <CheckCircle size={20} className="mt-0.5 shrink-0 text-app-accent" />
-              <div>
-                <p className="font-semibold">Tháng này đã được thanh toán</p>
-                <p className="text-sm mt-1">
-                  {isAutoPaymentQuotaExhausted
-                    ? 'Nếu vừa chuyển khoản trực tiếp, admin sẽ kiểm tra và xác nhận thủ công.'
-                    : 'Nếu vừa chuyển khoản, hãy bấm cập nhật sau khi ngân hàng gửi webhook về hệ thống.'}
+          ) : autoPaymentInfo?.isPaid || (paymentStats?.remainingTotal || 0) <= 0 ? (
+            <div className="flex items-start gap-3 rounded-xl border border-app-accent/20 bg-app-accent/5 p-4 sm:p-5 text-app-ink">
+              <CheckCircle size={22} className="mt-0.5 shrink-0 text-app-accent" />
+              <div className="flex-1">
+                <p className="font-bold text-base">
+                  {isPastMonth
+                    ? `Kỳ ${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()} đã được thanh toán`
+                    : 'Tháng này đã được thanh toán'}
                 </p>
+                <p className="text-sm mt-1 text-app-ink/70">
+                  {isPastMonth
+                    ? 'Toàn bộ các suất ăn trong tháng này đã hoàn tất thanh toán. Bạn không còn khoản nợ nào trong kỳ này.'
+                    : (isAutoPaymentQuotaExhausted
+                        ? 'Nếu vừa chuyển khoản trực tiếp, admin sẽ kiểm tra và xác nhận thủ công.'
+                        : 'Nếu vừa chuyển khoản, hãy bấm cập nhật sau khi ngân hàng gửi webhook về hệ thống.')}
+                </p>
+                {isPastMonth && (
+                  <button
+                    type="button"
+                    onClick={goToCurrentMonth}
+                    className="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-app-accent text-white text-xs font-bold hover:bg-app-accent/90 transition-colors shadow-sm"
+                  >
+                    <CalendarIcon size={14} />
+                    Quay về tháng hiện tại
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : isPastMonth ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 sm:p-5 text-amber-950">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={22} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold text-base">
+                    Đang xem lịch sử công nợ kỳ cũ ({translations.paymentDashboard.monthNames[currentDate.getMonth()]} {currentDate.getFullYear()})
+                  </p>
+                  <p className="text-sm mt-1.5 text-amber-900 leading-relaxed">
+                    Hệ thống ghi nhận còn nợ tại thời điểm kỳ này là <b>{(paymentStats?.remainingTotal || 0).toLocaleString()}đ</b>.
+                    Để thanh toán số dư công nợ thực tế đến hôm nay và <b>tránh chuyển khoản nhầm kỳ</b>, vui lòng chuyển về <b>Tháng hiện tại</b> để quét mã QR chính xác nhất.
+                  </p>
+                  <div className="mt-3.5 flex flex-wrap gap-2.5">
+                    <button
+                      type="button"
+                      onClick={goToCurrentMonth}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-app-accent text-white text-xs sm:text-sm font-bold hover:bg-app-accent/90 transition-colors shadow-sm"
+                    >
+                      <CalendarIcon size={16} />
+                      Chuyển về tháng hiện tại để thanh toán
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : autoPaymentInfo ? (
@@ -910,6 +957,16 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             >
               <ChevronRight size={20} className="text-app-ink/60" />
             </button>
+
+            {!isViewingCurrentMonth && (
+              <button
+                type="button"
+                onClick={goToCurrentMonth}
+                className="px-2.5 py-1 text-xs font-bold rounded-lg border border-app-accent/20 bg-white text-app-accent hover:bg-app-accent/5 transition-colors shrink-0"
+              >
+                Về tháng này
+              </button>
+            )}
           </div>
         </div>
 

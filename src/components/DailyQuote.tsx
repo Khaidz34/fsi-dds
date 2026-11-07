@@ -231,7 +231,7 @@ const DailyQuote: React.FC = () => {
       {/* Background Image với hiệu ứng load mượt và zoom nhẹ khi hover */}
       <img
         src={photoUrl}
-        alt={quote.theme}
+        alt={quote.author ? `Triết lý - ${quote.author}` : "Triết lý cuộc sống"}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
         className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 group-hover:scale-105 ${
