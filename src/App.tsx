@@ -4066,9 +4066,10 @@ export default function App() {
                 />
               </React.Suspense>
             )}
-          </div>
+          </AnimatePresence>
         </div>
-      </main>
+      </div>
+    </main>
 
       <AnimatePresence>
         {showOrderSuccess && (
