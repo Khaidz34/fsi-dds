@@ -4,7 +4,10 @@
 -- Các chỉ mục sử dụng IF NOT EXISTS nên hoàn toàn an toàn khi chạy lại nhiều lần.
 -- ==============================================================================
 
--- 1. CHỈ MỤC CHO BẢNG ĐƠN HÀNG (orders)
+-- 1. ĐẢM BẢO CỘT SOFT DELETE (deleted_at) TRÊN BẢNG ORDERS TỒN TẠI
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+
+-- 2. CHỈ MỤC CHO BẢNG ĐƠN HÀNG (orders)
 -- Tối ưu triệt để các câu truy vấn lọc theo ngày, theo tháng, theo người ăn, loại trừ đơn đã xóa mềm
 CREATE INDEX IF NOT EXISTS idx_orders_user_created_active 
   ON orders(user_id, created_at DESC) 
@@ -25,29 +28,30 @@ CREATE INDEX IF NOT EXISTS idx_orders_ordered_by_active
 CREATE INDEX IF NOT EXISTS idx_orders_dishes 
   ON orders(dish1_id, dish2_id);
 
--- 2. CHỈ MỤC CHO BẢNG THANH TOÁN (payments)
--- Tối ưu tính toán công nợ theo tháng và tra cứu lịch sử thanh toán của nhân viên
-CREATE INDEX IF NOT EXISTS idx_payments_user_month 
-  ON payments(user_id, month);
+-- 3. CHỈ MỤC CHO BẢNG THANH TOÁN (payments)
+-- Bảng payments lưu thời gian thanh toán qua cột created_at (lọc theo tháng/ngày bằng created_at)
+CREATE INDEX IF NOT EXISTS idx_payments_user_created 
+  ON payments(user_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_payments_month 
-  ON payments(month);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at 
+  ON payments(created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_payments_created_status 
+CREATE INDEX IF NOT EXISTS idx_payments_status_created 
   ON payments(status, created_at DESC);
 
--- 3. CHỈ MỤC CHO BẢNG GIAO DỊCH TỰ ĐỘNG (auto_payment_transactions)
+-- 4. CHỈ MỤC CHO BẢNG GIAO DỊCH TỰ ĐỘNG (auto_payment_transactions)
 -- Khớp webhook ngân hàng (SePay / VietQR) tức thì theo mã code chuyển khoản
 DO $$
 BEGIN
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'auto_payment_transactions') THEN
-    CREATE INDEX IF NOT EXISTS idx_auto_pay_code ON auto_payment_transactions(code);
+    CREATE INDEX IF NOT EXISTS idx_auto_pay_payment_code ON auto_payment_transactions(payment_code);
     CREATE INDEX IF NOT EXISTS idx_auto_pay_trans_id ON auto_payment_transactions(transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_auto_pay_user_month ON auto_payment_transactions(user_id, month);
     CREATE INDEX IF NOT EXISTS idx_auto_pay_created ON auto_payment_transactions(created_at DESC);
   END IF;
 END $$;
 
--- 4. CHỈ MỤC CHO BẢNG THỰC ĐƠN & MÓN ĂN (menus, dishes)
+-- 5. CHỈ MỤC CHO BẢNG THỰC ĐƠN & MÓN ĂN (menus, dishes)
 -- Truy vấn menu hôm nay và danh sách món ăn trong vài mili-giây
 CREATE INDEX IF NOT EXISTS idx_menus_date_desc 
   ON menus(date DESC);
@@ -55,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_menus_date_desc
 CREATE INDEX IF NOT EXISTS idx_dishes_menu_sort 
   ON dishes(menu_id, sort_order ASC);
 
--- 5. CHỈ MỤC CHO BẢNG NGƯỜI DÙNG & GÓP Ý (users, feedback)
+-- 6. CHỈ MỤC CHO BẢNG NGƯỜI DÙNG & GÓP Ý (users, feedback)
 CREATE INDEX IF NOT EXISTS idx_users_username_lower 
   ON users(LOWER(username));
 
