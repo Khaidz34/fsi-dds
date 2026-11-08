@@ -203,18 +203,56 @@ const QUOTES: QuoteItem[] = [
   },
 ];
 
-/** Lấy chỉ số quote theo ngày trong năm */
-function getDayOfYearIndex(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return dayOfYear % QUOTES.length;
+/**
+ * Lấy chỉ số quote theo ngày làm việc (Thứ 2 - Thứ 6).
+ * Thứ 7 và Chủ Nhật không đi làm nên giữ nguyên câu triết lý của Thứ 6 (không đổi câu mới).
+ * Mốc neo: Chủ Nhật 08/11/2026 và Thứ 2 09/11/2026 dùng chung câu triết lý hôm nay (index 2).
+ */
+function getWorkdayQuoteIndex(targetDate: Date = new Date(), totalQuotes: number = QUOTES.length): number {
+  // Mốc neo: Thứ 2 ngày 09/11/2026 (index = 2, giữ nguyên câu của Chủ Nhật 08/11/2026)
+  const baseDate = new Date(2026, 10, 9);
+  const baseIndex = 2;
+
+  // Chuẩn hoá ngày về 0h00 theo giờ địa phương
+  const d = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+  if (d.getTime() < baseDate.getTime()) {
+    return baseIndex;
+  }
+
+  // Nếu rơi vào Thứ 7 (6) hoặc Chủ Nhật (0), chuyển về mốc Thứ 6 gần nhất để giữ nguyên câu
+  const dayOfWeek = d.getDay();
+  const effectiveDate = new Date(d.getTime());
+  if (dayOfWeek === 6) {
+    effectiveDate.setDate(effectiveDate.getDate() - 1);
+  } else if (dayOfWeek === 0) {
+    effectiveDate.setDate(effectiveDate.getDate() - 2);
+  }
+
+  const diffTime = effectiveDate.getTime() - baseDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return baseIndex;
+  }
+
+  const fullWeeks = Math.floor(diffDays / 7);
+  const remDays = diffDays % 7;
+  let workdays = fullWeeks * 5;
+
+  for (let i = 1; i <= remDays; i++) {
+    const day = (baseDate.getDay() + i) % 7;
+    if (day !== 0 && day !== 6) {
+      workdays++;
+    }
+  }
+
+  return (baseIndex + workdays) % totalQuotes;
 }
 
 const DailyQuote: React.FC = () => {
   const quote = useMemo(() => {
-    const idx = getDayOfYearIndex();
+    const idx = getWorkdayQuoteIndex();
     return QUOTES[idx];
   }, []);
 
