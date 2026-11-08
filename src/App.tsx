@@ -4068,8 +4068,7 @@ export default function App() {
             )}
           </AnimatePresence>
         </div>
-      </div>
-    </main>
+      </main>
 
       <AnimatePresence>
         {showOrderSuccess && (
