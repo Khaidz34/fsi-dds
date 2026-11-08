@@ -883,8 +883,30 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay (11h10 theo múi giờ Việt Nam UTC+7) hay chưa.
+ * Admin được miễn trừ kiểm tra này để linh hoạt hỗ trợ người dùng.
+ */
+const isOrderDeadlinePassed = (user) => {
+  if (user && user.role === 'admin') {
+    return false;
+  }
+  const now = new Date();
+  const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const vnDate = new Date(vnTimeStr);
+  const totalMinutes = vnDate.getHours() * 60 + vnDate.getMinutes();
+  const deadlineMinutes = 11 * 60 + 10; // 11:10 AM VN Time = 670 phút
+  return totalMinutes > deadlineMinutes;
+};
+
 app.post('/api/orders', authenticateToken, async (req, res) => {
   try {
+    if (isOrderDeadlinePassed(req.user)) {
+      return res.status(400).json({ 
+        error: 'Đã hết giờ đặt cơm hôm nay (hạn chót là 11h10). Bếp đã khóa danh sách để nấu món.' 
+      });
+    }
+
     const { dish1Id, dish2Id, orderedFor, notes, rating } = req.body;
     
     if (!dish1Id || !orderedFor) {
@@ -1054,6 +1076,12 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
 
     if (req.user.role !== 'admin' && order.user_id !== req.user.id && order.ordered_by !== req.user.id) {
       return res.status(403).json({ error: 'Không có quyền chỉnh sửa đơn hàng này' });
+    }
+
+    if (isOrderDeadlinePassed(req.user)) {
+      return res.status(400).json({ 
+        error: 'Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là 11h10).' 
+      });
     }
 
     // Update order

@@ -45,7 +45,8 @@ import {
   Palette,
   Sword,
   Play,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -79,6 +80,9 @@ const FusionSliceGame = React.lazy(() => import('./components/FusionSliceGame').
 const AdminBannerControl = React.lazy(() => import('./components/AdminBannerControl').then(m => ({ default: m.AdminBannerControl })));
 const AdminVideoControl = React.lazy(() => import('./components/AdminVideoControl').then(m => ({ default: m.AdminVideoControl })));
 const VideoOverlay = React.lazy(() => import('./components/VideoOverlay').then(m => ({ default: m.VideoOverlay })));
+const FeedbackView = React.lazy(() => import('./components/FeedbackView').then(m => ({ default: m.FeedbackView })));
+const AccountsManagementView = React.lazy(() => import('./components/AccountsManagementView').then(m => ({ default: m.AccountsManagementView })));
+import { OrderDeadlineCountdown, useOrderDeadline } from './components/OrderDeadlineCountdown';
 
 const TabLoadingSkeleton = () => (
   <div className="p-8 space-y-4 animate-pulse">
@@ -632,6 +636,8 @@ export default function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, token } = useAuth();
 
   const videoSettings = useVideoSettings();
+  const { isPassed: isOrderDeadlinePassed } = useOrderDeadline();
+  const canPlaceOrder = user?.role === 'admin' || !isOrderDeadlinePassed;
 
   const [theme, setTheme] = useState<'fusion' | 'corporate'>('corporate'); // Default to corporate
   const [currentLang, setCurrentLang] = useState<Language>('vi');
@@ -1180,6 +1186,11 @@ export default function App() {
 
   const handleConfirmOrder = async () => {
     if (!user || selectedDishes.length === 0) return;
+    
+    if (!canPlaceOrder) {
+      alert('Đã hết giờ đặt cơm hôm nay (hạn chót là 11h10). Bếp đã khóa danh sách để nấu món.');
+      return;
+    }
     
     setIsPlacingOrder(true);
     
@@ -2382,6 +2393,8 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="desktop-menu-section menu-luxury-stage space-y-4 sm:space-y-6 lg:space-y-7"
               >
+                {/* Order Deadline Countdown Banner */}
+                <OrderDeadlineCountdown isAdmin={user?.role === 'admin'} className="mb-4" />
                 <div className="desktop-menu-hero hidden lg:grid grid-cols-[minmax(0,1fr)_minmax(300px,330px)] items-center gap-5 lacquer-card p-5 xl:p-6 overflow-hidden relative">
                   <div className="absolute inset-0 menu-heritage-surface" />
                   <div className="absolute inset-y-0 left-0 w-1/3 lotus-pattern opacity-[0.045]" />
@@ -2799,14 +2812,17 @@ export default function App() {
 
                         <button 
                           onClick={handleShowOrderSummary}
+                          disabled={!canPlaceOrder || selectedDishes.length === 0}
                           className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 mobile-order-primary ${
-                            theme === 'corporate' 
-                              ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
-                              : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
+                            !canPlaceOrder || selectedDishes.length === 0
+                              ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                              : theme === 'corporate' 
+                                ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
+                                : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
                           }`}
                         >
-                          <CheckCircle2 size={21} />
-                          {t.orderNow}
+                          {!canPlaceOrder ? <Lock size={20} /> : <CheckCircle2 size={21} />}
+                          {!canPlaceOrder ? 'Đã hết giờ đặt (11h10)' : t.orderNow}
                         </button>
                       </div>
 
@@ -2928,14 +2944,17 @@ export default function App() {
                             {/* Order Button */}
                             <button 
                               onClick={handlePlaceOrder}
+                              disabled={!canPlaceOrder || selectedDishes.length === 0}
                               className={`w-full text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
-                                theme === 'corporate' 
-                                  ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
-                                  : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
+                                !canPlaceOrder || selectedDishes.length === 0
+                                  ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                                  : theme === 'corporate' 
+                                    ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
+                                    : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
                               }`}
                             >
-                              <CheckCircle2 size={24} />
-                              {t.orderNow}
+                              {!canPlaceOrder ? <Lock size={22} /> : <CheckCircle2 size={24} />}
+                              {!canPlaceOrder ? 'Đã hết giờ đặt cơm hôm nay (11h10)' : t.orderNow}
                             </button>
                           </div>
                         </div>
@@ -3100,8 +3119,8 @@ export default function App() {
                             
                             {/* Actions */}
                             <div className="flex items-center justify-center md:justify-end gap-2">
-                              {/* Edit button - for order owner or admin */}
-                              {(user?.role === 'admin' || order.user_id === user?.id || order.ordered_by === user?.id) && (
+                              {/* Edit button - for order owner within deadline or admin */}
+                              {(user?.role === 'admin' || (canPlaceOrder && (order.user_id === user?.id || order.ordered_by === user?.id))) && (
                                 <button 
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
@@ -4019,209 +4038,35 @@ export default function App() {
             )}
 
             {activeTab === 'feedback' && (
-              <div
-                key="feedback"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                {user?.role === 'admin' ? (
-                  // Admin view - Xem tất cả góp ý
-                  <div className="lacquer-card p-4 lg:p-10">
-                    <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.feedback}</h3>
-                    
-                    {feedbacks.length > 0 ? (
-                      <div className="space-y-6">
-                        {feedbacks.map((feedback) => (
-                          <div key={feedback.id} className="p-6 bg-[#F5F2E9]/30 rounded-2xl border border-[#E5E1D1]">
-                            <div className="flex items-start justify-between mb-4">
-                              <div>
-                                <p className="font-bold text-[#1C1917]">{feedback.fullname}</p>
-                                <p className="text-xs text-[#1C1917]/40 font-bold uppercase tracking-widest">
-                                  {new Date(feedback.created_at).toLocaleDateString('vi-VN')} lúc {new Date(feedback.created_at).toLocaleTimeString('vi-VN')}
-                                </p>
-                                {feedback.subject && (
-                                  <p className="text-sm font-semibold text-[#1C1917] mt-1">Chủ đề: {feedback.subject}</p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <select
-                                  value={feedback.status}
-                                  onChange={(e) => updateFeedbackStatus(feedback.id, e.target.value)}
-                                  className="text-xs px-2 py-1 rounded border border-gray-300 bg-white"
-                                >
-                                  <option value="pending">Chờ xử lý</option>
-                                  <option value="reviewed">Đã xem</option>
-                                  <option value="resolved">Đã giải quyết</option>
-                                </select>
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                                  feedback.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' :
-                                  feedback.status === 'reviewed' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-yellow-100 text-yellow-700'
-                                }`}>
-                                  {feedback.status === 'resolved' ? 'Đã giải quyết' :
-                                   feedback.status === 'reviewed' ? 'Đã xem' : 'Chờ xử lý'}
-                                </span>
-                              </div>
-                            </div>
-                            <p className="text-sm text-[#1C1917]/60 italic">"{feedback.message}"</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="text-gray-400 mb-4">
-                          <MessageSquare size={48} className="mx-auto" />
-                        </div>
-                        <p className="text-gray-500 text-lg font-medium">Chưa có góp ý nào</p>
-                        <p className="text-gray-400 text-sm">{t.feedbackForm.noFeedback}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  // User view - Gửi góp ý
-                  <div className="lacquer-card p-4 lg:p-10">
-                    <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.feedbackForm.title}</h3>
-                    
-                    <div className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-[#1C1917] mb-2">
-                          {t.feedbackForm.subjectLabel}
-                        </label>
-                        <input
-                          type="text"
-                          value={feedbackSubject}
-                          onChange={(e) => setFeedbackSubject(e.target.value)}
-                          placeholder={t.feedbackForm.subjectPlaceholder}
-                          className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DA251D]/20 focus:border-[#DA251D]"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-[#1C1917] mb-2">
-                          {t.feedbackForm.contentLabel}
-                        </label>
-                        <textarea
-                          value={feedbackMessage}
-                          onChange={(e) => setFeedbackMessage(e.target.value)}
-                          placeholder={t.feedbackForm.contentPlaceholder}
-                          rows={6}
-                          className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DA251D]/20 focus:border-[#DA251D] resize-none"
-                        />
-                      </div>
-                      
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handleSubmitFeedback}
-                          disabled={!feedbackMessage.trim()}
-                          className="bg-[#DA251D] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {t.feedbackForm.submitButton}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setFeedbackSubject('');
-                            setFeedbackMessage('');
-                          }}
-                          className="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
-                        >
-                          {t.feedbackForm.clearButton}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <React.Suspense fallback={<TabLoadingSkeleton />}>
+                <FeedbackView
+                  user={user}
+                  feedbacks={feedbacks}
+                  translations={t}
+                  updateFeedbackStatus={updateFeedbackStatus}
+                  createFeedback={createFeedback}
+                />
+              </React.Suspense>
             )}
 
             {activeTab === 'accounts' && (
-              <div
-                key="accounts"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-8"
-              >
-                <div className="lacquer-card p-4 lg:p-10">
-                  <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.accountManagement}</h3>
-                  
-                  {users.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="border-b border-[#E5E1D1]">
-                            <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Họ tên</th>
-                            <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Tên đăng nhập</th>
-                            <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Vai trò</th>
-                            <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Hành động</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {users.map((userItem) => (
-                            <tr key={userItem.id} className="border-b border-[#E5E1D1]/50 last:border-0 hover:bg-[#FDF4E3]/30 transition-colors">
-                              <td className="py-4 font-bold text-sm text-[#1C1917]">{userItem.fullname}</td>
-                              <td className="py-4 text-sm text-[#1C1917]/60 font-mono">{userItem.username}</td>
-                              <td className="py-4">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${userItem.role === 'admin' ? 'bg-[#DA251D]/10 text-[#DA251D]' : 'bg-emerald-100 text-emerald-700'}`}>
-                                  {userItem.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
-                                </span>
-                              </td>
-                              <td className="py-4">
-                                <div className="flex items-center gap-2">
-                                  <button 
-                                    onClick={() => {
-                                      setEditingUser(userItem);
-                                      setEditUserFullname(userItem.fullname || '');
-                                      setEditUserUsername(userItem.username || '');
-                                      setEditUserRole(userItem.role || 'user');
-                                      setEditUserPassword('');
-                                    }}
-                                    className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1"
-                                    title="Chỉnh sửa tài khoản"
-                                  >
-                                    <Edit size={14} />
-                                    Chỉnh sửa
-                                  </button>
-                                  {userItem.id !== user?.id && (
-                                    <button 
-                                      onClick={async () => {
-                                        if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${userItem.fullname}" (${userItem.username}) không?\n\nLƯU Ý: Hành động này không thể hoàn tác!`)) {
-                                          try {
-                                            await deleteUser(userItem.id);
-                                            alert('Đã xóa người dùng thành công!');
-                                          } catch (err) {
-                                            alert('Lỗi khi xóa người dùng: ' + (err.message || 'Lỗi server'));
-                                          }
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-1"
-                                      title="Xóa tài khoản"
-                                    >
-                                      <Trash2 size={14} />
-                                      Xóa
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="text-gray-400 mb-4">
-                        <UserIcon size={48} className="mx-auto" />
-                      </div>
-                      <p className="text-gray-500 text-lg font-medium">Chưa có người dùng nào</p>
-                      <p className="text-gray-400 text-sm">Danh sách người dùng sẽ hiển thị ở đây</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <React.Suspense fallback={<TabLoadingSkeleton />}>
+                <AccountsManagementView
+                  users={users}
+                  currentUser={user}
+                  translations={t}
+                  onEditUser={(userItem) => {
+                    setEditingUser(userItem);
+                    setEditUserFullname(userItem.fullname || '');
+                    setEditUserUsername(userItem.username || '');
+                    setEditUserRole(userItem.role || 'user');
+                    setEditUserPassword('');
+                  }}
+                  onDeleteUser={deleteUser}
+                />
+              </React.Suspense>
             )}
-          </AnimatePresence>
+          </div>
         </div>
       </main>
 
@@ -4695,6 +4540,10 @@ export default function App() {
                   </button>
                   <button
                     onClick={async () => {
+                      if (!canPlaceOrder) {
+                        alert('Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là 11h10). Bếp đã khóa danh sách để nấu món.');
+                        return;
+                      }
                       if (!editDish1) {
                         alert('Vui lòng chọn món chính');
                         return;
