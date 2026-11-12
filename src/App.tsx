@@ -64,17 +64,46 @@ import { useBannerSettings } from './hooks/useBannerSettings';
 import { Login } from './components/Login';
 import { BannerDisplay } from './components/BannerDisplay';
 
+// Helper tự động xử lý khi server deploy bản mới làm lệch mã hash module động (Failed to fetch dynamically imported module)
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return React.lazy(async () => {
+    try {
+      const res = await factory();
+      sessionStorage.removeItem('chunk_reload_attempted');
+      return res;
+    } catch (error: any) {
+      const isChunkError = 
+        error?.message?.includes('Failed to fetch dynamically imported module') ||
+        error?.message?.includes('Importing a module script failed') ||
+        error?.message?.includes('Loading chunk');
+
+      const alreadyReloaded = sessionStorage.getItem('chunk_reload_attempted');
+
+      if (isChunkError && !alreadyReloaded) {
+        sessionStorage.setItem('chunk_reload_attempted', 'true');
+        console.warn('🔄 Phát hiện phiên bản ứng dụng mới, tự động tải lại trang...');
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+
+      throw error;
+    }
+  });
+}
+
 // Lazy-loaded heavy components for faster initial load & lower memory on low-spec server/clients
-const DailyQuote = React.lazy(() => import('./components/DailyQuote'));
-const PaymentDashboard = React.lazy(() => import('./components/PaymentDashboard'));
-const AdminStatsView = React.lazy(() => import('./components/AdminStatsView').then(m => ({ default: m.AdminStatsView })));
-const AdminMonthlyCalendar = React.lazy(() => import('./components/AdminMonthlyCalendar').then(m => ({ default: m.AdminMonthlyCalendar })));
-const FusionSliceGame = React.lazy(() => import('./components/FusionSliceGame').then(m => ({ default: m.FusionSliceGame })));
-const AdminBannerControl = React.lazy(() => import('./components/AdminBannerControl').then(m => ({ default: m.AdminBannerControl })));
-const AdminVideoControl = React.lazy(() => import('./components/AdminVideoControl').then(m => ({ default: m.AdminVideoControl })));
-const VideoOverlay = React.lazy(() => import('./components/VideoOverlay').then(m => ({ default: m.VideoOverlay })));
-const FeedbackView = React.lazy(() => import('./components/FeedbackView').then(m => ({ default: m.FeedbackView })));
-const AccountsManagementView = React.lazy(() => import('./components/AccountsManagementView').then(m => ({ default: m.AccountsManagementView })));
+const DailyQuote = lazyWithRetry(() => import('./components/DailyQuote'));
+const PaymentDashboard = lazyWithRetry(() => import('./components/PaymentDashboard'));
+const AdminStatsView = lazyWithRetry(() => import('./components/AdminStatsView').then(m => ({ default: m.AdminStatsView })));
+const AdminMonthlyCalendar = lazyWithRetry(() => import('./components/AdminMonthlyCalendar').then(m => ({ default: m.AdminMonthlyCalendar })));
+const FusionSliceGame = lazyWithRetry(() => import('./components/FusionSliceGame').then(m => ({ default: m.FusionSliceGame })));
+const AdminBannerControl = lazyWithRetry(() => import('./components/AdminBannerControl').then(m => ({ default: m.AdminBannerControl })));
+const AdminVideoControl = lazyWithRetry(() => import('./components/AdminVideoControl').then(m => ({ default: m.AdminVideoControl })));
+const VideoOverlay = lazyWithRetry(() => import('./components/VideoOverlay').then(m => ({ default: m.VideoOverlay })));
+const FeedbackView = lazyWithRetry(() => import('./components/FeedbackView').then(m => ({ default: m.FeedbackView })));
+const AccountsManagementView = lazyWithRetry(() => import('./components/AccountsManagementView').then(m => ({ default: m.AccountsManagementView })));
 import { OrderDeadlineCountdown, useOrderDeadline } from './components/OrderDeadlineCountdown';
 
 const TabLoadingSkeleton = () => (

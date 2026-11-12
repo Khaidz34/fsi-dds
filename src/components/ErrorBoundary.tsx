@@ -29,6 +29,21 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({ errorInfo });
+
+    // Tự động reload trang nếu lỗi do module/chunk không tìm thấy (thường xảy ra khi server vừa deploy bản mới)
+    const isChunkError = 
+      error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('Importing a module script failed') ||
+      error?.message?.includes('Loading chunk');
+
+    if (isChunkError) {
+      const alreadyReloaded = sessionStorage.getItem('chunk_reload_attempted');
+      if (!alreadyReloaded) {
+        sessionStorage.setItem('chunk_reload_attempted', 'true');
+        console.warn('🔄 Phát hiện phiên bản ứng dụng mới (chunk hash mismatch), tự động tải lại trang...');
+        window.location.reload();
+      }
+    }
   }
 
   private handleReset = () => {
