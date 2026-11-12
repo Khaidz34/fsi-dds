@@ -348,6 +348,35 @@ export default function App() {
     }
   };
 
+  // Modal đối soát sao kê ngân hàng
+  const [showReconcileModal, setShowReconcileModal] = useState(false);
+  const [reconcileInputText, setReconcileInputText] = useState('');
+  const [isReconcilingText, setIsReconcilingText] = useState(false);
+
+  const handleReconcileSubmit = async () => {
+    if (!reconcileInputText.trim()) {
+      alert('Vui lòng dán nội dung tin nhắn hoặc thông báo ngân hàng.');
+      return;
+    }
+    setIsReconcilingText(true);
+    try {
+      const res = await paymentsAPI.reconcileText(reconcileInputText);
+      if (res?.results && res.results.length > 0) {
+        const details = res.results.map((r: any) => `• ${r.fullname}: +${r.amount.toLocaleString()}đ (gạch ${r.markedOrders} suất)`).join('\n');
+        alert(`🎉 Đối soát thành công ${res.results.length} giao dịch:\n${details}`);
+        setShowReconcileModal(false);
+        setReconcileInputText('');
+        refetchAdminPayments();
+      } else {
+        alert('Không tìm thấy giao dịch hoặc user nào khớp trong nội dung đã dán.');
+      }
+    } catch (err: any) {
+      alert(`Lỗi khi đối soát: ${err.message || 'Lỗi không xác định'}`);
+    } finally {
+      setIsReconcilingText(false);
+    }
+  };
+
   // Modal chỉnh sửa user (trang admin)
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [editUserFullname, setEditUserFullname] = useState('');
@@ -3348,6 +3377,15 @@ export default function App() {
                                 <RefreshCw className={`w-3 h-3 ${isReprocessingAutoPayments ? 'animate-spin' : ''}`} />
                                 {isReprocessingAutoPayments ? 'Đang quét...' : 'Quét lại giao dịch'}
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowReconcileModal(true)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                                title="Dán tin nhắn hoặc thông báo nhận tiền từ app ngân hàng để gạch nợ hàng loạt"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Dán sao kê
+                              </button>
                             </div>
                             <p className="text-3xl font-black text-[#1C1917] mt-1">
                               {autoPaymentUsage.limit && !autoPaymentUsage.providerSynced && autoPaymentUsage.used === 0
@@ -4577,6 +4615,65 @@ export default function App() {
                     {isProcessingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showReconcileModal && (
+          <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-gray-100 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-gray-900 text-base">Đối soát sao kê / SMS ngân hàng</h3>
+                    <p className="text-xs text-gray-500">Dán nội dung tin nhắn hoặc biến động số dư từ app ngân hàng</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowReconcileModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Nội dung sao kê / SMS (mỗi dòng một giao dịch)
+                </label>
+                <textarea
+                  value={reconcileInputText}
+                  onChange={(e) => setReconcileInputText(e.target.value)}
+                  placeholder="Ví dụ:&#10;Từ: FSI172M202611 LE DUYEN + 40,000 VND&#10;Từ: FSI171M202611 TRAN LINH CHI + 40,000 VND"
+                  className="w-full h-36 px-4 py-3 rounded-2xl border border-gray-200 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  💡 Hệ thống tự động nhận diện mã <code>FSI...</code>, họ tên user và số tiền để gạch nợ chính xác.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReconcileModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-xs hover:bg-gray-50 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReconcileSubmit}
+                  disabled={isReconcilingText || !reconcileInputText.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isReconcilingText ? 'animate-spin' : ''}`} />
+                  {isReconcilingText ? 'Đang xử lý...' : 'Xác nhận đối soát'}
+                </button>
               </div>
             </div>
           </div>

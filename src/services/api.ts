@@ -289,6 +289,12 @@ export const paymentsAPI = {
       }>;
     }>('/admin/auto-payments/reprocess', {
       method: 'POST'
+    }),
+
+  reconcileText: (text: string, defaultMonth?: string) =>
+    apiCall<{ success: boolean; processedCount: number; results: any[] }>('/admin/auto-payments/reconcile-text', {
+      method: 'POST',
+      body: JSON.stringify({ text, defaultMonth })
     })
 };
 
