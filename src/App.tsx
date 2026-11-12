@@ -328,6 +328,25 @@ export default function App() {
   // Lọc các suất cơm theo user (trang admin)
   const [orderFilterUserId, setOrderFilterUserId] = useState<number | 'all'>('all');
   const [showOrderFilter, setShowOrderFilter] = useState(false);
+  const [isReprocessingAutoPayments, setIsReprocessingAutoPayments] = useState(false);
+
+  const handleReprocessAutoPayments = async () => {
+    setIsReprocessingAutoPayments(true);
+    try {
+      const res = await paymentsAPI.reprocessAutoPayments();
+      if (res?.recovered && res.recovered.length > 0) {
+        const names = res.recovered.map(r => `${r.userName} (${r.amount.toLocaleString()}đ)`).join(', ');
+        alert(`🎉 Đã phục hồi và ghi nhận thành công ${res.recovered.length} thanh toán:\n${names}`);
+        refetchAdminPayments();
+      } else {
+        alert(`Đã quét ${res?.reprocessed || 0} giao dịch, không có giao dịch nào chưa nhận cần phục hồi.`);
+      }
+    } catch (err: any) {
+      alert(`Lỗi khi quét lại giao dịch: ${err.message || 'Lỗi không xác định'}`);
+    } finally {
+      setIsReprocessingAutoPayments(false);
+    }
+  };
 
   // Modal chỉnh sửa user (trang admin)
   const [editingUser, setEditingUser] = useState<any | null>(null);
@@ -3317,7 +3336,19 @@ export default function App() {
                             <QrCode size={24} />
                           </div>
                           <div>
-                            <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Lượt thanh toán tự động tháng này</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Lượt thanh toán tự động tháng này</p>
+                              <button
+                                type="button"
+                                onClick={handleReprocessAutoPayments}
+                                disabled={isReprocessingAutoPayments}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                                title="Quét lại các giao dịch ngân hàng từng bị bỏ qua để đối soát và ghi nhận thanh toán"
+                              >
+                                <RefreshCw className={`w-3 h-3 ${isReprocessingAutoPayments ? 'animate-spin' : ''}`} />
+                                {isReprocessingAutoPayments ? 'Đang quét...' : 'Quét lại giao dịch'}
+                              </button>
+                            </div>
                             <p className="text-3xl font-black text-[#1C1917] mt-1">
                               {autoPaymentUsage.limit && !autoPaymentUsage.providerSynced && autoPaymentUsage.used === 0
                                 ? 'Chưa đồng bộ SePay'

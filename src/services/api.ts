@@ -274,6 +274,21 @@ export const paymentsAPI = {
     apiCall<any>('/payments/mark-paid', {
       method: 'POST',
       body: JSON.stringify({ userId, month, amount })
+    }),
+
+  reprocessAutoPayments: () =>
+    apiCall<{
+      success: boolean;
+      reprocessed: number;
+      recovered: Array<{
+        transactionId: string;
+        userName: string;
+        userId: number;
+        amount: number;
+        paymentId: number;
+      }>;
+    }>('/admin/auto-payments/reprocess', {
+      method: 'POST'
     })
 };
 

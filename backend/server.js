@@ -1970,24 +1970,107 @@ const buildAutoPaymentTransferContent = ({ code, payerName }) => {
 };
 
 const parseAutoPaymentCode = (content = '') => {
-  const compactContent = String(content).replace(/\s+/g, '').toUpperCase();
-  const match = compactContent.match(new RegExp(`${escapeRegExp(AUTO_PAYMENT_PREFIX)}(\\d+)M(\\d{6})`, 'i'));
+  if (!content) return null;
+  const raw = String(content);
 
-  if (!match) return null;
+  // 1. Khớp mã đầy đủ: FSI[userId]M[YYYYMM] hoặc có dấu gạch/dấu cách/dấu chấm (ví dụ: FSI-150-M202611, FSI 150 M 202611)
+  const fullMatch = raw.match(/(?:FSI|DDS|FSIDDS)[-_.\s]*(\d+)[-_.\s]*(?:M|T|THANG)?[-_.\s]*(\d{6}|\d{4}|\d{2})/i);
+  if (fullMatch) {
+    const userId = Number(fullMatch[1]);
+    let monthDigits = fullMatch[2];
+    let month = null;
 
-  const userId = Number(match[1]);
-  const monthDigits = match[2];
-  const month = `${monthDigits.slice(0, 4)}-${monthDigits.slice(4, 6)}`;
+    if (monthDigits.length === 6) {
+      month = `${monthDigits.slice(0, 4)}-${monthDigits.slice(4, 6)}`;
+    } else if (monthDigits.length === 2) {
+      const year = new Date().getFullYear();
+      month = `${year}-${monthDigits.padStart(2, '0')}`;
+    } else if (monthDigits.length === 4) {
+      const year = new Date().getFullYear();
+      month = `${year.toString().slice(0, 2)}${monthDigits.slice(0, 2)}-${monthDigits.slice(2, 4)}`;
+    }
 
-  if (!Number.isInteger(userId) || userId <= 0 || !isValidPaymentMonth(month)) {
-    return null;
+    if (Number.isInteger(userId) && userId > 0 && month && isValidPaymentMonth(month)) {
+      return {
+        userId,
+        month,
+        code: `${AUTO_PAYMENT_PREFIX}${userId}M${month.replace('-', '')}`
+      };
+    }
   }
 
-  return {
-    userId,
-    month,
-    code: `${AUTO_PAYMENT_PREFIX}${userId}M${monthDigits}`
-  };
+  // 2. Khớp tiền tố + ID người dùng khi không ghi tháng (ví dụ: FSI150, FSI 150, FSI-150) -> mặc định tháng hiện tại
+  const simpleMatch = raw.match(/(?:FSI|DDS|FSIDDS)[-_.\s]*(\d+)/i);
+  if (simpleMatch) {
+    const userId = Number(simpleMatch[1]);
+    if (Number.isInteger(userId) && userId > 0) {
+      const currentMonth = normalizePaymentMonth();
+      return {
+        userId,
+        month: currentMonth,
+        code: `${AUTO_PAYMENT_PREFIX}${userId}M${currentMonth.replace('-', '')}`
+      };
+    }
+  }
+
+  return null;
+};
+
+// Tìm user theo tên từ nội dung chuyển khoản nếu không có mã FSI...
+const findUserByTransferText = async (text = '') => {
+  if (!text || String(text).trim().length < 2) return null;
+  const normalizedText = normalizeTransferName(text);
+  if (!normalizedText || normalizedText.length < 2) return null;
+  const compactText = normalizedText.replace(/\s+/g, '');
+
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, fullname, username')
+      .order('id');
+
+    if (error || !users || users.length === 0) return null;
+
+    // Ưu tiên khớp tên dài nhất trước (tránh trùng tên ngắn)
+    const sortedUsers = [...users].sort((a, b) => (b.fullname || '').length - (a.fullname || '').length);
+
+    // 1. Khớp họ tên đầy đủ hoặc username
+    for (const u of sortedUsers) {
+      const normalizedFullName = normalizeTransferName(u.fullname);
+      const normalizedUsername = normalizeTransferName(u.username);
+      const compactFullName = normalizedFullName.replace(/\s+/g, '');
+      const compactUsername = normalizedUsername.replace(/\s+/g, '');
+
+      if (normalizedFullName && normalizedFullName.length >= 3 && (normalizedText.includes(normalizedFullName) || (compactFullName.length >= 4 && compactText.includes(compactFullName)))) {
+        return u;
+      }
+      if (normalizedUsername && normalizedUsername.length >= 3 && (normalizedText.includes(normalizedUsername) || (compactUsername.length >= 3 && compactText.includes(compactUsername)))) {
+        return u;
+      }
+    }
+
+    // 2. Thử khớp Họ + Tên chính hoặc Tên đệm + Tên chính (ví dụ: "Lê Thị Duyên" -> "LE DUYEN", "THI DUYEN", "DUYEN LE")
+    for (const u of sortedUsers) {
+      const parts = normalizeTransferName(u.fullname).split(' ').filter(Boolean);
+      if (parts.length >= 2) {
+        const firstAndLast = `${parts[0]} ${parts[parts.length - 1]}`;
+        const reverseName = `${parts[parts.length - 1]} ${parts[0]}`;
+        const lastTwo = `${parts[parts.length - 2]} ${parts[parts.length - 1]}`;
+
+        const candidates = [firstAndLast, reverseName, lastTwo].filter(c => c.length >= 4);
+        for (const cand of candidates) {
+          const compactCand = cand.replace(/\s+/g, '');
+          if (normalizedText.includes(cand) || compactText.includes(compactCand)) {
+            return u;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error in findUserByTransferText:', err);
+  }
+
+  return null;
 };
 
 const parsePaymentNotes = (notes = '') => {
@@ -2138,15 +2221,32 @@ const extractAutoPaymentTransaction = (body = {}) => {
     'money'
   ]));
 
-  const description = findValueDeep(body, [
-    'transferContent',
-    'transactionContent',
-    'bankTransactionContent',
-    'description',
-    'content',
-    'memo',
-    'remark'
-  ]);
+  // Ưu tiên nội dung chuyển khoản chi tiết hơn là mô tả hệ thống chung của ngân hàng
+  const candidateTexts = [
+    findValueDeep(body, ['content']),
+    findValueDeep(body, ['transferContent']),
+    findValueDeep(body, ['transactionContent']),
+    findValueDeep(body, ['bankTransactionContent']),
+    findValueDeep(body, ['memo']),
+    findValueDeep(body, ['remark']),
+    findValueDeep(body, ['description']),
+    findValueDeep(body, ['code'])
+  ].filter(val => typeof val === 'string' && val.trim().length > 0);
+
+  const allStrings = [];
+  const collectStrings = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    for (const val of Object.values(obj)) {
+      if (typeof val === 'string' && val.trim()) {
+        allStrings.push(val.trim());
+      } else if (typeof val === 'object') {
+        collectStrings(val);
+      }
+    }
+  };
+  collectStrings(body);
+
+  const fullText = Array.from(new Set([...candidateTexts, ...allStrings])).join(' | ');
 
   const transactionId = findValueDeep(body, [
     'transactionId',
@@ -2154,8 +2254,7 @@ const extractAutoPaymentTransaction = (body = {}) => {
     'referenceId',
     'refNo',
     'tid',
-    'id',
-    'code'
+    'id'
   ]);
 
   const direction = String(findValueDeep(body, [
@@ -2172,9 +2271,11 @@ const extractAutoPaymentTransaction = (body = {}) => {
 
   return {
     amount,
-    description: description ? String(description) : '',
+    description: candidateTexts[0] || findValueDeep(body, ['description']) || fullText || '',
+    fullText,
+    allCandidates: candidateTexts,
     transactionId: transactionId ? String(transactionId) : '',
-    payerName: extractPayerNameFromPayload(body, description ? String(description) : ''),
+    payerName: extractPayerNameFromPayload(body, fullText),
     direction,
     status
   };
@@ -2576,6 +2677,154 @@ const hasValidAutoPaymentSecret = (req) => {
   const apiKeySecret = authHeader.startsWith('Apikey ') ? authHeader.slice(7) : '';
 
   return headerSecret === configuredSecret || bearerSecret === configuredSecret || apiKeySecret === configuredSecret;
+};
+
+// Tự động phân tích lại các giao dịch thanh toán từng bị bỏ qua (ignored) hoặc thất bại
+const reprocessIgnoredAutoPayments = async () => {
+  try {
+    const { data: ignoredTransactions, error } = await supabase
+      .from('auto_payment_transactions')
+      .select('*')
+      .is('payment_id', null)
+      .in('status', ['ignored', 'failed'])
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error || !ignoredTransactions || ignoredTransactions.length === 0) {
+      return { reprocessed: 0, recovered: [] };
+    }
+
+    console.log(`[Auto-Payment Recovery] Checking ${ignoredTransactions.length} unresolved transactions...`);
+    const recovered = [];
+
+    for (const item of ignoredTransactions) {
+      const amount = Number(item.amount);
+      if (!Number.isFinite(amount) || amount <= 0) continue;
+
+      const raw = item.raw_payload || {};
+      const candidateTexts = [
+        item.description,
+        item.payer_name,
+        typeof raw === 'object' ? raw.content : null,
+        typeof raw === 'object' ? raw.transferContent : null,
+        typeof raw === 'object' ? raw.transactionContent : null,
+        typeof raw === 'object' ? raw.bankTransactionContent : null,
+        typeof raw === 'object' ? raw.description : null,
+        typeof raw === 'object' ? raw.memo : null,
+        typeof raw === 'object' ? raw.remark : null,
+        typeof raw === 'object' ? raw.payerName : null,
+        typeof raw === 'object' ? raw.senderName : null
+      ].filter(t => typeof t === 'string' && t.trim().length > 0);
+
+      const allStrings = [];
+      const collectStrings = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        for (const val of Object.values(obj)) {
+          if (typeof val === 'string' && val.trim()) {
+            allStrings.push(val.trim());
+          } else if (typeof val === 'object') {
+            collectStrings(val);
+          }
+        }
+      };
+      collectStrings(raw);
+
+      const combinedText = Array.from(new Set([...candidateTexts, ...allStrings])).join(' | ');
+
+      let paymentCode = null;
+      for (const text of candidateTexts) {
+        paymentCode = parseAutoPaymentCode(text);
+        if (paymentCode) break;
+      }
+      if (!paymentCode && combinedText) {
+        paymentCode = parseAutoPaymentCode(combinedText);
+      }
+
+      let targetUser = null;
+      if (paymentCode) {
+        const { data: u } = await supabase
+          .from('users')
+          .select('id, fullname')
+          .eq('id', paymentCode.userId)
+          .limit(1)
+          .maybeSingle();
+        targetUser = u;
+      }
+
+      if (!paymentCode || !targetUser) {
+        const textToMatch = [item.description, item.payer_name, combinedText].join(' ');
+        const matchedByName = await findUserByTransferText(textToMatch);
+        if (matchedByName) {
+          const currentMonth = item.month || normalizePaymentMonth();
+          paymentCode = {
+            userId: matchedByName.id,
+            month: currentMonth,
+            code: buildAutoPaymentCode(matchedByName.id, currentMonth)
+          };
+          targetUser = matchedByName;
+        }
+      }
+
+      if (paymentCode && targetUser) {
+        console.log(`[Auto-Payment Recovery] Found match for transaction ${item.transaction_id}: user "${targetUser.fullname}" (id: ${targetUser.id}), amount: ${item.amount}`);
+
+        let existingPaymentId = null;
+        if (item.transaction_id) {
+          const { data: existingPayment } = await supabase
+            .from('payments')
+            .select('id')
+            .eq('user_id', targetUser.id)
+            .ilike('notes', `%transaction:${item.transaction_id}%`)
+            .limit(1)
+            .maybeSingle();
+          if (existingPayment) {
+            existingPaymentId = existingPayment.id;
+          }
+        }
+
+        if (!existingPaymentId) {
+          const result = await recordCompletedPayment({
+            userId: targetUser.id,
+            month: paymentCode.month,
+            amount: item.amount,
+            source: 'bank-webhook-recovery',
+            paymentCode: paymentCode.code,
+            transactionId: item.transaction_id,
+            description: item.description || combinedText,
+            payerName: item.payer_name || targetUser.fullname,
+            rawPayload: item.raw_payload
+          });
+          existingPaymentId = result.payment.id;
+        }
+
+        await updateAutoPaymentEvent(item.id, {
+          status: 'completed',
+          payment_id: existingPaymentId,
+          payment_code: paymentCode.code,
+          user_id: targetUser.id,
+          payer_name: item.payer_name || targetUser.fullname,
+          error_message: null
+        });
+
+        recovered.push({
+          transactionId: item.transaction_id,
+          userName: targetUser.fullname,
+          userId: targetUser.id,
+          amount: item.amount,
+          paymentId: existingPaymentId
+        });
+      }
+    }
+
+    if (recovered.length > 0) {
+      console.log(`[Auto-Payment Recovery] Successfully recovered ${recovered.length} payments!`);
+    }
+
+    return { reprocessed: ignoredTransactions.length, recovered };
+  } catch (err) {
+    console.error('[Auto-Payment Recovery] Error during recovery:', err);
+    return { reprocessed: 0, recovered: [], error: err.message };
+  }
 };
 
 // Debug endpoint to check payment data
@@ -2996,7 +3245,44 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
     }
 
     const transaction = extractAutoPaymentTransaction(req.body);
-    const paymentCode = parseAutoPaymentCode(transaction.description);
+
+    // Tìm paymentCode bằng mọi chuỗi có trong payload
+    let paymentCode = null;
+    if (transaction.description) {
+      paymentCode = parseAutoPaymentCode(transaction.description);
+    }
+    if (!paymentCode && transaction.allCandidates) {
+      for (const text of transaction.allCandidates) {
+        paymentCode = parseAutoPaymentCode(text);
+        if (paymentCode) break;
+      }
+    }
+    if (!paymentCode && transaction.fullText) {
+      paymentCode = parseAutoPaymentCode(transaction.fullText);
+    }
+
+    // Fallback thông minh: Khớp theo tên người dùng nếu nội dung chuyển khoản không có mã FSI
+    let matchedUserByName = null;
+    if (!paymentCode) {
+      const textToMatch = [
+        transaction.description,
+        transaction.fullText,
+        transaction.payerName,
+        req.body?.payerName,
+        req.body?.senderName
+      ].filter(Boolean).join(' ');
+
+      matchedUserByName = await findUserByTransferText(textToMatch);
+      if (matchedUserByName) {
+        console.log(`🎯 Auto payment matched user by name: "${matchedUserByName.fullname}" (id: ${matchedUserByName.id})`);
+        const currentMonth = normalizePaymentMonth();
+        paymentCode = {
+          userId: matchedUserByName.id,
+          month: currentMonth,
+          code: buildAutoPaymentCode(matchedUserByName.id, currentMonth)
+        };
+      }
+    }
 
     // Without a transaction id there was NO duplicate protection at all. Provider retries
     // resend the identical body, so a hash of the body is a safe stand-in id.
@@ -3012,7 +3298,7 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       month: paymentCode?.month || normalizePaymentMonth(),
       amount: transaction.amount,
       description: transaction.description,
-      payerName: transaction.payerName,
+      payerName: transaction.payerName || matchedUserByName?.fullname,
       rawPayload: req.body
     });
 
@@ -3058,12 +3344,21 @@ app.post('/api/payments/auto-webhook', async (req, res) => {
       return res.json({ success: true, ignored: true, reason: 'invalid_transaction_amount' });
     }
 
-    const { data: targetUser, error: userError } = await supabase
-      .from('users')
-      .select('id, fullname')
-      .eq('id', paymentCode.userId)
-      .limit(1)
-      .single();
+    let targetUser = matchedUserByName;
+    let userError = null;
+    if (!targetUser) {
+      const userRes = await supabase
+        .from('users')
+        .select('id, fullname')
+        .eq('id', paymentCode.userId)
+        .limit(1)
+        .single();
+      
+      userError = userRes.error;
+      if (!userError && userRes.data) {
+        targetUser = userRes.data;
+      }
+    }
 
     if (userError || !targetUser) {
       console.warn('Auto payment ignored because payment user was not found:', paymentCode);
@@ -4034,6 +4329,45 @@ app.get('/api/admin/cache/entry/:key', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin auto-payments list
+app.get('/api/admin/auto-payments', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const { data, error } = await supabase
+      .from('auto_payment_transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      return res.status(500).json({ error: 'Lỗi lấy dữ liệu giao dịch tự động', details: error.message });
+    }
+
+    res.json({ transactions: data || [] });
+  } catch (err) {
+    console.error('Error fetching auto payments:', err);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// Admin reprocess ignored/failed auto-payments
+app.post('/api/admin/auto-payments/reprocess', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
+    }
+
+    const result = await reprocessIgnoredAutoPayments();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Error reprocessing auto payments:', err);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // Catch-all route to serve index.html for React Router (must be last)
 app.get('*', (req, res) => {
   // Don't serve index.html for API routes
@@ -4090,6 +4424,13 @@ async function startServer() {
       console.log('URL: http://localhost:' + PORT);
       console.log('Database: Supabase PostgreSQL');
       console.log('Status: Ready');
+
+      // Tự động quét và phục hồi các giao dịch thanh toán chưa được ghi nhận
+      setTimeout(() => {
+        reprocessIgnoredAutoPayments().catch(err => {
+          console.error('[Auto-Payment Recovery] Error on initial recovery:', err);
+        });
+      }, 3000);
     });
     
     server.on('error', (err) => {
