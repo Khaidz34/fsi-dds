@@ -2593,10 +2593,10 @@ const markOrdersPaidForPayment = async ({ userId, month, amount }) => {
 };
 
 const invalidatePaymentCaches = (userId, month, reason = 'payment_updated') => {
-  cache.invalidate(`payments:admin:${month}`, `${reason}:user_${userId}`);
-  cache.invalidate(`payments:user:${userId}:${month}`, reason);
-  cache.invalidate(`stats:dashboard:${month}`, reason);
-  cache.invalidate(`stats:user:${userId}:${month}`, reason);
+  cache.invalidate('payments:admin:*', `${reason}:user_${userId}`);
+  cache.invalidate(`payments:user:${userId}:*`, reason);
+  cache.invalidate('stats:dashboard:*', reason);
+  cache.invalidate(`stats:user:${userId}:*`, reason);
 };
 
 const recordCompletedPayment = async ({ userId, month, amount, source = 'manual', paymentCode, transactionId, description, payerName, rawPayload, actorUserId }) => {

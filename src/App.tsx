@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 import { useVideoSettings } from './hooks/useVideoSettings';
 
@@ -305,11 +305,15 @@ export default function App() {
     setActiveTab('orders');
   }, []);
 
+  const liveRefreshUserPaymentRef = useRef<() => void>();
+
   const handleLiveOrderUpdate = useCallback(() => {
     console.log('🔄 Live order/payment update received via SSE, refreshing data...');
     refetchOrders();
     if (user?.role === 'admin') {
       refetchAdminPayments();
+    } else {
+      liveRefreshUserPaymentRef.current?.();
     }
   }, [refetchOrders, refetchAdminPayments, user?.role]);
   
@@ -661,23 +665,29 @@ export default function App() {
     return `https://img.vietqr.io/image/${encodeURIComponent(safeBankId)}-${encodeURIComponent(safeAccountNo)}-compact2.png?${params.toString()}`;
   };
 
-  const loadDashboardAutoPaymentInfo = useCallback(async () => {
+  const loadDashboardAutoPaymentInfo = useCallback(async (isSilent: boolean = false) => {
     if (!user || user.role !== 'user') {
       setDashboardAutoPaymentInfo(null);
       return;
     }
 
     try {
-      setIsDashboardQrLoading(true);
+      if (!isSilent) {
+        setIsDashboardQrLoading(true);
+      }
       setDashboardQrImageFailed(false);
       const info = await paymentsAPI.getAutoInfo(dashboardPaymentMonth);
       setDashboardAutoPaymentInfo(info);
     } catch (error) {
       console.error('Dashboard dynamic QR error:', error);
-      setDashboardAutoPaymentInfo(null);
-      setDashboardQrImageFailed(true);
+      if (!isSilent) {
+        setDashboardAutoPaymentInfo(null);
+        setDashboardQrImageFailed(true);
+      }
     } finally {
-      setIsDashboardQrLoading(false);
+      if (!isSilent) {
+        setIsDashboardQrLoading(false);
+      }
     }
   }, [dashboardPaymentMonth, user?.id, user?.role]);
 
@@ -695,6 +705,13 @@ export default function App() {
       setDashboardAutoPaymentUsage(null);
     }
   }, [dashboardPaymentMonth, user?.id, user?.role]);
+
+  useEffect(() => {
+    liveRefreshUserPaymentRef.current = () => {
+      loadDashboardAutoPaymentInfo(true);
+      loadDashboardAutoPaymentUsage();
+    };
+  }, [loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
 
   const handleDashboardQrImageError = (
     event: React.SyntheticEvent<HTMLImageElement>,
@@ -833,19 +850,18 @@ export default function App() {
 
       const handleVisibilityOrFocus = () => {
         if (document.visibilityState === 'visible') {
-          loadDashboardAutoPaymentInfo();
+          loadDashboardAutoPaymentInfo(true);
           loadDashboardAutoPaymentUsage();
-          refetchOrders();
         }
       };
 
       document.addEventListener('visibilitychange', handleVisibilityOrFocus);
       window.addEventListener('focus', handleVisibilityOrFocus);
 
-      // Định kỳ 30 giây đồng bộ lại trạng thái nợ / QR trên Dashboard
+      // Định kỳ 30 giây đồng bộ lại trạng thái nợ / QR trên Dashboard (chạy ngầm)
       const intervalId = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          loadDashboardAutoPaymentInfo();
+          loadDashboardAutoPaymentInfo(true);
           loadDashboardAutoPaymentUsage();
         }
       }, 30000);
@@ -856,7 +872,7 @@ export default function App() {
         clearInterval(intervalId);
       };
     }
-  }, [activeTab, user?.id, user?.role, orders.length, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage, refetchOrders]);
+  }, [activeTab, user?.id, user?.role, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
 
   const fetchAllUsers = async () => {
     try {

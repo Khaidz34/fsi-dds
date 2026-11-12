@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
@@ -23,7 +23,7 @@ export const usePayments = (month?: string) => {
   const [error, setError] = useState<string | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchPaymentStats = async (isInitial: boolean = false, isSilent: boolean = false) => {
+  const fetchPaymentStats = useCallback(async (isInitial: boolean = false, isSilent: boolean = false) => {
     try {
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
@@ -104,7 +104,9 @@ export const usePayments = (month?: string) => {
         setIsRefreshing(false);
       }
     }
-  };
+  }, [month, user?.role]);
+
+  const refetch = useCallback(() => fetchPaymentStats(false, false), [fetchPaymentStats]);
 
   useEffect(() => {
     if (user?.id) {
@@ -130,13 +132,13 @@ export const usePayments = (month?: string) => {
         unsubscribeFromTable(ordersSubscription);
       };
     }
-  }, [user?.id, user?.role, month]);
+  }, [user?.id, user?.role, fetchPaymentStats]);
 
   return {
     paymentStats,
     isLoading,
     isRefreshing,
     error,
-    refetch: () => fetchPaymentStats(false, false)
+    refetch
   };
 };

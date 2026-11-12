@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ordersAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
@@ -24,10 +24,12 @@ export const useOrders = (language?: string) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const ordersRef = useRef<Order[]>([]);
+  ordersRef.current = orders;
 
-  const fetchOrders = async (silent: boolean = false) => {
+  const fetchOrders = useCallback(async (silent: boolean = false) => {
     try {
-      if (orders.length === 0) {
+      if (ordersRef.current.length === 0) {
         setIsLoading(true);
       } else if (!silent) {
         setIsUpdating(true);
@@ -42,7 +44,9 @@ export const useOrders = (language?: string) => {
       setIsLoading(false);
       setIsUpdating(false);
     }
-  };
+  }, [language]);
+
+  const refetch = useCallback(() => fetchOrders(false), [fetchOrders]);
 
   const createOrder = async (orderData: {
     dish1Id: number;
@@ -103,14 +107,14 @@ export const useOrders = (language?: string) => {
         unsubscribeFromTable(channel);
       };
     }
-  }, [user?.id, user?.role, language]);
+  }, [user?.id, user?.role, fetchOrders]);
 
   return {
     orders,
     isLoading,
     isUpdating,
     error,
-    refetch: () => fetchOrders(false),
+    refetch,
     createOrder,
     updateOrder,
     deleteOrder
