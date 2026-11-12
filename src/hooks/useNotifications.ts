@@ -27,7 +27,8 @@ export function useNotifications(
   user: User | null,
   token: string | null,
   language: Language,
-  onNavigateToOrders?: () => void
+  onNavigateToOrders?: () => void,
+  onOrderUpdate?: () => void
 ): UseNotificationsReturn {
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const isSupported = notificationService.isBrowserSupported();
@@ -114,17 +115,28 @@ export function useNotifications(
 
         // Display notification
         notificationService.showOrderNotification(notificationData, onNavigateToOrders);
+        
+        // Trigger live refresh in app
+        if (onOrderUpdate) {
+          onOrderUpdate();
+        }
       } catch (error) {
         console.error('Error processing order notification:', error);
         // Continue operation despite error
       }
     },
-    [shouldReceiveNotifications, permissionStatus, language, onNavigateToOrders]
+    [shouldReceiveNotifications, permissionStatus, language, onNavigateToOrders, onOrderUpdate]
   );
 
   // Establish SSE connection
   const { isConnected } = useSSE(user?.id || null, token, {
     onOrderCreated: handleOrderCreated,
+    onOrderDeleted: () => {
+      if (onOrderUpdate) onOrderUpdate();
+    },
+    onPaymentMarked: () => {
+      if (onOrderUpdate) onOrderUpdate();
+    },
     onError: (error) => {
       console.error('SSE error in useNotifications:', error);
     },

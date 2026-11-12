@@ -116,6 +116,7 @@ export const useAdminPayments = (month?: string) => {
   const [autoPaymentUsage, setAutoPaymentUsage] = useState<AutoPaymentUsage | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
@@ -136,8 +137,10 @@ export const useAdminPayments = (month?: string) => {
 
       if (loadMore) {
         setIsLoadingMore(true);
-      } else {
+      } else if (userPayments.length === 0) {
         setIsLoading(true);
+      } else {
+        setIsUpdating(true);
       }
       setError(null);
       
@@ -171,6 +174,7 @@ export const useAdminPayments = (month?: string) => {
       setError(errorMsg);
     } finally {
       setIsLoading(false);
+      setIsUpdating(false);
       setIsLoadingMore(false);
     }
   };
@@ -247,8 +251,16 @@ export const useAdminPayments = (month?: string) => {
         fetchUserPayments(false, true, 1);
       }, 'admin_payments_orders_changes');
 
+      const paymentsChannel = subscribeToTable('payments', () => {
+        console.log('Payment update detected, refreshing admin payments & history...');
+        fetchUserPayments(false, true, 1);
+        fetchPaymentHistory();
+        fetchAutoPaymentUsage();
+      }, 'admin_payments_payments_changes');
+
       return () => {
         unsubscribeFromTable(ordersChannel);
+        unsubscribeFromTable(paymentsChannel);
       };
     }
   }, [user?.role, currentMonth]);
@@ -259,6 +271,7 @@ export const useAdminPayments = (month?: string) => {
     autoPaymentUsage,
     pagination,
     isLoading,
+    isUpdating,
     isLoadingMore,
     error,
     markAsPaid,

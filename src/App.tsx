@@ -263,9 +263,9 @@ export default function App() {
   };
   
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
-  const { orders, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
+  const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers();
-  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious } = useAdminPayments();
+  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
   
@@ -273,12 +273,21 @@ export default function App() {
   const handleNotificationClick = useCallback(() => {
     setActiveTab('orders');
   }, []);
+
+  const handleLiveOrderUpdate = useCallback(() => {
+    console.log('🔄 Live order/payment update received via SSE, refreshing data...');
+    refetchOrders();
+    if (user?.role === 'admin') {
+      refetchAdminPayments();
+    }
+  }, [refetchOrders, refetchAdminPayments, user?.role]);
   
   const { permissionStatus, isSupported: notificationsSupported } = useNotifications(
     user,
     token,
     currentLang,
-    handleNotificationClick
+    handleNotificationClick,
+    handleLiveOrderUpdate
   );
 
   // Banner settings
@@ -1600,9 +1609,17 @@ export default function App() {
               <h2 className="text-3xl font-display font-bold tracking-tight brush-accent">
                 {activePageLabel}
               </h2>
-              <p className="mt-2 text-xs font-semibold text-app-ink/45 tracking-wide">
-                {activePageSubtitle}
-              </p>
+              <div className="flex items-center gap-3 mt-2">
+                <p className="text-xs font-semibold text-app-ink/45 tracking-wide">
+                  {activePageSubtitle}
+                </p>
+                {(ordersUpdating || isUpdatingPayments) && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 animate-pulse">
+                    <RefreshCw size={11} className="animate-spin text-emerald-600" />
+                    <span>Đang đồng bộ...</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1889,9 +1906,17 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Today's Menu List */}
                   <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-8 shadow-sm">
-                    <div className="flex items-center gap-3 mb-8">
-                      <Utensils className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} size={24} />
-                      <h3 className="text-xl font-display font-bold tracking-tight">{t.admin.menuToday}</h3>
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-3">
+                        <Utensils className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} size={24} />
+                        <h3 className="text-xl font-display font-bold tracking-tight">{t.admin.menuToday}</h3>
+                      </div>
+                      {menuLoading && (
+                        <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 animate-pulse">
+                          <RefreshCw size={11} className="animate-spin text-emerald-600" />
+                          <span>Đang tải...</span>
+                        </span>
+                      )}
                     </div>
                     <div className="space-y-4">
                       <AnimatePresence mode="wait">
@@ -2156,6 +2181,16 @@ export default function App() {
                           <p className="text-app-ink/60 font-medium">Đang chuyển ngôn ngữ...</p>
                         </div>
                       </div>
+                    ) : menuLoading && (!menu?.dishes || menu.dishes.length === 0) ? (
+                      <div
+                        key="menu-loading"
+                        className="col-span-full flex items-center justify-center py-20"
+                      >
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-12 h-12 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
+                          <p className="text-app-ink/60 font-medium">Đang tải thực đơn hôm nay...</p>
+                        </div>
+                      </div>
                     ) : (
                       menu?.dishes?.map((dish, index) => (
                         <div 
@@ -2261,7 +2296,7 @@ export default function App() {
                     )}
                   </AnimatePresence>
                   
-                  {(!menu?.dishes || menu.dishes.length === 0) && (
+                  {!menuLoading && (!menu?.dishes || menu.dishes.length === 0) && (
                     <div className="col-span-full text-center py-12">
                       <div className="text-gray-400 mb-4">
                         <Utensils size={48} className="mx-auto" />
@@ -2568,8 +2603,24 @@ export default function App() {
               >
                 <div className="lacquer-card p-4 lg:p-10 lotus-pattern">
                   <div className="flex items-center justify-between mb-10">
-                    <h3 className="text-2xl font-display font-bold tracking-tight">{user?.role === 'admin' ? t.admin.allOrders : t.orderHistory}</h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-2xl font-display font-bold tracking-tight">{user?.role === 'admin' ? t.admin.allOrders : t.orderHistory}</h3>
+                      {(ordersLoading || ordersUpdating) && (
+                        <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-xs font-semibold animate-pulse">
+                          <RefreshCw size={12} className="animate-spin text-emerald-600" />
+                          <span>{ordersLoading ? 'Đang tải...' : 'Đang cập nhật...'}</span>
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => refetchOrders()}
+                        disabled={ordersLoading || ordersUpdating}
+                        className="p-3 bg-[#F5F2E9] border border-[#E5E1D1] rounded-xl text-[#1C1917]/70 hover:text-app-accent hover:border-app-accent/30 transition-all disabled:opacity-50"
+                        title="Tải lại danh sách"
+                      >
+                        <RefreshCw size={18} className={ordersLoading || ordersUpdating ? 'animate-spin' : ''} />
+                      </button>
                       {user?.role === 'admin' && (
                         <button 
                           onClick={handleExportMenu}
@@ -2761,7 +2812,12 @@ export default function App() {
                       </div>
                     ))}
                     
-                    {displayedOrders.length === 0 && (
+                    {ordersLoading && displayedOrders.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-10 h-10 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-app-ink/60 font-medium">Đang tải danh sách đơn hàng...</p>
+                      </div>
+                    ) : displayedOrders.length === 0 ? (
                       <div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -2773,7 +2829,7 @@ export default function App() {
                         <p className="text-gray-500 text-lg font-medium">Chưa có đơn hàng nào</p>
                         <p className="text-gray-400 text-sm">Hãy đặt món đầu tiên của bạn</p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Phân trang đơn hàng (admin & user) */}
@@ -3203,7 +3259,25 @@ export default function App() {
               >
                 {/* User Payments */}
                 <div className="lacquer-card p-4 lg:p-10">
-                  <h3 className="text-2xl font-display font-bold tracking-tight mb-8">{t.admin.payments}</h3>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-2xl font-display font-bold tracking-tight">{t.admin.payments}</h3>
+                      {(isLoadingPayments || isUpdatingPayments) && (
+                        <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-xs font-semibold animate-pulse">
+                          <RefreshCw size={12} className="animate-spin text-emerald-600" />
+                          <span>{isLoadingPayments ? 'Đang tải...' : 'Đang cập nhật...'}</span>
+                        </span>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => refetchAdminPayments()}
+                      disabled={isLoadingPayments || isUpdatingPayments}
+                      className="p-2.5 bg-[#F5F2E9] border border-[#E5E1D1] rounded-xl text-[#1C1917]/70 hover:text-app-accent hover:border-app-accent/30 transition-all disabled:opacity-50"
+                      title="Tải lại thanh toán"
+                    >
+                      <RefreshCw size={18} className={isLoadingPayments || isUpdatingPayments ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
 
                   {autoPaymentUsage && (
                     <div className="mb-8 rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-5 lg:p-6">
@@ -3313,7 +3387,12 @@ export default function App() {
                     </div>
                   )}
                   
-                  {userPayments && userPayments.length > 0 ? (
+                  {isLoadingPayments && (!userPayments || userPayments.length === 0) ? (
+                    <div className="text-center py-16">
+                      <div className="w-10 h-10 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin mx-auto mb-4" />
+                      <p className="text-app-ink/60 font-medium">Đang tải dữ liệu công nợ...</p>
+                    </div>
+                  ) : userPayments && userPayments.length > 0 ? (
                     <>
                       <div className="mb-6 overflow-x-auto rounded-2xl border border-[#E5E1D1] bg-white">
                         <div className="min-w-[720px]">
@@ -3475,7 +3554,15 @@ export default function App() {
 
                 {/* Payment History */}
                 <div className="lacquer-card p-4 lg:p-10">
-                  <h3 className="text-xl font-display font-bold tracking-tight mb-6">Lịch sử thanh toán</h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-display font-bold tracking-tight">Lịch sử thanh toán</h3>
+                    {isUpdatingPayments && (
+                      <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-[11px] font-semibold animate-pulse">
+                        <RefreshCw size={11} className="animate-spin text-emerald-600" />
+                        <span>Đang đồng bộ...</span>
+                      </span>
+                    )}
+                  </div>
                   
                   {paymentHistory.length > 0 ? (
                     <div className="space-y-8">

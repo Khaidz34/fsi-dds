@@ -22,11 +22,16 @@ export const useOrders = (language?: string) => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (silent: boolean = false) => {
     try {
-      setIsLoading(true);
+      if (orders.length === 0) {
+        setIsLoading(true);
+      } else if (!silent) {
+        setIsUpdating(true);
+      }
       setError(null);
       // Backend /api/orders/all automatically filters: admin gets all orders, normal user gets only their orders + orders placed for them
       const data = await ordersAPI.getAll(language);
@@ -35,6 +40,7 @@ export const useOrders = (language?: string) => {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải đơn hàng');
     } finally {
       setIsLoading(false);
+      setIsUpdating(false);
     }
   };
 
@@ -87,27 +93,24 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
-      // Only setup Realtime subscriptions for admin users
-      if (user?.role === 'admin') {
-        // Setup Supabase Realtime subscription for orders
-        const channel = subscribeToTable('orders', () => {
-          console.log('📦 Order update detected via Realtime');
-          fetchOrders();
-        }, 'admin_orders');
+      // Setup Supabase Realtime subscription for orders
+      const channel = subscribeToTable('orders', () => {
+        console.log('📦 Order update detected via Realtime');
+        fetchOrders(false);
+      }, `orders_realtime_${user.role}_${user.id}`);
 
-        return () => {
-          unsubscribeFromTable(channel);
-        };
-      }
-      // For regular users, no auto refresh - data only updates on manual refetch or after actions
+      return () => {
+        unsubscribeFromTable(channel);
+      };
     }
-  }, [user?.id, language]); // Remove user?.role to avoid dependency issues
+  }, [user?.id, user?.role, language]);
 
   return {
     orders,
     isLoading,
+    isUpdating,
     error,
-    refetch: fetchOrders,
+    refetch: () => fetchOrders(false),
     createOrder,
     updateOrder,
     deleteOrder

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { getApiBaseUrl } from '../services/api';
 
 export interface SSEOrderData {
   type: 'order_created' | 'order_deleted' | 'payment_marked';
@@ -40,7 +41,7 @@ interface UseSSEReturn {
   reconnect: () => void;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:10000';
+const API_BASE_URL = getApiBaseUrl();
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000; // 1 second
 const MAX_RECONNECT_DELAY = 30000; // 30 seconds

@@ -36,34 +36,96 @@ export const subscribeToTable = (
     return { unsubscribe: () => {} };
   }
 
-  const channel = supabase
-    .channel(channelName || `${tableName}_changes`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: tableName,
-      },
-      () => {
-        console.log(`Realtime update received for ${tableName}`);
-        callback();
+  let isSubscribed = false;
+  let isUnsubscribed = false;
+  let reconnectTimeout: any = null;
+  let retryCount = 0;
+  const uniqueChannelName = channelName || `${tableName}_changes_${Math.random().toString(36).slice(2, 7)}`;
+  let currentChannel: any = null;
+
+  const setupChannel = () => {
+    if (isUnsubscribed || !supabase) return;
+
+    if (currentChannel) {
+      try {
+        supabase.removeChannel(currentChannel);
+      } catch (e) {
+        // ignore
       }
-    )
-    .subscribe((status: string) => {
-      if (status === 'SUBSCRIBED') {
-        console.log(`✓ Realtime subscription active for ${tableName}`);
-      } else if (status === 'CHANNEL_ERROR') {
-        console.warn(`Realtime subscription error for ${tableName}`);
-      } else if (status === 'CLOSED') {
-        console.log(`Realtime subscription closed for ${tableName}`);
+      currentChannel = null;
+    }
+
+    try {
+      currentChannel = supabase
+        .channel(uniqueChannelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: tableName,
+          },
+          () => {
+            console.log(`Realtime update received for ${tableName}`);
+            callback();
+          }
+        )
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            console.log(`✓ Realtime subscription active for ${tableName} (${uniqueChannelName})`);
+            isSubscribed = true;
+            retryCount = 0;
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn(`Realtime subscription status for ${tableName}: ${status}. Attempting auto-reconnect...`);
+            isSubscribed = false;
+            if (!isUnsubscribed) {
+              if (reconnectTimeout) clearTimeout(reconnectTimeout);
+              const delay = Math.min(2000 * Math.pow(1.5, retryCount), 15000);
+              retryCount++;
+              reconnectTimeout = setTimeout(() => {
+                console.log(`🔄 Auto-reconnecting Realtime for ${tableName} (attempt ${retryCount})...`);
+                setupChannel();
+              }, delay);
+            }
+          }
+        });
+    } catch (err) {
+      console.error(`Failed to setup realtime subscription for ${tableName}:`, err);
+    }
+  };
+
+  setupChannel();
+
+  // Khi chuyển tab quay lại (visibility change), kiểm tra và reconnect nếu cần, đồng thời trigger callback để cập nhật dữ liệu mới nhất
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && !isUnsubscribed) {
+      if (!isSubscribed) {
+        console.log(`👁️ Tab became visible and Realtime for ${tableName} was disconnected, reconnecting...`);
+        setupChannel();
       }
-    });
+      // Luôn trigger callback khi quay lại tab để không bị lỡ dữ liệu phát sinh khi tab đang inactive
+      callback();
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   return {
-    ...channel,
     unsubscribe: () => {
-      channel.unsubscribe();
+      isUnsubscribed = true;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (currentChannel && supabase) {
+        try {
+          supabase.removeChannel(currentChannel);
+        } catch (e) {
+          // ignore
+        }
+        currentChannel = null;
+      }
     }
   };
 };

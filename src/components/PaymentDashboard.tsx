@@ -197,6 +197,17 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
     loadAutoPaymentInfo(!isFirstTime);
     loadAutoPaymentUsage();
     loadPaymentHistory(!isFirstTime);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refetch();
+        loadAutoPaymentInfo(true);
+        loadAutoPaymentUsage();
+        loadPaymentHistory(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [currentMonth, user?.id, user?.role, paymentStats?.remainingTotal]);
 
   useEffect(() => {

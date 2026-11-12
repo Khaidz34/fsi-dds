@@ -3,7 +3,7 @@
  */
 
 // Determine API base URL based on environment
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = () => {
   // Check if we're in production and have a custom API URL
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
@@ -18,7 +18,7 @@ const getApiBaseUrl = () => {
   return window.location.origin;
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 
 // Lưu trữ token trong localStorage
 export const tokenStorage = {
@@ -39,13 +39,14 @@ const getHeaders = () => {
 // API call function - kết nối trực tiếp với backend
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/api${endpoint}`;
-  const maxRetries = 2;
-  let lastError;
+  const maxRetries = 3;
+  let lastError: any;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      // 25s timeout cho trường hợp Render free tier đang wake up (cold start)
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const response = await fetch(url, {
         ...options,
@@ -59,27 +60,36 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        const errorMessage = errorData.error || `HTTP ${response.status}`;
+        const err: any = new Error(errorMessage);
+        err.status = response.status;
+        throw err;
       }
 
       return response.json();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
       
-      // Don't retry on 4xx errors (client errors)
-      if (error instanceof Error && error.message.includes('HTTP 4')) {
+      const status = error?.status;
+      const msg = error?.message || '';
+      const isAuthError = status === 401 || status === 403 || 
+        msg.includes('HTTP 401') || msg.includes('HTTP 403') || 
+        msg.includes('Access token required') || msg.includes('Invalid token');
+      
+      // Không retry với lỗi xác thực (401, 403) hoặc các lỗi client rõ ràng (400, 404, 422) trừ 429
+      if ((status && status >= 400 && status < 500 && status !== 429) || isAuthError) {
         throw error;
       }
       
       if (attempt < maxRetries) {
-        // Exponential backoff: 100ms, 200ms
-        await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)));
+        // Backoff: 400ms, 1200ms để server Render kịp khởi động
+        await new Promise(resolve => setTimeout(resolve, 400 * Math.pow(2, attempt - 1)));
       }
     }
   }
 
-  console.error('API call failed after retries:', lastError);
+  console.error(`API call to ${endpoint} failed after ${maxRetries} retries:`, lastError);
   throw lastError;
 }
 

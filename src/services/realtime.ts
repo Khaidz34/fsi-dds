@@ -3,7 +3,7 @@
  * Handles real-time payment updates with automatic fallback to polling
  */
 
-import { tokenStorage } from './api';
+import { tokenStorage, getApiBaseUrl } from './api';
 
 export interface RealtimeUpdate {
   type: 'payment_marked' | 'order_created' | 'order_updated' | 'order_deleted' | 'connected';
@@ -31,7 +31,7 @@ class RealtimeManager {
   private lastPolledData: any = null;
 
   constructor(apiUrl: string = '') {
-    this.apiUrl = apiUrl || ((import.meta as any).env?.VITE_API_URL || 'http://localhost:10000');
+    this.apiUrl = apiUrl || getApiBaseUrl();
   }
 
   /**
