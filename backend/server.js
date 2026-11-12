@@ -1040,14 +1040,19 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 
     // Invalidate cache when order is created
     // Invalidate admin payments cache
-    cache.invalidate(`payments:admin:${currentMonth}`, `order_created:user_${orderedFor}`);
+    cache.invalidate('payments:admin:*', `order_created:user_${targetOrderedFor}`);
     
-    // Invalidate user-specific payment cache
-    cache.invalidate(`payments:user:${orderedFor}:${currentMonth}`, `order_created`);
+    // Invalidate user-specific payment cache (wildcard ensures all months evicted)
+    cache.invalidate(`payments:user:${targetOrderedFor}:*`, 'order_created');
     
     // Invalidate stats caches
-    cache.invalidate(`stats:dashboard:${currentMonth}`, `order_created`);
-    cache.invalidate(`stats:user:${orderedFor}:${currentMonth}`, `order_created`);
+    cache.invalidate('stats:dashboard:*', 'order_created');
+    cache.invalidate(`stats:user:${targetOrderedFor}:*`, 'order_created');
+
+    if (req.user.id !== targetOrderedFor) {
+      cache.invalidate(`payments:user:${req.user.id}:*`, 'order_created');
+      cache.invalidate(`stats:user:${req.user.id}:*`, 'order_created');
+    }
 
     res.json({ success: true, order });
   } catch (error) {
@@ -1108,14 +1113,14 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     const affectedUserId = order.ordered_for || order.user_id;
     
     // Invalidate admin payments cache
-    cache.invalidate(`payments:admin:${currentMonth}`, `order_updated:user_${affectedUserId}`);
+    cache.invalidate('payments:admin:*', `order_updated:user_${affectedUserId}`);
     
     // Invalidate user-specific payment cache
-    cache.invalidate(`payments:user:${affectedUserId}:${currentMonth}`, `order_updated`);
+    cache.invalidate(`payments:user:${affectedUserId}:*`, 'order_updated');
     
     // Invalidate stats caches
-    cache.invalidate(`stats:dashboard:${currentMonth}`, `order_updated`);
-    cache.invalidate(`stats:user:${affectedUserId}:${currentMonth}`, `order_updated`);
+    cache.invalidate('stats:dashboard:*', 'order_updated');
+    cache.invalidate(`stats:user:${affectedUserId}:*`, 'order_updated');
 
     res.json({
       success: true,
@@ -1164,10 +1169,10 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     // Invalidate cache for the paying user's payment stats
     const month = new Date().toISOString().slice(0, 7);
     console.log(`🗑️  Invalidating cache for month ${month}, paying user: ${payingUserId}`);
-    const invalidated1 = cache.invalidate(`payments:user:${payingUserId}:${month}`);
-    const invalidated2 = cache.invalidate(`payments:admin:${month}`);
-    const invalidated3 = cache.invalidate(`stats:dashboard:${month}`);
-    const invalidated4 = cache.invalidate(`stats:user:${payingUserId}:${month}`);
+    const invalidated1 = cache.invalidate(`payments:user:${payingUserId}:*`);
+    const invalidated2 = cache.invalidate('payments:admin:*');
+    const invalidated3 = cache.invalidate('stats:dashboard:*');
+    const invalidated4 = cache.invalidate(`stats:user:${payingUserId}:*`);
     console.log(`🗑️  Cache invalidated: ${invalidated1 + invalidated2 + invalidated3 + invalidated4} entries`);
 
     console.log(`🗑️  Order ${orderId} deleted by admin ${req.user.id}, notifying paying user ${payingUserId}`);

@@ -830,8 +830,33 @@ export default function App() {
     if (activeTab === 'dashboard' && user?.role === 'user') {
       loadDashboardAutoPaymentInfo();
       loadDashboardAutoPaymentUsage();
+
+      const handleVisibilityOrFocus = () => {
+        if (document.visibilityState === 'visible') {
+          loadDashboardAutoPaymentInfo();
+          loadDashboardAutoPaymentUsage();
+          refetchOrders();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.addEventListener('focus', handleVisibilityOrFocus);
+
+      // Định kỳ 30 giây đồng bộ lại trạng thái nợ / QR trên Dashboard
+      const intervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          loadDashboardAutoPaymentInfo();
+          loadDashboardAutoPaymentUsage();
+        }
+      }, 30000);
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+        window.removeEventListener('focus', handleVisibilityOrFocus);
+        clearInterval(intervalId);
+      };
     }
-  }, [activeTab, user?.id, user?.role, orders.length, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
+  }, [activeTab, user?.id, user?.role, orders.length, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage, refetchOrders]);
 
   const fetchAllUsers = async () => {
     try {
@@ -1886,7 +1911,22 @@ export default function App() {
                       )}
                       </div>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60 mb-2 relative z-10">Thanh toán tháng này</p>
+                    <div className="flex items-center justify-between w-full mb-2 relative z-10 px-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60">Thanh toán tháng này</p>
+                      <button
+                        onClick={() => {
+                          loadDashboardAutoPaymentInfo();
+                          loadDashboardAutoPaymentUsage();
+                          refetchOrders();
+                        }}
+                        disabled={isDashboardQrLoading}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-app-accent hover:text-app-accent/80 transition-colors py-0.5 px-2 rounded-lg hover:bg-app-accent/10 disabled:opacity-50"
+                        title="Đồng bộ lại khoản nợ và QR"
+                      >
+                        <RefreshCw size={12} className={isDashboardQrLoading ? 'animate-spin' : ''} />
+                        <span>Làm mới</span>
+                      </button>
+                    </div>
                     <h3 className="text-xl font-display font-bold text-app-ink mb-2 relative z-10">
                       {isDashboardAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp TPBank' : t.paymentQR}
                     </h3>
