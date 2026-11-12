@@ -49,7 +49,7 @@ const QUOTES: QuoteItem[] = [
     text: 'Gốc rễ của đau khổ là bám víu. Buông bỏ mang lại tự do đích thực.',
     author: 'Phật Thích Ca',
     theme: 'Tự do tâm hồn',
-    photoId: '1507003211169-0a1dd7228f2d', // Cây cổ thụ đơn độc kiên cường trong sương
+    photoId: '1535463731090-e34f4b5098c5', // Cây cổ thụ Wanaka đơn độc giữa mặt hồ tĩnh lặng
   },
   {
     text: 'Người biết đủ là người giàu có nhất thế gian.',
