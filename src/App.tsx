@@ -46,7 +46,8 @@ import {
   Sword,
   Play,
   Sparkles,
-  Lock
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 import { Language } from './types';
 import { TRANSLATIONS } from './translations';
