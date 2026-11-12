@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss()
@@ -13,6 +13,9 @@ export default defineConfig({
     alias: {
       'framer-motion': '/src/framer-motion-mock.ts'
     }
+  },
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : []
   },
   build: {
     outDir: 'dist',
@@ -24,7 +27,8 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
           'vendor-charts': ['recharts'],
-          'vendor-icons': ['lucide-react']
+          'vendor-icons': ['lucide-react'],
+          'vendor-supabase': ['@supabase/supabase-js']
         }
       }
     }
@@ -33,4 +37,4 @@ export default defineConfig({
     port: 5173,
     host: true
   }
-})
+}))

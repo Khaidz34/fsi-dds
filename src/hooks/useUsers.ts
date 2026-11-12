@@ -60,7 +60,8 @@ export const useUsers = () => {
   };
 
   useEffect(() => {
-    if (currentUser?.id) {
+    // Only admin users need the full users list & realtime sync
+    if (currentUser?.role === 'admin') {
       fetchUsers();
       
       // Setup Supabase Realtime subscription for users
@@ -72,8 +73,10 @@ export const useUsers = () => {
       return () => {
         unsubscribeFromTable(channel);
       };
+    } else if (currentUser) {
+      setIsLoading(false);
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.role, currentUser?.id]);
 
   return {
     users,

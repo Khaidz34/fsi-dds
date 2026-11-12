@@ -28,9 +28,8 @@ export const useOrders = (language?: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      // Admin sees all orders (history), regular users see only their own
-      const endpoint = user?.role === 'admin' ? 'getAll' : 'getAll';
-      const data = await ordersAPI[endpoint](language);
+      // Backend /api/orders/all automatically filters: admin gets all orders, normal user gets only their orders + orders placed for them
+      const data = await ordersAPI.getAll(language);
       setOrders(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải đơn hàng');

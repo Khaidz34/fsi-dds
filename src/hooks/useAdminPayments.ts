@@ -207,10 +207,12 @@ export const useAdminPayments = (month?: string) => {
       setIsLoading(true);
       await paymentsAPI.markPaid(userId, currentMonth, amount);
       console.log('✅ Payment marked successfully, refreshing data...');
-      // Refresh data after marking as paid - skip debounce to ensure immediate update
-      await fetchUserPayments(false, true, 1);
-      await fetchPaymentHistory();
-      await fetchAutoPaymentUsage();
+      // Refresh data in parallel after marking as paid - skip debounce to ensure immediate update
+      await Promise.all([
+        fetchUserPayments(false, true, 1),
+        fetchPaymentHistory(),
+        fetchAutoPaymentUsage()
+      ]);
       console.log('✅ Data refreshed, new userPayments count:', userPayments.length);
       return true;
     } catch (err) {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { bannerAPI } from '../services/api';
+import { cacheService } from '../services/cache';
 
 interface BannerSettings {
   bannerType: 'game' | 'anniversary' | null;
@@ -10,18 +11,30 @@ interface BannerSettings {
 
 /**
  * Hook to fetch and manage banner settings
- * Fetches banner settings on mount only (no auto-refresh)
+ * Fetches banner settings on mount with caching
  */
 export const useBannerSettings = (): BannerSettings => {
-  const [bannerType, setBannerType] = useState<'game' | 'anniversary' | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [bannerType, setBannerType] = useState<'game' | 'anniversary' | null>(() => {
+    return cacheService.get<'game' | 'anniversary'>('banner_settings');
+  });
+  const [isLoading, setIsLoading] = useState(() => !cacheService.has('banner_settings'));
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchSettings = useCallback(async () => {
+  const fetchSettings = useCallback(async (forceFresh = false) => {
+    if (!forceFresh) {
+      const cached = cacheService.get<'game' | 'anniversary'>('banner_settings');
+      if (cached) {
+        setBannerType(cached);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
       setIsLoading(true);
       setError(null);
       const settings = await bannerAPI.getSettings();
+      cacheService.set('banner_settings', settings.bannerType, 300); // Cache 5 phút
       setBannerType(settings.bannerType);
     } catch (err) {
       console.error('Error fetching banner settings:', err);
@@ -34,7 +47,6 @@ export const useBannerSettings = (): BannerSettings => {
   }, []);
 
   useEffect(() => {
-    // Initial fetch only
     fetchSettings();
   }, [fetchSettings]);
 
@@ -42,6 +54,6 @@ export const useBannerSettings = (): BannerSettings => {
     bannerType,
     isLoading,
     error,
-    refetch: fetchSettings
+    refetch: () => fetchSettings(true)
   };
 };

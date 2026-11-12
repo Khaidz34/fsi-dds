@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { menuAPI } from '../services/api';
 import { Language } from '../types';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
-import { debounce } from '../services/cache';
+import { debounce, cacheService } from '../services/cache';
 
 export interface MenuDish {
   id: number;
@@ -25,11 +25,26 @@ export const useMenu = (language?: Language) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMenu = async (lang?: Language) => {
+  const fetchMenu = async (lang?: Language, forceFresh = false) => {
+    const activeLang = lang || language || 'vi';
+    const cacheKey = `menu_today_${activeLang}`;
+
+    if (!forceFresh) {
+      const cached = cacheService.get<TodayMenu>(cacheKey);
+      if (cached) {
+        setMenu(cached);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
-      setIsLoading(true);
+      if (!menu) {
+        setIsLoading(true);
+      }
       setError(null);
-      const data = await menuAPI.getToday(lang || language);
+      const data = await menuAPI.getToday(activeLang);
+      cacheService.set(cacheKey, data, 180); // Cache 3 phút
       setMenu(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải menu');
@@ -41,6 +56,7 @@ export const useMenu = (language?: Language) => {
   const createMenu = async (dishes: string[], imageUrl?: string) => {
     try {
       const newMenu = await menuAPI.create(dishes, imageUrl);
+      cacheService.clear();
       setMenu(newMenu);
       return newMenu;
     } catch (err) {
@@ -51,7 +67,8 @@ export const useMenu = (language?: Language) => {
   const createMultilingualMenu = async (dishes: Array<{vi: string, en?: string, ja?: string}>, imageUrl?: string) => {
     try {
       const newMenu = await menuAPI.createMultilingual(dishes, imageUrl);
-      await fetchMenu(language);
+      cacheService.clear();
+      await fetchMenu(language, true);
       return newMenu;
     } catch (err) {
       throw err;
@@ -59,7 +76,10 @@ export const useMenu = (language?: Language) => {
   };
 
   // Debounce refetch to prevent duplicate requests
-  const debouncedFetch = debounce(() => fetchMenu(language), 100);
+  const debouncedFetch = debounce(() => {
+    cacheService.clear();
+    fetchMenu(language, true);
+  }, 100);
 
   useEffect(() => {
     fetchMenu(language);
@@ -76,7 +96,7 @@ export const useMenu = (language?: Language) => {
     menu,
     isLoading,
     error,
-    refetch: fetchMenu,
+    refetch: (lang?: Language) => fetchMenu(lang, true),
     createMenu,
     createMultilingualMenu
   };
