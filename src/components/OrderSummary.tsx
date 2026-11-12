@@ -130,10 +130,10 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                   className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-bold text-gray-900 focus:outline-none focus:border-[#DA251D] mt-0.5"
                 >
                   <option value={currentUserId || ''}>
-                    {customerName && isForSelf ? customerName : 'Bản thân'} {t.myself || '(Bản thân)'}
+                    {customerName && isForSelf ? customerName : 'Bản thân'} {currentUserId ? `(#${currentUserId})` : ''} {t.myself || '(Bản thân)'}
                   </option>
                   {allUsers.filter(u => u.id !== currentUserId).map(u => (
-                    <option key={u.id} value={u.id}>{u.fullname}</option>
+                    <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
                   ))}
                 </select>
               ) : (

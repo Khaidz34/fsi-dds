@@ -1777,7 +1777,7 @@ export default function App() {
             <div className="flex items-center gap-4 pl-6 border-l border-[#E5E1D1]">
               <div className="hidden md:block text-right">
                 <p className="text-sm font-bold text-[#1C1917]">{user?.fullname}</p>
-                <p className="text-[10px] text-app-accent/60 font-bold uppercase tracking-widest">{user?.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}</p>
+                <p className="text-[10px] text-app-accent/60 font-bold uppercase tracking-widest">{user?.role === 'admin' ? 'Quản trị viên' : 'Người dùng'} {user?.id ? `(#${user.id})` : ''}</p>
               </div>
               <div className="w-10 h-10 rounded-full border-2 border-app-accent/10 shadow-sm bg-app-accent flex items-center justify-center text-white font-bold">
                 {user?.fullname?.charAt(0) || 'U'}
@@ -2514,10 +2514,10 @@ export default function App() {
                               }}
                               className="w-full min-h-12 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-base"
                             >
-                              <option value={user?.id || ''}>{user?.fullname} {t.myself}</option>
+                              <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
                               {allUsers.length > 0 ? (
                                 allUsers.filter(u => u.id !== user?.id).map(u => (
-                                  <option key={u.id} value={u.id}>{u.fullname}</option>
+                                  <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
                                 ))
                               ) : (
                                 <option disabled>{mobileOrderCopy.loadingUsers}</option>
@@ -2664,10 +2664,10 @@ export default function App() {
                                 }}
                                 className="w-full px-4 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-app-accent bg-white text-[#1C1917] font-medium"
                               >
-                                <option value={user?.id || ''}>{user?.fullname} {t.myself}</option>
+                                <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
                                 {allUsers.length > 0 ? (
                                   allUsers.filter(u => u.id !== user?.id).map(u => (
-                                    <option key={u.id} value={u.id}>{u.fullname}</option>
+                                    <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
                                   ))
                                 ) : (
                                   <option disabled>Đang tải danh sách...</option>
@@ -3395,10 +3395,10 @@ export default function App() {
                             }}
                             className="w-full px-3 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] bg-white text-[#1C1917] font-bold text-sm"
                           >
-                            <option value={user?.id || ''}>{user?.fullname} (Bản thân)</option>
+                            <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} (Bản thân)</option>
                             {allUsers.length > 0 ? (
                               allUsers.filter(u => u.id !== user?.id).map(u => (
-                                <option key={u.id} value={u.id}>{u.fullname}</option>
+                                <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
                               ))
                             ) : (
                               <option disabled>Đang tải danh sách nhân viên...</option>
