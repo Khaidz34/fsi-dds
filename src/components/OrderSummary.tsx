@@ -31,6 +31,10 @@ interface OrderSummaryProps {
   translations: any;
   theme?: 'fusion' | 'corporate';
   currentLang?: Language; // Add currentLang prop
+  allUsers?: Array<{ id: number; fullname: string }>;
+  currentUserId?: number;
+  orderForUserId?: number | null;
+  onOrderForUserChange?: (userId: number | null) => void;
 }
 
 // Helper function to get dish name by language
@@ -59,7 +63,11 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
   isLoading = false,
   translations: t,
   theme = 'fusion',
-  currentLang = 'vi' // Default to Vietnamese
+  currentLang = 'vi', // Default to Vietnamese
+  allUsers,
+  currentUserId,
+  orderForUserId,
+  onOrderForUserChange
 }) => {
   const activeOptions = Object.entries(options)
     .filter(([_, value]) => value)
@@ -94,17 +102,44 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
 
       <div className="space-y-4">
         {/* Customer Info */}
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            theme === 'corporate' ? 'bg-[#00A693]' : 'bg-[#DA251D]'
-          }`}>
-            <User size={16} className="text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              {isForSelf ? t.orderForSelf : t.orderForOther}
-            </p>
-            <p className="text-xs text-gray-600">{customerName}</p>
+        <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              theme === 'corporate' ? 'bg-[#00A693]' : 'bg-[#DA251D]'
+            }`}>
+              <User size={18} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  {isForSelf ? t.orderForSelf : t.orderForOther}
+                </p>
+                {!isForSelf && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    Đặt hộ
+                  </span>
+                )}
+              </div>
+              {onOrderForUserChange && allUsers && allUsers.length > 0 ? (
+                <select
+                  value={orderForUserId || currentUserId || ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : null;
+                    onOrderForUserChange(val);
+                  }}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-bold text-gray-900 focus:outline-none focus:border-[#DA251D] mt-0.5"
+                >
+                  <option value={currentUserId || ''}>
+                    {customerName && isForSelf ? customerName : 'Bản thân'} {t.myself || '(Bản thân)'}
+                  </option>
+                  {allUsers.filter(u => u.id !== currentUserId).map(u => (
+                    <option key={u.id} value={u.id}>{u.fullname}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-sm font-bold text-gray-900 truncate">{customerName}</p>
+              )}
+            </div>
           </div>
         </div>
 

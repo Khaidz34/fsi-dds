@@ -812,7 +812,7 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
         orderer:ordered_by (id, fullname),
         receiver:ordered_for (id, fullname)
       `)
-      .eq('user_id', req.user.id)
+      .or(`user_id.eq.${req.user.id},ordered_for.eq.${req.user.id}`)
       .gte('created_at', today)
       .lt('created_at', today + 'T23:59:59')
       .is('deleted_at', null)
@@ -913,12 +913,14 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Món chính và người nhận là bắt buộc' });
     }
 
+    const targetOrderedFor = Number(orderedFor) || req.user.id;
+
     const orderData = {
       user_id: req.user.id,
       ordered_by: req.user.id,
-      ordered_for: orderedFor,
-      dish1_id: dish1Id,
-      dish2_id: dish2Id || null,
+      ordered_for: targetOrderedFor,
+      dish1_id: Number(dish1Id),
+      dish2_id: dish2Id ? Number(dish2Id) : null,
       notes: notes || null,
       rating: rating || null,
       price: 40000,
@@ -957,14 +959,14 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     const { data: customer } = await supabase
       .from('users')
       .select('fullname')
-      .eq('id', orderedFor)
+      .eq('id', targetOrderedFor)
       .single();
 
     // Send SSE notification to the user whose payment is affected
     const currentMonth = new Date().toISOString().slice(0, 7);
-    sendSSENotification(orderedFor, {
+    sendSSENotification(targetOrderedFor, {
       type: 'order_created',
-      userId: orderedFor,
+      userId: targetOrderedFor,
       data: {
         orderId: order.id,
         price: order.price,
@@ -977,12 +979,12 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         dish2NameEn: dish2?.name_en,
         dish2NameJa: dish2?.name_ja,
         customerName: customer?.fullname,
-        orderedFor: orderedFor
+        orderedFor: targetOrderedFor
       }
     });
 
     // Also send notification to the person who placed the order (if different)
-    if (req.user.id !== orderedFor) {
+    if (req.user.id !== targetOrderedFor) {
       sendSSENotification(req.user.id, {
         type: 'order_created',
         userId: req.user.id,
@@ -990,7 +992,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
           orderId: order.id,
           price: order.price,
           month: currentMonth,
-          orderedFor: orderedFor,
+          orderedFor: targetOrderedFor,
           timestamp: Date.now(),
           dish1Name: dish1?.name_vi,
           dish1NameEn: dish1?.name_en,

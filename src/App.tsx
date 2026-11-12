@@ -1499,14 +1499,12 @@ export default function App() {
               active={activeTab === 'dashboard'} 
               onClick={() => setActiveTab('dashboard')} 
             />
-            {user?.role !== 'admin' && (
-              <SidebarItem 
-                icon={<Utensils size={20} />} 
-                label={t.menu} 
-                active={activeTab === 'menu'} 
-                onClick={() => setActiveTab('menu')} 
-              />
-            )}
+            <SidebarItem 
+              icon={<Utensils size={20} />} 
+              label={t.menu} 
+              active={activeTab === 'menu'} 
+              onClick={() => setActiveTab('menu')} 
+            />
             <SidebarItem 
               icon={<ClipboardList size={20} />} 
               label={user?.role === 'admin' ? t.admin.allOrders : t.orders} 
@@ -1594,17 +1592,15 @@ export default function App() {
             <span className="text-xs font-medium">{t.dashboard}</span>
           </button>
           
-          {user?.role !== 'admin' && (
-            <button
-              onClick={() => setActiveTab('menu')}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                activeTab === 'menu' ? 'text-app-accent bg-app-accent/5' : 'text-gray-500'
-              }`}
-            >
-              <Utensils size={20} />
-              <span className="text-xs font-medium">{t.menu}</span>
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('menu')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+              activeTab === 'menu' ? 'text-app-accent bg-app-accent/5' : 'text-gray-500'
+            }`}
+          >
+            <Utensils size={20} />
+            <span className="text-xs font-medium">{t.menu}</span>
+          </button>
           
           <button
             onClick={() => {
@@ -2528,8 +2524,23 @@ export default function App() {
                                 : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
                           }`}
                         >
-                          {!canPlaceOrder ? <Lock size={20} /> : <CheckCircle2 size={21} />}
-                          {!canPlaceOrder ? 'Đã hết giờ đặt (11h10)' : t.orderNow}
+                          {!canPlaceOrder ? (
+                            <>
+                              <Lock size={20} />
+                              <span>Đã hết giờ đặt (11h10)</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={21} />
+                              <span>
+                                {orderForUserId && orderForUserId !== user?.id
+                                  ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`
+                                  : user?.role === 'admin' && isOrderDeadlinePassed
+                                  ? 'Đặt cơm (Quyền Admin)'
+                                  : t.orderNow}
+                              </span>
+                            </>
+                          )}
                         </button>
                       </div>
 
@@ -2660,8 +2671,23 @@ export default function App() {
                                     : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
                               }`}
                             >
-                              {!canPlaceOrder ? <Lock size={22} /> : <CheckCircle2 size={24} />}
-                              {!canPlaceOrder ? 'Đã hết giờ đặt cơm hôm nay (11h10)' : t.orderNow}
+                              {!canPlaceOrder ? (
+                                <>
+                                  <Lock size={22} />
+                                  <span>Đã hết giờ đặt cơm hôm nay (11h10)</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 size={24} />
+                                  <span>
+                                    {orderForUserId && orderForUserId !== user?.id
+                                      ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`
+                                      : user?.role === 'admin' && isOrderDeadlinePassed
+                                      ? 'Đặt cơm hôm nay (Quyền Admin)'
+                                      : t.orderNow}
+                                  </span>
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>
@@ -2820,6 +2846,11 @@ export default function App() {
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.person}</p>
                               <p className="text-sm font-bold text-[#1C1917] truncate">{order.receiver?.fullname || 'N/A'}</p>
+                              {order.orderer && order.receiver && order.orderer.id !== order.receiver.id && (
+                                <p className="text-[11px] text-amber-700 font-semibold truncate mt-0.5" title={`Đặt hộ bởi ${order.orderer.fullname}`}>
+                                  (Đặt bởi: {order.orderer.fullname})
+                                </p>
+                              )}
                             </div>
                             
                             {/* Món 1 */}
@@ -3288,16 +3319,47 @@ export default function App() {
                           })}
                         </div>
                         
+                        {/* Selector người nhận cơm */}
+                        <div className="mb-4 bg-white/90 p-3.5 rounded-xl border border-[#F5E6D3] shadow-sm">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                              <User size={14} className="text-[#DA251D]" />
+                              <span>Đặt cơm cho ai:</span>
+                            </label>
+                            <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full border border-amber-200">
+                              Quyền Admin (Không giới hạn giờ)
+                            </span>
+                          </div>
+                          <select
+                            value={orderForUserId || user?.id || ''}
+                            onChange={(e) => {
+                              const value = e.target.value ? Number(e.target.value) : null;
+                              setOrderForUserId(value);
+                            }}
+                            className="w-full px-3 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] bg-white text-[#1C1917] font-bold text-sm"
+                          >
+                            <option value={user?.id || ''}>{user?.fullname} (Bản thân)</option>
+                            {allUsers.length > 0 ? (
+                              allUsers.filter(u => u.id !== user?.id).map(u => (
+                                <option key={u.id} value={u.id}>{u.fullname}</option>
+                              ))
+                            ) : (
+                              <option disabled>Đang tải danh sách nhân viên...</option>
+                            )}
+                          </select>
+                        </div>
+                        
                         {/* Order button */}
                         <button 
                           onClick={() => {
-                            setOrderForUserId(user?.id || null);
                             setShowOrderSummary(true);
                           }}
-                          className="w-full bg-[#DA251D] hover:bg-[#DA251D]/90 text-white py-3 rounded-xl font-bold text-base transition-all shadow-lg flex items-center justify-center gap-2"
+                          className="w-full bg-[#DA251D] hover:bg-[#DA251D]/90 text-white py-3.5 rounded-xl font-bold text-base transition-all shadow-lg flex items-center justify-center gap-2"
                         >
                           <CheckCircle2 size={20} />
-                          Đặt cơm cho bản thân
+                          {orderForUserId && orderForUserId !== user?.id
+                            ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`
+                            : 'Đặt cơm cho bản thân'}
                         </button>
                       </div>
                     )}
@@ -4192,6 +4254,11 @@ export default function App() {
                 isLoading={isPlacingOrder}
                 translations={t}
                 theme={theme}
+                currentLang={currentLang}
+                allUsers={allUsers}
+                currentUserId={user?.id}
+                orderForUserId={orderForUserId}
+                onOrderForUserChange={(id) => setOrderForUserId(id)}
               />
             </div>
           </div>
