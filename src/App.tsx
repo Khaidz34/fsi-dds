@@ -5,6 +5,7 @@ import { useVideoSettings } from './hooks/useVideoSettings';
 import {
   Utensils, 
   History, 
+  User,
   User as UserIcon, 
   ChefHat, 
   LayoutDashboard, 
