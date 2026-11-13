@@ -22,21 +22,21 @@ export function getVietnamNow(): Date {
 }
 
 /**
- * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay (11h10) hay chưa
+ * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay (11h00) hay chưa
  */
 export function isOrderDeadlinePassed(): boolean {
   const vnNow = getVietnamNow();
-  const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 10, 0);
+  const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 0, 0);
   return vnNow.getTime() >= deadline.getTime();
 }
 
 /**
- * Hook theo dõi đếm ngược thời gian còn lại đến hạn chốt cơm 11:10
+ * Hook theo dõi đếm ngược thời gian còn lại đến hạn chốt cơm 11:00
  */
 export function useOrderDeadline(): OrderDeadlineState {
   const calculateState = (): OrderDeadlineState => {
     const vnNow = getVietnamNow();
-    const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 10, 0);
+    const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 0, 0);
     const diffMs = deadline.getTime() - vnNow.getTime();
 
     if (diffMs <= 0) {
@@ -48,7 +48,7 @@ export function useOrderDeadline(): OrderDeadlineState {
         minutes: 0,
         seconds: 0,
         formattedTime: '00:00:00',
-        deadlineString: '11:10'
+        deadlineString: '11:00'
       };
     }
 
@@ -69,7 +69,7 @@ export function useOrderDeadline(): OrderDeadlineState {
       minutes,
       seconds,
       formattedTime,
-      deadlineString: '11:10'
+      deadlineString: '11:00'
     };
   };
 
@@ -153,7 +153,7 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
               <p className="text-xs sm:text-sm opacity-80 mt-0.5">
                 {isAdmin
                   ? 'Bếp đã chốt số lượng suất ăn. Bạn đang đăng nhập quyền Quản trị viên nên vẫn có thể tạo hoặc đổi món nếu cần hỗ trợ nhân viên.'
-                  : 'Hệ thống đã khóa tính năng đặt và sửa món sau 11h10 để bếp nấu. Vui lòng liên hệ Admin nếu bạn cần hỗ trợ gấp.'}
+                  : 'Hệ thống đã khóa tính năng đặt và sửa món sau 11h00 để bếp nấu. Vui lòng liên hệ Admin nếu bạn cần hỗ trợ gấp.'}
               </p>
             </div>
           </div>
