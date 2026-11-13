@@ -30,6 +30,7 @@ export interface SSEOrderData {
 
 interface UseSSEOptions {
   onOrderCreated?: (data: SSEOrderData) => void;
+  onOrderUpdated?: (data: SSEOrderData) => void;
   onOrderDeleted?: (data: SSEOrderData) => void;
   onPaymentMarked?: (data: SSEOrderData) => void;
   onError?: (error: Error) => void;
@@ -112,6 +113,13 @@ export function useSSE(
             case 'order_created':
               if (optionsRef.current.onOrderCreated) {
                 optionsRef.current.onOrderCreated(data);
+              }
+              break;
+            case 'order_updated':
+              if (optionsRef.current.onOrderUpdated) {
+                optionsRef.current.onOrderUpdated(data);
+              } else if (optionsRef.current.onOrderDeleted) {
+                optionsRef.current.onOrderDeleted(data);
               }
               break;
             case 'order_deleted':

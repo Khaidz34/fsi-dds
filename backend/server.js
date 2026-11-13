@@ -1084,6 +1084,35 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     cache.invalidate('stats:dashboard:*', 'order_updated');
     cache.invalidate(`stats:user:${affectedUserId}:*`, 'order_updated');
 
+    // Notify affected user and admin/staff users in background
+    setImmediate(async () => {
+      try {
+        const notifyData = { orderId, month, timestamp: Date.now() };
+        sendSSENotification(affectedUserId, {
+          type: 'order_updated',
+          userId: affectedUserId,
+          data: notifyData
+        });
+
+        const { data: adminStaff } = await supabase
+          .from('users')
+          .select('id')
+          .in('role', ['admin', 'staff']);
+
+        adminStaff?.forEach(u => {
+          if (u.id !== affectedUserId) {
+            sendSSENotification(u.id, {
+              type: 'order_updated',
+              userId: affectedUserId,
+              data: notifyData
+            });
+          }
+        });
+      } catch (e) {
+        console.error('Error sending order_updated SSE:', e);
+      }
+    });
+
     res.json({
       success: true,
       message: 'Đã cập nhật đơn hàng thành công',
@@ -1151,19 +1180,28 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
       timestamp: Date.now()
     });
 
-    // Also send notification to admin to update their dashboard
-    console.log(`📢 Sending order_deleted notification to admin ${req.user.id}`);
-    sendSSENotification(req.user.id, {
-      type: 'order_deleted',
-      userId: payingUserId,
-      data: {
-        orderId,
-        price: orderData.price,
-        month,
-        affectedUserId: payingUserId
-      },
-      timestamp: Date.now()
-    });
+    // Broadcast order_deleted notification to all admin and staff users to update their dashboards
+    console.log(`📢 Broadcasting order_deleted notification to admin/staff users`);
+    const { data: adminStaffUsers } = await supabase
+      .from('users')
+      .select('id')
+      .in('role', ['admin', 'staff']);
+
+    if (adminStaffUsers && adminStaffUsers.length > 0) {
+      adminStaffUsers.forEach(u => {
+        sendSSENotification(u.id, {
+          type: 'order_deleted',
+          userId: payingUserId,
+          data: {
+            orderId,
+            price: orderData.price,
+            month,
+            affectedUserId: payingUserId
+          },
+          timestamp: Date.now()
+        });
+      });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -3811,15 +3849,23 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
       });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Calculate today in Vietnam timezone (UTC+7)
+    const now = new Date();
+    const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const vnDate = new Date(vnTimeStr);
+    const yyyy = vnDate.getFullYear();
+    const mm = String(vnDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(vnDate.getDate()).padStart(2, '0');
+    const vnTodayStart = `${yyyy}-${mm}-${dd}T00:00:00+07:00`;
+    const vnTodayEnd = `${yyyy}-${mm}-${dd}T23:59:59+07:00`;
     
     // Get today's orders
     const { count: ordersToday, error: ordersTodayError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .is('deleted_at', null)
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59');
+      .gte('created_at', vnTodayStart)
+      .lte('created_at', vnTodayEnd);
 
     // Get total users
     const { count: totalUsers, error: usersError } = await supabase

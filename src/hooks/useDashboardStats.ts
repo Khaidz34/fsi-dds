@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { statsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
@@ -16,7 +16,7 @@ export const useDashboardStats = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = async (isSilent = false) => {
+  const fetchStats = useCallback(async (isSilent = false) => {
     try {
       if (!isSilent) setIsLoading(true);
       setError(null);
@@ -24,7 +24,7 @@ export const useDashboardStats = () => {
       setStats(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải thống kê');
-      setStats({
+      setStats(prev => prev || {
         ordersToday: 0,
         totalUsers: 0,
         popularDishesCount: 0,
@@ -33,12 +33,19 @@ export const useDashboardStats = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchStats(false);
       
+      // Listen to app-wide order update events (SSE & local changes)
+      const handleAppOrderUpdate = () => {
+        console.log('📊 Live order update event received in useDashboardStats, refreshing silently...');
+        fetchStats(true);
+      };
+      window.addEventListener('app:order-update', handleAppOrderUpdate);
+
       // Setup Supabase Realtime subscription for stats (silent update, no flicker)
       const channel = subscribeToTable('orders', () => {
         console.log('📊 Stats update detected via Realtime');
@@ -46,15 +53,16 @@ export const useDashboardStats = () => {
       }, 'stats_changes');
 
       return () => {
+        window.removeEventListener('app:order-update', handleAppOrderUpdate);
         unsubscribeFromTable(channel);
       };
     }
-  }, [user?.role]);
+  }, [user?.role, fetchStats]);
 
   return {
     stats,
     isLoading: isLoading && !stats,
     error,
-    refetch: () => fetchStats(false)
+    refetch: (isSilent = true) => fetchStats(isSilent)
   };
 };

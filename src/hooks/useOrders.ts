@@ -88,6 +88,7 @@ export const useOrders = (language?: string) => {
     try {
       await ordersAPI.delete(id);
       setOrders(prev => prev.filter(order => order.id !== id));
+      window.dispatchEvent(new CustomEvent('app:order-update'));
     } catch (err) {
       throw err;
     }
@@ -97,6 +98,12 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
+      const handleAppOrderUpdate = () => {
+        console.log('📦 Live order update event received in useOrders, refreshing silently...');
+        fetchOrders(true);
+      };
+      window.addEventListener('app:order-update', handleAppOrderUpdate);
+
       // Setup Supabase Realtime subscription for orders
       const channel = subscribeToTable('orders', () => {
         console.log('📦 Order update detected via Realtime');
@@ -104,6 +111,7 @@ export const useOrders = (language?: string) => {
       }, `orders_realtime_${user.role}_${user.id}`);
 
       return () => {
+        window.removeEventListener('app:order-update', handleAppOrderUpdate);
         unsubscribeFromTable(channel);
       };
     }

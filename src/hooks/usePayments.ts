@@ -113,6 +113,14 @@ export const usePayments = (month?: string) => {
       // Fetch initial
       fetchPaymentStats(true, false);
 
+      // Listen to app-wide live updates
+      const handleAppUpdate = () => {
+        console.log('💰 Live update event received in usePayments, refreshing stats silently...');
+        fetchPaymentStats(false, true);
+      };
+      window.addEventListener('app:order-update', handleAppUpdate);
+      window.addEventListener('app:payment-update', handleAppUpdate);
+
       // Realtime subscription for payments table (silent update)
       const paymentsChannelName = `payments_stats_${user.role}_${user.id}`;
       const paymentsSubscription = subscribeToTable('payments', () => {
@@ -128,6 +136,8 @@ export const usePayments = (month?: string) => {
       }, ordersChannelName);
 
       return () => {
+        window.removeEventListener('app:order-update', handleAppUpdate);
+        window.removeEventListener('app:payment-update', handleAppUpdate);
         unsubscribeFromTable(paymentsSubscription);
         unsubscribeFromTable(ordersSubscription);
       };

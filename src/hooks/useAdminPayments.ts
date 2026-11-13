@@ -246,6 +246,17 @@ export const useAdminPayments = (month?: string) => {
       fetchPaymentHistory();
       fetchAutoPaymentUsage();
       
+      const handleAppOrderUpdate = () => {
+        fetchUserPayments(false, true, 1);
+      };
+      const handleAppPaymentUpdate = () => {
+        fetchUserPayments(false, true, 1);
+        fetchPaymentHistory();
+        fetchAutoPaymentUsage();
+      };
+      window.addEventListener('app:order-update', handleAppOrderUpdate);
+      window.addEventListener('app:payment-update', handleAppPaymentUpdate);
+
       const ordersChannel = subscribeToTable('orders', () => {
         console.log('Order update detected, refreshing admin payments...');
         fetchUserPayments(false, true, 1);
@@ -259,6 +270,8 @@ export const useAdminPayments = (month?: string) => {
       }, 'admin_payments_payments_changes');
 
       return () => {
+        window.removeEventListener('app:order-update', handleAppOrderUpdate);
+        window.removeEventListener('app:payment-update', handleAppPaymentUpdate);
         unsubscribeFromTable(ordersChannel);
         unsubscribeFromTable(paymentsChannel);
       };

@@ -83,6 +83,13 @@ export const useMonthlyOrders = (month: string) => {
     if (user?.id) {
       loadAllOrders(!!cachedAllOrders);
 
+      // Listen to app-wide live order updates
+      const handleAppOrderUpdate = () => {
+        console.log('📦 Live order update event received in useMonthlyOrders, refreshing silently...');
+        loadAllOrders(true);
+      };
+      window.addEventListener('app:order-update', handleAppOrderUpdate);
+
       // Subscribe to realtime orders table once per user
       const channelName = `realtime_monthly_orders_${user.id}`;
       const channel = subscribeToTable('orders', () => {
@@ -91,6 +98,7 @@ export const useMonthlyOrders = (month: string) => {
       }, channelName);
 
       return () => {
+        window.removeEventListener('app:order-update', handleAppOrderUpdate);
         unsubscribeFromTable(channel);
       };
     }

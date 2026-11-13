@@ -131,6 +131,9 @@ export function useNotifications(
   // Establish SSE connection
   const { isConnected } = useSSE(user?.id || null, token, {
     onOrderCreated: handleOrderCreated,
+    onOrderUpdated: () => {
+      if (onOrderUpdate) onOrderUpdate();
+    },
     onOrderDeleted: () => {
       if (onOrderUpdate) onOrderUpdate();
     },

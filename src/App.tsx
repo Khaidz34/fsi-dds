@@ -297,7 +297,7 @@ export default function App() {
   const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers();
   const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments();
-  const { stats: dashboardStats, isLoading: dashboardStatsLoading } = useDashboardStats();
+  const { stats: dashboardStats, isLoading: dashboardStatsLoading, refetch: refetchDashboardStats } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
   
   // Notifications - navigate to orders when notification clicked
@@ -312,10 +312,13 @@ export default function App() {
     refetchOrders();
     if (user?.role === 'admin') {
       refetchAdminPayments();
+      refetchDashboardStats(true);
     } else {
       liveRefreshUserPaymentRef.current?.();
     }
-  }, [refetchOrders, refetchAdminPayments, user?.role]);
+    // Broadcast to any component listening for live order updates
+    window.dispatchEvent(new CustomEvent('app:order-update'));
+  }, [refetchOrders, refetchAdminPayments, refetchDashboardStats, user?.role]);
   
   const { permissionStatus, isSupported: notificationsSupported } = useNotifications(
     user,
@@ -951,6 +954,12 @@ export default function App() {
       setChopsticks(false);
       setLessRice(false);
       setOrderForUserId(null);
+
+      // Instantly refresh admin stats and notify listening components
+      if (user?.role === 'admin') {
+        refetchDashboardStats(true);
+      }
+      window.dispatchEvent(new CustomEvent('app:order-update'));
       
       setTimeout(() => setShowOrderSuccess(false), 3000);
     } catch (error) {
