@@ -938,9 +938,7 @@ export default function App() {
         rating: undefined
       });
       
-      // Refresh orders list to show the new order immediately
-      await refetchOrders();
-      
+      // Close modal and show success immediately without waiting for background fetches
       setShowOrderSummary(false);
       setShowOrderSuccess(true);
       setSelectedDishes([]);

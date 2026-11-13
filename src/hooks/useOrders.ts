@@ -57,8 +57,8 @@ export const useOrders = (language?: string) => {
   }) => {
     try {
       const response = await ordersAPI.create(orderData);
-      // Refetch after creating
-      await fetchOrders();
+      // Fetch fresh orders silently in background without blocking UI
+      fetchOrders(true);
       return response;
     } catch (err) {
       throw err;
