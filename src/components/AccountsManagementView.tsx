@@ -26,16 +26,25 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
   onEditUser,
   onDeleteUser
 }) => {
+  const acc = t?.accounts;
+
   const handleDelete = async (userItem: UserItem) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${userItem.fullname}" (${userItem.username}) không?\n\nLƯU Ý: Hành động này không thể hoàn tác!`)) {
+    const confirmMsg = (acc?.confirmDelete || 'Bạn có chắc chắn muốn xóa tài khoản "{name}" ({username}) không?\n\nLƯU Ý: Hành động này không thể hoàn tác!')
+      .replace('{name}', userItem.fullname)
+      .replace('{username}', userItem.username);
+
+    if (confirm(confirmMsg)) {
       try {
         await onDeleteUser(userItem.id);
-        alert('Đã xóa người dùng thành công!');
+        alert(acc?.deleteSuccess || 'Đã xóa người dùng thành công!');
       } catch (err: any) {
-        alert('Lỗi khi xóa người dùng: ' + (err?.message || 'Lỗi server'));
+        alert((acc?.deleteError || 'Lỗi khi xóa người dùng: ') + (err?.message || 'Lỗi server'));
       }
     }
   };
+
+  const subtitleText = (acc?.subtitle || 'Danh sách nhân viên và quyền truy cập trong hệ thống ({count} người dùng)')
+    .replace('{count}', String(users.length));
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -47,10 +56,10 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
             </div>
             <div>
               <h3 className="text-2xl font-display font-bold tracking-tight">
-                {t?.admin?.accountManagement || 'Quản lý tài khoản'}
+                {acc?.title || t?.admin?.accountManagement || 'Quản lý tài khoản'}
               </h3>
               <p className="text-xs text-[#1C1917]/50 mt-0.5">
-                Danh sách nhân viên và quyền truy cập trong hệ thống ({users.length} người dùng)
+                {subtitleText}
               </p>
             </div>
           </div>
@@ -61,10 +70,18 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-[#E5E1D1]">
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Họ tên</th>
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Tên đăng nhập</th>
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Vai trò</th>
-                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">Hành động</th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">
+                    {acc?.colFullname || 'Họ tên'}
+                  </th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">
+                    {acc?.colUsername || 'Tên đăng nhập'}
+                  </th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">
+                    {acc?.colRole || 'Vai trò'}
+                  </th>
+                  <th className="pb-4 text-[10px] font-bold uppercase tracking-widest text-[#1C1917]/40">
+                    {acc?.colActions || 'Hành động'}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E1D1]/50">
@@ -76,7 +93,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                         userItem.role === 'admin' ? 'bg-[#DA251D]/10 text-[#DA251D]' : 'bg-emerald-100 text-emerald-700'
                       }`}>
-                        {userItem.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+                        {userItem.role === 'admin' ? (acc?.roleAdmin || 'Quản trị viên') : (acc?.roleUser || 'Nhân viên')}
                       </span>
                     </td>
                     <td className="py-4">
@@ -85,20 +102,20 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                           type="button"
                           onClick={() => onEditUser(userItem)}
                           className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1.5"
-                          title="Chỉnh sửa tài khoản"
+                          title={acc?.btnEdit || 'Chỉnh sửa tài khoản'}
                         >
                           <Edit size={14} />
-                          Chỉnh sửa
+                          {acc?.btnEdit || 'Chỉnh sửa'}
                         </button>
                         {userItem.id !== currentUser?.id && (
                           <button 
                             type="button"
                             onClick={() => handleDelete(userItem)}
                             className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center gap-1.5"
-                            title="Xóa tài khoản"
+                            title={acc?.btnDelete || 'Xóa tài khoản'}
                           >
                             <Trash2 size={14} />
-                            Xóa
+                            {acc?.btnDelete || 'Xóa'}
                           </button>
                         )}
                       </div>
@@ -110,7 +127,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
           </div>
         ) : (
           <div className="text-center py-12 text-gray-500">
-            <p>Chưa có tài khoản người dùng nào.</p>
+            <p>{acc?.noUsers || 'Chưa có tài khoản người dùng nào.'}</p>
           </div>
         )}
       </div>

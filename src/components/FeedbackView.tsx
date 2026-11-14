@@ -18,6 +18,7 @@ interface FeedbackViewProps {
   };
   feedbacks: FeedbackItem[];
   translations: any;
+  currentLang?: 'vi' | 'en' | 'ja';
   updateFeedbackStatus: (id: number, status: string) => Promise<any>;
   createFeedback: (subject: string, message: string) => Promise<any>;
 }
@@ -26,12 +27,18 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
   user,
   feedbacks,
   translations: t,
+  currentLang = 'vi',
   updateFeedbackStatus,
   createFeedback
 }) => {
   const [feedbackSubject, setFeedbackSubject] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fbView = t?.feedbackView;
+  const fbForm = t?.feedbackForm;
+
+  const locale = currentLang === 'ja' ? 'ja-JP' : currentLang === 'en' ? 'en-US' : 'vi-VN';
 
   const handleSubmit = async () => {
     if (!feedbackMessage.trim()) return;
@@ -41,13 +48,19 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
       await createFeedback(feedbackSubject.trim(), feedbackMessage.trim());
       setFeedbackSubject('');
       setFeedbackMessage('');
-      alert(t?.feedbackForm?.successMessage || 'Cảm ơn bạn đã gửi góp ý! Chúng tôi sẽ xem xét sớm nhất.');
+      alert(fbView?.success || fbForm?.successMessage || 'Cảm ơn bạn đã gửi góp ý! Chúng tôi sẽ xem xét sớm nhất.');
     } catch (error) {
       console.error('Lỗi khi gửi góp ý:', error);
-      alert(t?.feedbackForm?.errorMessage || 'Lỗi khi gửi góp ý. Vui lòng thử lại.');
+      alert(fbView?.error || fbForm?.errorMessage || 'Lỗi khi gửi góp ý. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    if (status === 'resolved') return fbView?.statusResolved || 'Đã giải quyết';
+    if (status === 'reviewed') return fbView?.statusReviewed || 'Đã xem';
+    return fbView?.statusPending || 'Chờ xử lý';
   };
 
   return (
@@ -56,7 +69,7 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
         // Admin view - Xem tất cả góp ý
         <div className="lacquer-card p-4 lg:p-10">
           <h3 className="text-2xl font-display font-bold tracking-tight mb-8">
-            {t?.admin?.feedback || 'Quản lý góp ý'}
+            {fbView?.titleAdmin || t?.admin?.feedback || 'Quản lý góp ý'}
           </h3>
           
           {feedbacks && feedbacks.length > 0 ? (
@@ -67,10 +80,12 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
                     <div>
                       <p className="font-bold text-[#1C1917]">{feedback.fullname}</p>
                       <p className="text-xs text-[#1C1917]/40 font-bold uppercase tracking-widest">
-                        {new Date(feedback.created_at).toLocaleDateString('vi-VN')} lúc {new Date(feedback.created_at).toLocaleTimeString('vi-VN')}
+                        {new Date(feedback.created_at).toLocaleDateString(locale)} {new Date(feedback.created_at).toLocaleTimeString(locale)}
                       </p>
                       {feedback.subject && (
-                        <p className="text-sm font-semibold text-[#1C1917] mt-1">Chủ đề: {feedback.subject}</p>
+                        <p className="text-sm font-semibold text-[#1C1917] mt-1">
+                          {fbView?.subjectPrefix || 'Chủ đề: '}{feedback.subject}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -79,17 +94,16 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
                         onChange={(e) => updateFeedbackStatus(feedback.id, e.target.value)}
                         className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-app-accent"
                       >
-                        <option value="pending">Chờ xử lý</option>
-                        <option value="reviewed">Đã xem</option>
-                        <option value="resolved">Đã giải quyết</option>
+                        <option value="pending">{fbView?.statusPending || 'Chờ xử lý'}</option>
+                        <option value="reviewed">{fbView?.statusReviewed || 'Đã xem'}</option>
+                        <option value="resolved">{fbView?.statusResolved || 'Đã giải quyết'}</option>
                       </select>
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                         feedback.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' :
                         feedback.status === 'reviewed' ? 'bg-blue-100 text-blue-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
-                        {feedback.status === 'resolved' ? 'Đã giải quyết' :
-                         feedback.status === 'reviewed' ? 'Đã xem' : 'Chờ xử lý'}
+                        {getStatusLabel(feedback.status)}
                       </span>
                     </div>
                   </div>
@@ -104,8 +118,8 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
               <div className="text-gray-400 mb-4">
                 <MessageSquare size={48} className="mx-auto" />
               </div>
-              <p className="text-gray-500 text-lg font-medium">Chưa có góp ý nào</p>
-              <p className="text-gray-400 text-sm">{t?.feedbackForm?.noFeedback || 'Chưa có nhân viên nào gửi phản hồi.'}</p>
+              <p className="text-gray-500 text-lg font-medium">{fbView?.emptyTitle || 'Chưa có góp ý nào'}</p>
+              <p className="text-gray-400 text-sm">{fbView?.emptyDesc || fbForm?.noFeedback || 'Chưa có nhân viên nào gửi phản hồi.'}</p>
             </div>
           )}
         </div>
@@ -113,31 +127,31 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
         // User view - Gửi góp ý
         <div className="lacquer-card p-4 lg:p-10">
           <h3 className="text-2xl font-display font-bold tracking-tight mb-8">
-            {t?.feedbackForm?.title || 'Đóng góp ý kiến'}
+            {fbView?.titleUser || fbForm?.title || 'Đóng góp ý kiến'}
           </h3>
           
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-semibold text-[#1C1917] mb-2">
-                {t?.feedbackForm?.subjectLabel || 'Chủ đề góp ý (tùy chọn)'}
+                {fbForm?.subjectLabel || 'Chủ đề góp ý (tùy chọn)'}
               </label>
               <input
                 type="text"
                 value={feedbackSubject}
                 onChange={(e) => setFeedbackSubject(e.target.value)}
-                placeholder={t?.feedbackForm?.subjectPlaceholder || 'Ví dụ: Thực đơn, chất lượng món ăn, góp ý tính năng...'}
+                placeholder={fbForm?.subjectPlaceholder || 'Ví dụ: Thực đơn, chất lượng món ăn, góp ý tính năng...'}
                 className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:ring-2 focus:ring-app-accent/20 focus:border-app-accent text-sm"
               />
             </div>
             
             <div>
               <label className="block text-sm font-semibold text-[#1C1917] mb-2">
-                {t?.feedbackForm?.contentLabel || 'Nội dung phản hồi'}
+                {fbForm?.contentLabel || 'Nội dung phản hồi'}
               </label>
               <textarea
                 value={feedbackMessage}
                 onChange={(e) => setFeedbackMessage(e.target.value)}
-                placeholder={t?.feedbackForm?.contentPlaceholder || 'Nhập ý kiến đóng góp của bạn để bếp và ban quản lý cải thiện tốt hơn...'}
+                placeholder={fbForm?.contentPlaceholder || 'Nhập ý kiến đóng góp của bạn để bếp và ban quản lý cải thiện tốt hơn...'}
                 rows={6}
                 className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:ring-2 focus:ring-app-accent/20 focus:border-app-accent resize-none text-sm leading-relaxed"
               />
@@ -150,7 +164,7 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
                 disabled={!feedbackMessage.trim() || isSubmitting}
                 className="bg-app-accent text-white px-8 py-3 rounded-xl font-bold hover:bg-app-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-app-accent/20"
               >
-                {isSubmitting ? 'Đang gửi...' : (t?.feedbackForm?.submitButton || 'Gửi góp ý')}
+                {isSubmitting ? (fbView?.sending || 'Đang gửi...') : (fbForm?.submitButton || 'Gửi góp ý')}
               </button>
               <button
                 type="button"
@@ -161,7 +175,7 @@ export const FeedbackView: React.FC<FeedbackViewProps> = ({
                 disabled={isSubmitting}
                 className="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors"
               >
-                {t?.feedbackForm?.clearButton || 'Xóa trắng'}
+                {fbForm?.clearButton || 'Xóa trắng'}
               </button>
             </div>
           </div>

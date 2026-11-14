@@ -941,7 +941,7 @@ export default function App() {
     if (!user || selectedDishes.length === 0) return;
     
     if (!canPlaceOrder) {
-      alert('Đã hết giờ đặt cơm hôm nay (hạn chót là 11h10). Bếp đã khóa danh sách để nấu món.');
+      alert((t.deadline?.alertExpiredOrder || 'Đã hết giờ đặt cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', '11:00'));
       return;
     }
     
@@ -1168,7 +1168,7 @@ export default function App() {
     });
 
     if (todayOrders.length === 0) {
-      alert('Không có đơn hàng nào hôm nay để xuất');
+      alert(t.ui?.noOrdersTodayToExport || 'Không có đơn hàng nào hôm nay để xuất');
       return;
     }
 
@@ -1607,7 +1607,7 @@ export default function App() {
 
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto no-scrollbar">
           <div className="mb-4">
-            <p className={`px-4 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 ${theme === 'corporate' ? 'text-[#00A693]/40' : 'text-[#DA251D]/40'}`}>Mục lục</p>
+            <p className={`px-4 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 ${theme === 'corporate' ? 'text-[#00A693]/40' : 'text-[#DA251D]/40'}`}>{t.ui?.navigation || 'Mục lục'}</p>
             <SidebarItem 
               icon={<LayoutDashboard size={20} />} 
               label={t.dashboard} 
@@ -1648,7 +1648,7 @@ export default function App() {
 
           {user?.role === 'admin' && (
             <div className="pt-4 border-t border-[#E5E1D1]">
-              <p className={`px-4 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 ${theme === 'corporate' ? 'text-[#00A693]/40' : 'text-[#DA251D]/40'}`}>Quản trị</p>
+              <p className={`px-4 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 ${theme === 'corporate' ? 'text-[#00A693]/40' : 'text-[#DA251D]/40'}`}>{t.ui?.administration || 'Quản trị'}</p>
               <SidebarItem 
                 icon={<Settings size={20} />} 
                 label={t.admin.menuManagement} 
@@ -1787,7 +1787,7 @@ export default function App() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 border-2 border-app-accent/30 border-t-app-accent rounded-full animate-spin" />
-                  <span className="text-sm font-medium text-app-ink/70">Đang chuyển theme...</span>
+                  <span className="text-sm font-medium text-app-ink/70">{t.ui?.switchingTheme || 'Đang chuyển theme...'}</span>
                 </div>
               </div>
             )}
@@ -1811,7 +1811,7 @@ export default function App() {
                 {(ordersUpdating || isUpdatingPayments) && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 animate-pulse">
                     <RefreshCw size={11} className="animate-spin text-emerald-600" />
-                    <span>Đang đồng bộ...</span>
+                    <span>{t.ui?.syncing || 'Đang đồng bộ...'}</span>
                   </span>
                 )}
               </div>
@@ -1879,7 +1879,7 @@ export default function App() {
             <div className="flex items-center gap-4 pl-6 border-l border-[#E5E1D1]">
               <div className="hidden md:block text-right">
                 <p className="text-sm font-bold text-[#1C1917]">{user?.fullname}</p>
-                <p className="text-[10px] text-app-accent/60 font-bold uppercase tracking-widest">{user?.role === 'admin' ? 'Quản trị viên' : 'Người dùng'} {user?.id ? `(#${user.id})` : ''}</p>
+                <p className="text-[10px] text-app-accent/60 font-bold uppercase tracking-widest">{user?.role === 'admin' ? (t.ui?.adminRole || 'Quản trị viên') : (t.ui?.userRole || 'Người dùng')} {user?.id ? `(#${user.id})` : ''}</p>
               </div>
               <div className="w-10 h-10 rounded-full border-2 border-app-accent/10 shadow-sm bg-app-accent flex items-center justify-center text-white font-bold">
                 {user?.fullname?.charAt(0) || 'U'}
@@ -1901,7 +1901,7 @@ export default function App() {
               >
                 <div className="flex flex-col items-center gap-4">
                   <div className="w-16 h-16 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
-                  <p className="text-app-ink/70 font-medium">Đang chuyển ngôn ngữ...</p>
+                  <p className="text-app-ink/70 font-medium">{t.ui?.switchingLanguage || 'Đang chuyển ngôn ngữ...'}</p>
                 </div>
               </div>
             )}
@@ -1951,11 +1951,11 @@ export default function App() {
 
                   <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Cần thanh toán</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">{t.ui?.paymentDue || 'Cần thanh toán'}</p>
                       <p className="mt-2 text-3xl font-black text-app-accent">
                         {(dashboardAutoPaymentInfo?.isPaid ? 0 : dashboardAutoPaymentInfo?.amount || 0).toLocaleString()}đ
                       </p>
-                      <p className="mt-1 text-xs font-semibold text-app-ink/45">{dashboardAutoPaymentInfo?.isPaid ? 'Đã thanh toán xong' : 'Theo QR tháng này'}</p>
+                      <p className="mt-1 text-xs font-semibold text-app-ink/45">{dashboardAutoPaymentInfo?.isPaid ? (t.ui?.paidComplete || 'Đã thanh toán xong') : (t.ui?.monthlyQr || 'Theo QR tháng này')}</p>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
                       <QrCode size={24} />
@@ -1964,7 +1964,7 @@ export default function App() {
 
                   <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Lượt tự động</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">{t.ui?.autoQuota || 'Lượt tự động'}</p>
                       <p className="mt-2 text-3xl font-black text-app-ink">
                         {dashboardAutoPaymentUsage?.limit && !dashboardAutoPaymentUsage?.providerSynced && dashboardAutoPaymentUsage?.used === 0
                           ? '--'
@@ -1994,7 +1994,7 @@ export default function App() {
                     <React.Suspense fallback={
                       <div className="w-full h-full min-h-[320px] xl:min-h-[360px] bg-stone-100 animate-pulse rounded-2xl" />
                     }>
-                      <DailyQuote />
+                      <DailyQuote currentLang={currentLang} />
                     </React.Suspense>
                   </div>
 
@@ -2030,7 +2030,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between w-full mb-2 relative z-10 px-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60">Thanh toán tháng này</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60">{t.ui?.paymentThisMonth || 'Thanh toán tháng này'}</p>
                       <button
                         onClick={() => {
                           loadDashboardAutoPaymentInfo();
@@ -2240,7 +2240,7 @@ export default function App() {
                 className="desktop-menu-section menu-luxury-stage space-y-4 sm:space-y-6 lg:space-y-7"
               >
                 {/* Order Deadline Countdown Banner */}
-                <OrderDeadlineCountdown isAdmin={user?.role === 'admin'} className="mb-4" />
+                <OrderDeadlineCountdown isAdmin={user?.role === 'admin'} className="mb-4" currentLang={currentLang} translations={t} />
                 <div className="desktop-menu-hero hidden lg:grid grid-cols-[minmax(0,1fr)_minmax(300px,330px)] items-center gap-5 lacquer-card p-5 xl:p-6 overflow-hidden relative">
                   <div className="absolute inset-0 menu-heritage-surface" />
                   <div className="absolute inset-y-0 left-0 w-1/3 lotus-pattern opacity-[0.045]" />
@@ -2274,7 +2274,7 @@ export default function App() {
 
                   <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2.5">
                     <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-app-accent/5 px-3.5 py-3">
-                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">Món hôm nay</p>
+                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">{t.ui?.todayDishes || 'Món hôm nay'}</p>
                       <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-ink leading-none">{menu?.dishes?.length || 0}</p>
                     </div>
                     <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
@@ -2405,7 +2405,7 @@ export default function App() {
                       >
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-12 h-12 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
-                          <p className="text-app-ink/60 font-medium">Đang chuyển ngôn ngữ...</p>
+                          <p className="text-app-ink/60 font-medium">{t.ui?.switchingLanguage || 'Đang chuyển ngôn ngữ...'}</p>
                         </div>
                       </div>
                     ) : menuLoading && (!menu?.dishes || menu.dishes.length === 0) ? (
@@ -2415,7 +2415,7 @@ export default function App() {
                       >
                         <div className="flex flex-col items-center gap-4">
                           <div className="w-12 h-12 border-4 border-app-accent/20 border-t-app-accent rounded-full animate-spin" />
-                          <p className="text-app-ink/60 font-medium">Đang tải thực đơn hôm nay...</p>
+                          <p className="text-app-ink/60 font-medium">{t.ui?.loadingTodayMenu || 'Đang tải thực đơn hôm nay...'}</p>
                         </div>
                       </div>
                     ) : (
@@ -2680,7 +2680,7 @@ export default function App() {
                           {!canPlaceOrder ? (
                             <>
                               <Lock size={20} />
-                              <span>Đã hết giờ đặt (11h10)</span>
+                              <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', '11:00')}</span>
                             </>
                           ) : (
                             <>
@@ -2827,7 +2827,7 @@ export default function App() {
                               {!canPlaceOrder ? (
                                 <>
                                   <Lock size={22} />
-                                  <span>Đã hết giờ đặt cơm hôm nay (11h10)</span>
+                                  <span>{(t.deadline?.btnExpiredFull || 'Đã hết giờ đặt cơm hôm nay ({deadline})').replace('{deadline}', '11:00')}</span>
                                 </>
                               ) : (
                                 <>
@@ -2836,7 +2836,7 @@ export default function App() {
                                     {orderForUserId && orderForUserId !== user?.id
                                       ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`
                                       : user?.role === 'admin' && isOrderDeadlinePassed
-                                      ? 'Đặt cơm hôm nay (Quyền Admin)'
+                                      ? t.deadline?.orderAsAdmin || 'Đặt cơm hôm nay (Quyền Admin)'
                                       : t.orderNow}
                                   </span>
                                 </>
@@ -3869,7 +3869,7 @@ export default function App() {
                 {/* Payment History */}
                 <div className="lacquer-card p-4 lg:p-10">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-display font-bold tracking-tight">Lịch sử thanh toán</h3>
+                    <h3 className="text-xl font-display font-bold tracking-tight">{t.ui?.paymentHistory || 'Lịch sử thanh toán'}</h3>
                     {isUpdatingPayments && (
                       <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-[11px] font-semibold animate-pulse">
                         <RefreshCw size={11} className="animate-spin text-emerald-600" />
@@ -4028,7 +4028,7 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-500">Chưa có lịch sử thanh toán</p>
+                      <p className="text-gray-500">{t.ui?.noPaymentHistory || 'Chưa có lịch sử thanh toán'}</p>
                     </div>
                   )}
                 </div>
@@ -4075,7 +4075,7 @@ export default function App() {
                 ) : (
                   <ErrorBoundary fallbackTitle="Không thể tải tab Thanh toán">
                     <React.Suspense fallback={<TabLoadingSkeleton />}>
-                      <PaymentDashboard translations={t} />
+                      <PaymentDashboard translations={t} currentLang={currentLang} />
                     </React.Suspense>
                   </ErrorBoundary>
                 )}
@@ -4602,7 +4602,7 @@ export default function App() {
                   <button
                     onClick={async () => {
                       if (!canPlaceOrder) {
-                        alert('Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là 11h10). Bếp đã khóa danh sách để nấu món.');
+                        alert((t.deadline?.alertExpiredEdit || 'Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', '11:00'));
                         return;
                       }
                       if (!editDish1) {

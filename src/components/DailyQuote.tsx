@@ -1,226 +1,417 @@
 /**
  * DailyQuote – Hiển thị câu danh ngôn / triết lý sống mỗi ngày
+ * Đa ngôn ngữ (Tiếng Việt, Tiếng Anh, Tiếng Nhật)
  * với hình nền nhiếp ảnh thiên nhiên độ phân giải cao phù hợp nội dung.
- * Đổi tự động theo ngày trong năm, đồng thời cho phép bấm đổi câu linh hoạt.
+ * Đổi tự động theo ngày làm việc (Thứ 2 - Thứ 6; Thứ 7 & CN giữ nguyên câu của Thứ 6).
  */
 
 import React, { useState, useMemo } from 'react';
 import { Quote as QuoteIcon } from 'lucide-react';
 
+interface LocalizedString {
+  vi: string;
+  en: string;
+  ja: string;
+}
+
 interface QuoteItem {
-  text: string;
-  author: string;
-  theme: string;
+  text: LocalizedString;
+  author: LocalizedString;
+  theme: LocalizedString;
   photoId: string;
 }
 
 const QUOTES: QuoteItem[] = [
   {
-    text: 'Đừng chạy theo hạnh phúc – hãy trở thành hạnh phúc.',
-    author: 'Lão Tử',
-    theme: 'An lạc nội tâm',
-    photoId: '1470071459604-3b5ec3a7fe05', // Rừng thông mờ sương tĩnh lặng
+    text: {
+      vi: 'Đừng chạy theo hạnh phúc – hãy trở thành hạnh phúc.',
+      en: 'Do not chase happiness – become happiness.',
+      ja: '幸せを追い求めるのではなく、自らが幸せそのものになりなさい。'
+    },
+    author: {
+      vi: 'Lão Tử',
+      en: 'Lao Tzu',
+      ja: '老子'
+    },
+    theme: {
+      vi: 'An lạc nội tâm',
+      en: 'Inner Peace',
+      ja: '心の平安'
+    },
+    photoId: '1470071459604-3b5ec3a7fe05'
   },
   {
-    text: 'Sóng không biết mình đẹp cho đến khi vỡ tan. Sóng quên rằng mình chính là đại dương.',
-    author: 'Thiền ngữ',
-    theme: 'Giác ngộ & Buông bỏ',
-    photoId: '1505118380757-91f5f5632de0', // Ngọn sóng đại dương xanh biếc cuộn trào
+    text: {
+      vi: 'Sóng không biết mình đẹp cho đến khi vỡ tan. Sóng quên rằng mình chính là đại dương.',
+      en: 'A wave does not know its beauty until it breaks. It forgets that it is the ocean itself.',
+      ja: '波は砕け散るまで己の美しさを知らず、自身が海そのものであることを忘れている。'
+    },
+    author: {
+      vi: 'Thiền ngữ',
+      en: 'Zen Proverb',
+      ja: '禅の言葉'
+    },
+    theme: {
+      vi: 'Giác ngộ & Buông bỏ',
+      en: 'Enlightenment & Release',
+      ja: '悟りと手放し'
+    },
+    photoId: '1505118380757-91f5f5632de0'
   },
   {
-    text: 'Mỗi khoảnh khắc hiện tại là nơi duy nhất bạn thực sự tồn tại.',
-    author: 'Thích Nhất Hạnh',
-    theme: 'Chánh niệm hiện tại',
-    photoId: '1441974231531-c6227db76b6e', // Vạt nắng vàng xuyên qua tán rừng già
+    text: {
+      vi: 'Mỗi khoảnh khắc hiện tại là nơi duy nhất bạn thực sự tồn tại.',
+      en: 'The present moment is the only place where you truly exist.',
+      ja: '今この瞬間こそが、あなたが本当に生きている唯一の場所である。'
+    },
+    author: {
+      vi: 'Thích Nhất Hạnh',
+      en: 'Thich Nhat Hanh',
+      ja: 'ティク・ナット・ハン'
+    },
+    theme: {
+      vi: 'Chánh niệm hiện tại',
+      en: 'Mindful Presence',
+      ja: '今ここにあること'
+    },
+    photoId: '1441974231531-c6227db76b6e'
   },
   {
-    text: 'Im lặng không phải là trống rỗng – đó là nơi sự thật cư ngụ.',
-    author: 'Thiền ngữ',
-    theme: 'Tĩnh lặng tâm hồn',
-    photoId: '1470770841072-f978cf4d019e', // Hồ nước phẳng lặng như gương phản chiếu dãy núi
+    text: {
+      vi: 'Im lặng không phải là trống rỗng – đó là nơi sự thật cư ngụ.',
+      en: 'Silence is not emptiness – it is where truth dwells.',
+      ja: '静寂は虚無ではない。真実が宿る場所である。'
+    },
+    author: {
+      vi: 'Thiền ngữ',
+      en: 'Zen Proverb',
+      ja: '禅の言葉'
+    },
+    theme: {
+      vi: 'Tĩnh lặng tâm hồn',
+      en: 'Quiet Soul',
+      ja: '静寂な心'
+    },
+    photoId: '1470770841072-f978cf4d019e'
   },
   {
-    text: 'Cuộc đời không phải là vấn đề cần giải quyết, mà là một thực tại cần trải nghiệm.',
-    author: 'Søren Kierkegaard',
-    theme: 'Trải nghiệm sống',
-    photoId: '1506744038136-46273834b3fb', // Thung lũng kỳ vĩ Yosemite dưới ánh hoàng hôn
+    text: {
+      vi: 'Cuộc đời không phải là vấn đề cần giải quyết, mà là một thực tại cần trải nghiệm.',
+      en: 'Life is not a problem to be solved, but a reality to be experienced.',
+      ja: '人生は解決すべき問題ではなく、体験すべき現実である。'
+    },
+    author: {
+      vi: 'Søren Kierkegaard',
+      en: 'Søren Kierkegaard',
+      ja: 'キルケゴール'
+    },
+    theme: {
+      vi: 'Trải nghiệm sống',
+      en: 'Living Experience',
+      ja: '生きる体験'
+    },
+    photoId: '1506744038136-46273834b3fb'
   },
   {
-    text: 'Gốc rễ của đau khổ là bám víu. Buông bỏ mang lại tự do đích thực.',
-    author: 'Phật Thích Ca',
-    theme: 'Tự do tâm hồn',
-    photoId: '1535463731090-e34f4b5098c5', // Cây cổ thụ Wanaka đơn độc giữa mặt hồ tĩnh lặng
+    text: {
+      vi: 'Gốc rễ của đau khổ là bám víu. Buông bỏ mang lại tự do đích thực.',
+      en: 'The root of suffering is attachment. Letting go brings true freedom.',
+      ja: '執着こそが苦しみの根源である。手放すことこそが真の自由をもたらす。'
+    },
+    author: {
+      vi: 'Phật Thích Ca',
+      en: 'Gautama Buddha',
+      ja: '釈迦牟尼仏'
+    },
+    theme: {
+      vi: 'Tự do tâm hồn',
+      en: 'Inner Freedom',
+      ja: '真の自由'
+    },
+    photoId: '1535463731090-e34f4b5098c5'
   },
   {
-    text: 'Người biết đủ là người giàu có nhất thế gian.',
-    author: 'Lão Tử – Đạo Đức Kinh',
-    theme: 'Tâm thái biết đủ',
-    photoId: '1472214103451-9374bd1c798e', // Đồi cỏ xanh mướt trải dài trong nắng sớm
+    text: {
+      vi: 'Người biết đủ là người giàu có nhất thế gian.',
+      en: 'He who knows contentment is truly wealthy beyond measure.',
+      ja: '足るを知る者は、世界で最も富める者である。'
+    },
+    author: {
+      vi: 'Lão Tử',
+      en: 'Lao Tzu',
+      ja: '老子'
+    },
+    theme: {
+      vi: 'Tâm thái biết đủ',
+      en: 'Contentment',
+      ja: '知足の心'
+    },
+    photoId: '1472214103451-9374bd1c798e'
   },
   {
-    text: 'Không có con đường nào dẫn đến hạnh phúc – hạnh phúc chính là con đường bạn đang đi.',
-    author: 'Thích Nhất Hạnh',
-    theme: 'Hành trình cuộc sống',
-    photoId: '1426604966848-d7adac402bff', // Con đường mòn ven hồ dẫn vào rặng núi
+    text: {
+      vi: 'Không có con đường nào dẫn đến hạnh phúc – hạnh phúc chính là con đường bạn đang đi.',
+      en: 'There is no way to happiness – happiness is the path you walk.',
+      ja: '幸せに至る道はない。歩む道のりこそが幸せである。'
+    },
+    author: {
+      vi: 'Thích Nhất Hạnh',
+      en: 'Thich Nhat Hanh',
+      ja: 'ティク・ナット・ハン'
+    },
+    theme: {
+      vi: 'Hành trình cuộc sống',
+      en: 'Journey of Life',
+      ja: '人生の旅路'
+    },
+    photoId: '1426604966848-d7adac402bff'
   },
   {
-    text: 'Sự phù du của mọi thứ không phải là lý do để buồn – mà là lý do để trân quý từng phút giây.',
-    author: 'Marcus Aurelius',
-    theme: 'Trân trọng hiện tại',
-    photoId: '1469474968028-56623f02e42e', // Rừng lá thu vàng rực rỡ trong nắng
+    text: {
+      vi: 'Sự phù du của mọi thứ không phải là lý do để buồn – mà là lý do để trân quý từng phút giây.',
+      en: 'The impermanence of all things is not a reason to grieve – but a reason to treasure each breath.',
+      ja: '万物の無常は悲しむためではなく、一瞬一瞬をかけがえのないものとして愛おしむためのものである。'
+    },
+    author: {
+      vi: 'Marcus Aurelius',
+      en: 'Marcus Aurelius',
+      ja: 'マルクス・アウレリウス'
+    },
+    theme: {
+      vi: 'Trân trọng hiện tại',
+      en: 'Cherishing the Present',
+      ja: '今を慈しむ'
+    },
+    photoId: '1469474968028-56623f02e42e'
   },
   {
-    text: 'Hãy nhìn sâu vào thiên nhiên, và bạn sẽ thấu hiểu mọi thứ rõ ràng hơn.',
-    author: 'Albert Einstein',
-    theme: 'Thiên nhiên & Trí tuệ',
-    photoId: '1447752875215-b2761acb3c5d', // Ánh sáng mặt trời chiếu rọi rừng sâu
+    text: {
+      vi: 'Hãy nhìn sâu vào thiên nhiên, và bạn sẽ thấu hiểu mọi thứ rõ ràng hơn.',
+      en: 'Look deep into nature, and then you will understand everything better.',
+      ja: '自然を深く見つめなさい。そうすれば、すべてのことがよりよく理解できるだろう。'
+    },
+    author: {
+      vi: 'Albert Einstein',
+      en: 'Albert Einstein',
+      ja: 'アルバート・アインシュタイン'
+    },
+    theme: {
+      vi: 'Thiên nhiên & Trí tuệ',
+      en: 'Nature & Wisdom',
+      ja: '自然と叡智'
+    },
+    photoId: '1447752875215-b2761acb3c5d'
   },
   {
-    text: 'Ánh sáng không chinh phục bóng tối – nó chỉ làm bóng tối biến mất bằng sự hiện diện của mình.',
-    author: 'Thiền ngữ',
-    theme: 'Ánh sáng nội tâm',
-    photoId: '1499209974431-9dddcece7f88', // Bình minh rạng ngời nơi đường chân trời biển cả
+    text: {
+      vi: 'Ánh sáng không chinh phục bóng tối – nó chỉ làm bóng tối biến mất bằng sự hiện diện của mình.',
+      en: 'Light does not fight the darkness – darkness simply vanishes in its radiant presence.',
+      ja: '光は闇と争わない。ただ光がそこに在るだけで、闇は静かに消え去るのである。'
+    },
+    author: {
+      vi: 'Thiền ngữ',
+      en: 'Zen Wisdom',
+      ja: '禅の言葉'
+    },
+    theme: {
+      vi: 'Ánh sáng nội tâm',
+      en: 'Inner Radiance',
+      ja: '内なる光'
+    },
+    photoId: '1499209974431-9dddcece7f88'
   },
   {
-    text: 'Bạn là một phần kỳ diệu của vũ trụ bao la, đang trải nghiệm chính mình.',
-    author: 'Carl Sagan',
-    theme: 'Vũ trụ & Bản thể',
-    photoId: '1451187580459-43490279c0fa', // Dải ngân hà và muôn ngàn tinh tú rực sáng
+    text: {
+      vi: 'Bạn là một phần kỳ diệu của vũ trụ bao la, đang trải nghiệm chính mình.',
+      en: 'You are a wondrous part of the vast cosmos, experiencing itself.',
+      ja: 'あなたは広大な宇宙の奇跡的な一部であり、宇宙が自らを体験している姿である。'
+    },
+    author: {
+      vi: 'Carl Sagan',
+      en: 'Carl Sagan',
+      ja: 'カール・セーガン'
+    },
+    theme: {
+      vi: 'Vũ trụ & Bản thể',
+      en: 'Cosmos & Being',
+      ja: '宇宙と自己'
+    },
+    photoId: '1451187580459-43490279c0fa'
   },
   {
-    text: 'Hãy là sự thay đổi tích cực mà bạn muốn thấy trên thế giới.',
-    author: 'Mahatma Gandhi',
-    theme: 'Hành động & Lan toả',
-    photoId: '1504701954957-2010ec3bcec1', // Con đường đón bình minh rực rỡ trên núi cao
+    text: {
+      vi: 'Hãy là sự thay đổi tích cực mà bạn muốn thấy trên thế giới.',
+      en: 'Be the positive change that you wish to see in the world.',
+      ja: '世界に見たいと願う前向きな変化に、あなた自身がなりなさい。'
+    },
+    author: {
+      vi: 'Mahatma Gandhi',
+      en: 'Mahatma Gandhi',
+      ja: 'マハトマ・ガンディー'
+    },
+    theme: {
+      vi: 'Hành động & Lan toả',
+      en: 'Action & Impact',
+      ja: '行動と希望'
+    },
+    photoId: '1504701954957-2010ec3bcec1'
   },
   {
-    text: 'Tâm trí yên tĩnh là nơi nuôi dưỡng những ý tưởng sáng suốt nhất.',
-    author: 'Thiền ngữ',
-    theme: 'Bình an tĩnh tại',
-    photoId: '1470240731273-7821a6eeb6bd', // Hồ nước trong vắt soi bóng đỉnh núi tuyết
+    text: {
+      vi: 'Tâm trí yên tĩnh là nơi nuôi dưỡng những ý tưởng sáng suốt nhất.',
+      en: 'A peaceful mind is the fertile soil where the clearest wisdom blossoms.',
+      ja: '静寂な心こそが、最も明晰な知恵を育む場所である。'
+    },
+    author: {
+      vi: 'Thiền ngữ',
+      en: 'Zen Wisdom',
+      ja: '禅の言葉'
+    },
+    theme: {
+      vi: 'Bình an tĩnh tại',
+      en: 'Stillness & Clarity',
+      ja: '静寂と明晰'
+    },
+    photoId: '1470240731273-7821a6eeb6bd'
   },
   {
-    text: 'Dòng nước không tranh giành với đá – nó kiên nhẫn chảy qua và mài mòn tất cả.',
-    author: 'Lão Tử',
-    theme: 'Nhu thắng cương',
-    photoId: '1518837695005-2083093ee35b', // Sóng biển lấp lánh ánh hoàng hôn
+    text: {
+      vi: 'Dòng nước không tranh giành với đá – nó kiên nhẫn chảy qua và mài mòn tất cả.',
+      en: 'Water does not quarrel with the rock – with patient flow, it gently shapes all things.',
+      ja: '水は岩と争わない。ただ忍耐強く流れ、やがてすべてを優しく削り磨く。'
+    },
+    author: {
+      vi: 'Lão Tử',
+      en: 'Lao Tzu',
+      ja: '老子'
+    },
+    theme: {
+      vi: 'Nhu thắng cương',
+      en: 'Gentle Strength',
+      ja: '柔よく剛を制す'
+    },
+    photoId: '1518837695005-2083093ee35b'
   },
   {
-    text: 'Mọi việc đều có thời điểm của nó. Hãy kiên nhẫn và tin tưởng vào tiến trình cuộc sống.',
-    author: 'Ecclesiastes',
-    theme: 'Kiên nhẫn & Niềm tin',
-    photoId: '1509114397022-ed747cca3f65', // Đồi cát sa mạc uốn lượn dưới hoàng hôn
+    text: {
+      vi: 'Mọi việc đều có thời điểm của nó. Hãy kiên nhẫn và tin tưởng vào tiến trình cuộc sống.',
+      en: 'To everything there is a season. Be patient and trust the natural rhythm of life.',
+      ja: 'すべての出来事には時がある。忍耐を持ち、人生の自然な歩みを信じなさい。'
+    },
+    author: {
+      vi: 'Ecclesiastes',
+      en: 'Ecclesiastes',
+      ja: '伝道の書'
+    },
+    theme: {
+      vi: 'Kiên nhẫn & Niềm tin',
+      en: 'Patience & Faith',
+      ja: '忍耐と信じる心'
+    },
+    photoId: '1509114397022-ed747cca3f65'
   },
   {
-    text: 'Kỳ tích không phải là đi trên mặt nước, mà là bước đi bình an trên mặt đất này.',
-    author: 'Thích Nhất Hạnh',
-    theme: 'Chân giá trị cuộc sống',
-    photoId: '1506905925346-21bda4d32df4', // Thảo nguyên hoa dại bạt ngàn dưới chân núi
+    text: {
+      vi: 'Kỳ tích không phải là đi trên mặt nước, mà là bước đi bình an trên mặt đất này.',
+      en: 'The miracle is not to walk on water, but to walk peacefully on the earth.',
+      ja: '奇跡とは水の上を歩くことではなく、大地の上に心穏やかに歩みを進めることである。'
+    },
+    author: {
+      vi: 'Thích Nhất Hạnh',
+      en: 'Thich Nhat Hanh',
+      ja: 'ティク・ナット・ハン'
+    },
+    theme: {
+      vi: 'Chân giá trị cuộc sống',
+      en: 'True Life Value',
+      ja: '生の真価'
+    },
+    photoId: '1506905925346-21bda4d32df4'
   },
   {
-    text: 'Đau khổ là không thể tránh khỏi, nhưng lựa chọn vượt lên hay đắm chìm là ở chính bạn.',
-    author: 'Haruki Murakami',
-    theme: 'Bản lĩnh sống',
-    photoId: '1464822759023-fed622ff2c3b', // Rặng núi hùng vĩ ẩn hiện trong mây bạc
+    text: {
+      vi: 'Đau khổ là không thể tránh khỏi, nhưng lựa chọn vượt lên hay đắm chìm là ở chính bạn.',
+      en: 'Pain is inevitable. Suffering is optional.',
+      ja: '痛みは避けられないが、苦しみを選ぶかどうかは自分次第である。'
+    },
+    author: {
+      vi: 'Haruki Murakami',
+      en: 'Haruki Murakami',
+      ja: '村上春樹'
+    },
+    theme: {
+      vi: 'Bản lĩnh sống',
+      en: 'Resilience',
+      ja: '生きる力'
+    },
+    photoId: '1464822759023-fed622ff2c3b'
   },
   {
-    text: 'Tự do thực sự là khi bạn tìm thấy sự bình yên và không cần sự công nhận từ bên ngoài.',
-    author: 'Jean-Paul Sartre',
-    theme: 'Tự do tự tại',
-    photoId: '1519681393784-d120267933ba', // Bầu trời đêm ngàn sao trên đỉnh núi tuyết
+    text: {
+      vi: 'Tự do thực sự là khi bạn tìm thấy sự bình yên và không cần sự công nhận từ bên ngoài.',
+      en: 'True freedom begins when you find inner tranquility and no longer crave external validation.',
+      ja: '真の自由とは、他者からの承認を求めず、自らの内に静けさを見出した時に始まる。'
+    },
+    author: {
+      vi: 'Jean-Paul Sartre',
+      en: 'Jean-Paul Sartre',
+      ja: 'ジャン＝ポール・サルトル'
+    },
+    theme: {
+      vi: 'Tự do tự tại',
+      en: 'Sovereign Freedom',
+      ja: '真の自由'
+    },
+    photoId: '1519681393784-d120267933ba'
   },
   {
-    text: 'Nước càng sâu càng tĩnh lặng. Người càng thông tuệ càng khiêm nhường.',
-    author: 'Ngạn ngữ Á Đông',
-    theme: 'Khiêm nhường & Sâu sắc',
-    photoId: '1501785888041-af3ef285b470', // Chiếc thuyền gỗ cô đơn trên mặt hồ tĩnh lặng
+    text: {
+      vi: 'Nước càng sâu càng tĩnh lặng. Người càng thông tuệ càng khiêm nhường.',
+      en: 'Still waters run deep. The wiser the spirit, the gentler and humbler they walk.',
+      ja: '深き水は静かに流れる。智恵深き人ほど、謙虚で穏やかである。'
+    },
+    author: {
+      vi: 'Ngạn ngữ Á Đông',
+      en: 'Eastern Proverb',
+      ja: '東洋の格言'
+    },
+    theme: {
+      vi: 'Khiêm nhường & Sâu sắc',
+      en: 'Humility & Depth',
+      ja: '謙虚と深み'
+    },
+    photoId: '1501785888041-af3ef285b470'
   },
   {
-    text: 'Người hiểu người là thông minh. Người thấu hiểu chính mình mới là bậc giác ngộ.',
-    author: 'Lão Tử',
-    theme: 'Thấu hiểu bản thân',
-    photoId: '1454496522488-7a8e488e8606', // Đỉnh núi vươn cao chạm dải ngân hà
-  },
-  {
-    text: 'Vết nứt chính là nơi ánh sáng kỳ diệu đi vào tâm hồn bạn.',
-    author: 'Rumi',
-    theme: 'Hy vọng & Tái sinh',
-    photoId: '1433086966358-54859d0ed716', // Thác nước nguyên sinh tuôn trào sức sống
-  },
-  {
-    text: 'Đừng chờ đợi cơ hội hoàn hảo, hãy biến ngày hôm nay thành cơ hội tuyệt vời nhất.',
-    author: 'Ralph Waldo Emerson',
-    theme: 'Chủ động đón ngày mới',
-    photoId: '1470252649378-9c29740c9fa8', // Thung lũng xanh đón ánh nắng sớm ban mai
-  },
-  {
-    text: 'Cơn bão nào rồi cũng sẽ tan. Và sau cơn bão, bầu trời lại trong xanh hơn bao giờ hết.',
-    author: 'Thiền ngữ',
-    theme: 'Vượt qua thử thách',
-    photoId: '1534447677768-be436bb09401', // Cực quang huyền ảo nhảy múa trên bầu trời đêm
-  },
-  {
-    text: 'Ta là ai của ngày hôm qua không quan trọng bằng ta đang chọn trở thành ai hôm nay.',
-    author: 'C.S. Lewis',
-    theme: 'Phát triển bản thân',
-    photoId: '1418065460487-3e41a6c84dc5', // Rừng thông cao vút chạm tới trời xanh
-  },
-  {
-    text: 'Sự khiêm tốn không phải là nghĩ mình thấp kém, mà là bớt bận tâm về cái tôi của mình.',
-    author: 'C.S. Lewis',
-    theme: 'Buông bỏ bản ngã',
-    photoId: '1465146344425-f00d5f5c8f07', // Cánh đồng hoa dại rực rỡ trong nắng chiều
-  },
-  {
-    text: 'Hạnh phúc không phải là có tất cả mọi thứ, mà là trân trọng những gì mình đang có.',
-    author: 'Khuyết danh',
-    theme: 'Lòng biết ơn',
-    photoId: '1507525428034-b723cf961d3e', // Bờ biển nhiệt đới trong vắt êm đềm
-  },
-  {
-    text: 'Mỗi ngày là một khởi đầu mới. Hãy hít thật sâu, mỉm cười và tiến bước.',
-    author: 'Khuyết danh',
-    theme: 'Khởi đầu tươi sáng',
-    photoId: '1472214103451-9374bd1c798e', // Bình minh trên đồi xanh bát ngát
-  },
-  {
-    text: 'Lòng biết ơn biến những điều bình dị thành điều kỳ diệu của cuộc sống.',
-    author: 'Melody Beattie',
-    theme: 'Tri ân cuộc sống',
-    photoId: '1441974231531-c6227db76b6e', // Rừng cây ngập tràn ánh nắng ấm áp
-  },
-  {
-    text: 'Giữ tâm tĩnh tại giữa thế giới hối hả – đó chính là sức mạnh lớn nhất của bạn.',
-    author: 'Marcus Aurelius',
-    theme: 'Sức mạnh nội tâm',
-    photoId: '1464822759023-fed622ff2c3b', // Biển mây trập trùng bao quanh đỉnh núi hùng vĩ
-  },
-  {
-    text: 'Khi bạn thay đổi cách nhìn, những thứ bạn nhìn sẽ thay đổi.',
-    author: 'Wayne Dyer',
-    theme: 'Góc nhìn & Tầm nhìn mới',
-    photoId: '1490730141103-6cac27aaab94', // Người đứng trên đỉnh núi cao phóng tầm mắt qua biển mây
-  },
+    text: {
+      vi: 'Khi bạn thay đổi cách nhìn, những thứ bạn nhìn sẽ thay đổi.',
+      en: 'When you change the way you look at things, the things you look at change.',
+      ja: 'ものの見方を変えれば、見ている世界そのものが変わる。'
+    },
+    author: {
+      vi: 'Wayne Dyer',
+      en: 'Wayne Dyer',
+      ja: 'ウエイン・ダイアー'
+    },
+    theme: {
+      vi: 'Góc nhìn mới',
+      en: 'New Perspective',
+      ja: '新たな視点'
+    },
+    photoId: '1490730141103-6cac27aaab94'
+  }
 ];
 
-/**
- * Lấy chỉ số quote theo ngày làm việc (Thứ 2 - Thứ 6).
- * Thứ 7 và Chủ Nhật không đi làm nên giữ nguyên câu triết lý của Thứ 6 (không đổi câu mới).
- * Mốc neo: Chủ Nhật 08/11/2026 và Thứ 2 09/11/2026 dùng chung câu triết lý hôm nay (index 2).
- */
 function getWorkdayQuoteIndex(targetDate: Date = new Date(), totalQuotes: number = QUOTES.length): number {
-  // Mốc neo: Thứ 2 ngày 09/11/2026 (index = 2, giữ nguyên câu của Chủ Nhật 08/11/2026)
   const baseDate = new Date(2026, 10, 9);
   const baseIndex = 2;
 
-  // Chuẩn hoá ngày về 0h00 theo giờ địa phương
   const d = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
 
   if (d.getTime() < baseDate.getTime()) {
     return baseIndex;
   }
 
-  // Nếu rơi vào Thứ 7 (6) hoặc Chủ Nhật (0), chuyển về mốc Thứ 6 gần nhất để giữ nguyên câu
   const dayOfWeek = d.getDay();
   const effectiveDate = new Date(d.getTime());
   if (dayOfWeek === 6) {
@@ -250,7 +441,12 @@ function getWorkdayQuoteIndex(targetDate: Date = new Date(), totalQuotes: number
   return (baseIndex + workdays) % totalQuotes;
 }
 
-const DailyQuote: React.FC = () => {
+export interface DailyQuoteProps {
+  currentLang?: 'vi' | 'en' | 'ja';
+  className?: string;
+}
+
+export const DailyQuote: React.FC<DailyQuoteProps> = ({ currentLang = 'vi', className = '' }) => {
   const quote = useMemo(() => {
     const idx = getWorkdayQuoteIndex();
     return QUOTES[idx];
@@ -259,17 +455,24 @@ const DailyQuote: React.FC = () => {
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
   const [imageError, setImageError] = useState<boolean>(false);
 
-  // URL ảnh Unsplash độ phân giải cao được căn chỉnh đúng tỉ lệ
+  const lang = currentLang || 'vi';
+  const quoteText = quote.text[lang] || quote.text.vi;
+  const quoteAuthor = quote.author[lang] || quote.author.vi;
+
   const photoUrl = imageError
     ? 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=85'
     : `https://images.unsplash.com/photo-${quote.photoId}?auto=format&fit=crop&w=1200&q=85`;
 
+  const altText = quoteAuthor
+    ? (lang === 'vi' ? `Triết lý - ${quoteAuthor}` : lang === 'ja' ? `名言 - ${quoteAuthor}` : `Daily Quote - ${quoteAuthor}`)
+    : (lang === 'vi' ? 'Triết lý cuộc sống' : lang === 'ja' ? '日々の言葉' : 'Daily Reflection');
+
   return (
-    <div className="relative w-full h-full min-h-[320px] xl:min-h-[360px] rounded-2xl overflow-hidden shadow-lg group bg-slate-900 select-none">
+    <div className={`relative w-full h-full min-h-[320px] xl:min-h-[360px] rounded-2xl overflow-hidden shadow-lg group bg-slate-900 select-none ${className}`}>
       {/* Background Image với hiệu ứng load mượt và zoom nhẹ khi hover */}
       <img
         src={photoUrl}
-        alt={quote.author ? `Triết lý - ${quote.author}` : "Triết lý cuộc sống"}
+        alt={altText}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
         className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 group-hover:scale-105 ${
@@ -296,17 +499,17 @@ const DailyQuote: React.FC = () => {
             <QuoteIcon className="w-5 h-5 fill-amber-300/25" />
           </div>
 
-          {/* Câu danh ngôn (Font chữ to, rõ ràng, dễ đọc) */}
+          {/* Câu danh ngôn (Font chữ to, rõ ràng, dễ đọc, tự đổi theo ngôn ngữ đã chọn) */}
           <blockquote className="space-y-3.5">
             <p className="text-white text-xl sm:text-2xl md:text-3xl xl:text-4xl font-serif font-medium leading-relaxed sm:leading-relaxed md:leading-relaxed tracking-wide drop-shadow-lg">
-              "{quote.text}"
+              &ldquo;{quoteText}&rdquo;
             </p>
 
             {/* Tác giả */}
             <footer className="flex items-center gap-3 pt-1">
               <span className="block w-10 sm:w-12 h-0.5 bg-amber-400/80 rounded-full shadow-sm" aria-hidden="true" />
               <cite className="text-amber-200/95 text-base sm:text-lg font-medium tracking-wide not-italic drop-shadow">
-                {quote.author}
+                {quoteAuthor}
               </cite>
             </footer>
           </blockquote>

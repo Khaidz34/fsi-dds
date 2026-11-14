@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, AlertTriangle, Lock, ShieldCheck } from 'lucide-react';
 
 export interface OrderDeadlineState {
@@ -33,7 +33,7 @@ export function isOrderDeadlinePassed(): boolean {
 /**
  * Hook theo dõi đếm ngược thời gian còn lại đến hạn chốt cơm 11:00
  */
-export function useOrderDeadline(): OrderDeadlineState {
+export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadlineState {
   const calculateState = (): OrderDeadlineState => {
     const vnNow = getVietnamNow();
     const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 0, 0);
@@ -57,9 +57,16 @@ export function useOrderDeadline(): OrderDeadlineState {
     const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
 
     const pad = (n: number) => String(n).padStart(2, '0');
-    const formattedTime = hours > 0
-      ? `${hours}h ${pad(minutes)}m ${pad(seconds)}s`
-      : `${pad(minutes)}m ${pad(seconds)}s`;
+    let formattedTime = '';
+    if (lang === 'ja') {
+      formattedTime = hours > 0
+        ? `${hours}時間 ${pad(minutes)}分 ${pad(seconds)}秒`
+        : `${pad(minutes)}分 ${pad(seconds)}秒`;
+    } else {
+      formattedTime = hours > 0
+        ? `${hours}h ${pad(minutes)}m ${pad(seconds)}s`
+        : `${pad(minutes)}m ${pad(seconds)}s`;
+    }
 
     return {
       isPassed: false,
@@ -82,7 +89,7 @@ export function useOrderDeadline(): OrderDeadlineState {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [lang]);
 
   return state;
 }
@@ -91,46 +98,62 @@ interface OrderDeadlineCountdownProps {
   isAdmin?: boolean;
   className?: string;
   variant?: 'banner' | 'compact' | 'pill';
+  currentLang?: 'vi' | 'en' | 'ja';
+  translations?: any;
 }
 
 export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
   isAdmin = false,
   className = '',
-  variant = 'banner'
+  variant = 'banner',
+  currentLang = 'vi',
+  translations: t
 }) => {
-  const { isPassed, isUrgent, isCritical, formattedTime, deadlineString } = useOrderDeadline();
+  const d = t?.deadline;
+  const { isPassed, isUrgent, isCritical, formattedTime, deadlineString } = useOrderDeadline(currentLang);
 
   // Render dạng pill nhỏ gọn trên header
   if (variant === 'pill') {
     if (isPassed) {
+      const text = (d?.pillPassed || 'Đã chốt ({deadline})').replace('{deadline}', deadlineString);
       return (
         <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 ${className}`}>
           <Lock size={12} className="text-slate-500" />
-          <span>Đã chốt ({deadlineString})</span>
+          <span>{text}</span>
           {isAdmin && <span className="text-[10px] text-amber-600 font-medium">• Admin</span>}
         </div>
       );
     }
 
     if (isCritical) {
+      const text = (d?.pillCritical || 'Hạn chót {deadline} (còn {time})')
+        .replace('{deadline}', deadlineString)
+        .replace('{time}', formattedTime);
       return (
         <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 animate-pulse ${className}`}>
           <AlertTriangle size={12} className="text-red-600" />
-          <span>Hạn chót {deadlineString} (còn {formattedTime})</span>
+          <span>{text}</span>
         </div>
       );
     }
 
+    const text = (d?.pillNormal || 'Chốt lúc {deadline} ({time})')
+      .replace('{deadline}', deadlineString)
+      .replace('{time}', formattedTime);
+
     return (
       <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isUrgent ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} ${className}`}>
         <Clock size={12} className={isUrgent ? 'text-amber-600' : 'text-emerald-600'} />
-        <span>Chốt lúc {deadlineString} ({formattedTime})</span>
+        <span>{text}</span>
       </div>
     );
   }
 
   // Render dạng Banner nổi bật trên đầu Menu
   if (isPassed) {
+    const titleText = (d?.passedCutoff || 'Hạn chót: {deadline}').replace('{deadline}', deadlineString);
+    const mainTitle = d?.passedTitle || 'Đã hết giờ đặt cơm hôm nay';
+
     return (
       <div className={`rounded-2xl border p-4 sm:p-4.5 transition-all ${isAdmin ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-slate-100 border-slate-200 text-slate-800'} ${className}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -141,19 +164,19 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-bold text-sm sm:text-base">
-                  Đã hết giờ đặt cơm hôm nay (Hạn chót: {deadlineString})
+                  {mainTitle} ({titleText})
                 </h4>
                 {isAdmin && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/80 text-amber-900">
                     <ShieldCheck size={12} />
-                    Admin Bypass
+                    {d?.adminBypass || 'Admin Bypass'}
                   </span>
                 )}
               </div>
               <p className="text-xs sm:text-sm opacity-80 mt-0.5">
                 {isAdmin
-                  ? 'Bếp đã chốt số lượng suất ăn. Bạn đang đăng nhập quyền Quản trị viên nên vẫn có thể tạo hoặc đổi món nếu cần hỗ trợ nhân viên.'
-                  : 'Hệ thống đã khóa tính năng đặt và sửa món sau 11h00 để bếp nấu. Vui lòng liên hệ Admin nếu bạn cần hỗ trợ gấp.'}
+                  ? (d?.passedDescAdmin || 'Bếp đã chốt số lượng suất ăn. Bạn đang đăng nhập quyền Quản trị viên nên vẫn có thể tạo hoặc đổi món nếu cần hỗ trợ nhân viên.')
+                  : (d?.passedDescUser || 'Hệ thống đã khóa tính năng đặt và sửa món sau 11:00 để bếp nấu. Vui lòng liên hệ Admin nếu bạn cần hỗ trợ gấp.').replace('{deadline}', deadlineString)}
               </p>
             </div>
           </div>
@@ -163,6 +186,20 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
   }
 
   // Khi chưa đến giờ chốt
+  const tagText = isCritical
+    ? (d?.tagCritical || 'Sắp hết hạn')
+    : isUrgent
+      ? (d?.tagUrgent || 'Gần giờ chốt')
+      : (d?.tagNormal || 'Thời gian đặt cơm');
+
+  const todayCutoffText = (d?.todayCutoff || 'Hạn chót: {deadline} trưa nay').replace('{deadline}', deadlineString);
+
+  const messageText = isCritical
+    ? (d?.msgCritical || 'Khẩn cấp: Hãy hoàn tất đặt món hoặc chỉnh sửa ngay trước khi hệ thống khóa sổ!')
+    : isUrgent
+      ? (d?.msgUrgent || 'Vui lòng chốt món sớm để quán cơm chuẩn bị nguyên liệu kịp thời.')
+      : (d?.msgNormal || 'Bạn có thể chọn món, đổi món hoặc thêm ghi chú trước giờ chốt.');
+
   return (
     <div className={`rounded-2xl border p-4 sm:p-4.5 transition-all shadow-sm ${
       isCritical 
@@ -183,23 +220,19 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
               <span className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
                 isCritical ? 'bg-red-200 text-red-900' : isUrgent ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'
               }`}>
-                {isCritical ? 'Sắp hết hạn' : isUrgent ? 'Gần giờ chốt' : 'Thời gian đặt cơm'}
+                {tagText}
               </span>
-              <span className="text-xs opacity-75 font-medium">Hạn chót: {deadlineString} trưa nay</span>
+              <span className="text-xs opacity-75 font-medium">{todayCutoffText}</span>
             </div>
             <p className="text-xs sm:text-sm font-semibold mt-0.5 truncate">
-              {isCritical
-                ? 'Khẩn cấp: Hãy hoàn tất đặt món hoặc chỉnh sửa ngay trước khi hệ thống khóa sổ!'
-                : isUrgent
-                  ? 'Vui lòng chốt món sớm để quán cơm chuẩn bị nguyên liệu kịp thời.'
-                  : 'Bạn có thể chọn món, đổi món hoặc thêm ghi chú trước giờ chốt.'}
+              {messageText}
             </p>
           </div>
         </div>
 
         {/* Khung đồng hồ đếm ngược */}
         <div className="shrink-0 flex items-center gap-2 self-end sm:self-auto bg-white/80 backdrop-blur-sm px-3.5 py-2 rounded-xl border border-black/5 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Còn lại:</span>
+          <span className="text-xs font-medium text-slate-500">{d?.timeLeft || 'Còn lại:'}</span>
           <span className={`font-mono text-base sm:text-lg font-black tracking-tight ${
             isCritical ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-emerald-700'
           }`}>

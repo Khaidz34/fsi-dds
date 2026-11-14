@@ -89,7 +89,8 @@ interface PaymentDashboardProps {
 
 const DEFAULT_MEAL_PRICE = 40000;
 
-const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => {
+const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, currentLang = 'vi' }) => {
+  const p = translations?.payment;
   const actualCurrentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
   const [currentMonth, setCurrentMonth] = useState(actualCurrentMonth);
   const isPastMonth = currentMonth < actualCurrentMonth;
@@ -499,7 +500,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               {translations.paymentDashboard.monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
             <p className="mt-1 text-sm text-app-ink/55">
-              {paymentStats.remainingTotal > 0 ? 'Cần thanh toán trong tháng này' : 'Tháng này đã thanh toán xong'}
+              {paymentStats.remainingTotal > 0 ? (p?.needPaymentThisMonth || 'Cần thanh toán trong tháng này') : (p?.paidThisMonth || 'Tháng này đã thanh toán xong')}
             </p>
           </div>
           <button
@@ -507,7 +508,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             onClick={handleRefreshAutoPayment}
             disabled={isAutoPaymentLoading || isRefreshing}
             className="h-10 w-10 rounded-full bg-app-accent/10 text-app-accent flex items-center justify-center disabled:opacity-60"
-            aria-label="Cập nhật thanh toán"
+            aria-label={p?.updateButton || "Cập nhật thanh toán"}
           >
             <RefreshCw size={17} className={isAutoPaymentLoading || isRefreshing ? 'animate-spin' : ''} />
           </button>
@@ -581,7 +582,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <p className="payment-stat-value text-lg sm:text-2xl font-black text-app-accent">{paymentStats?.remainingTotal?.toLocaleString() || '0'}đ</p>
               {(paymentStats?.overpaidTotal ?? 0) > 0 && (
                 <p className="text-xs text-app-accent mt-1">
-                  Đã thanh toán thừa: {paymentStats.overpaidTotal.toLocaleString()}đ
+                  {(p?.overpaid || 'Đã thanh toán thừa: {amount}đ').replace('{amount}', (paymentStats.overpaidTotal || 0).toLocaleString())}
                 </p>
               )}
             </div>
@@ -615,7 +616,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               </div>
               <div className="min-w-0">
                 <h3 className="text-base sm:text-lg font-bold text-app-ink">
-                  {isAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp qua TPBank' : 'Thanh toán tự động'}
+                  {isAutoPaymentQuotaExhausted ? (p?.directTPBank || 'Thanh toán trực tiếp qua TPBank') : (p?.autoPayment || 'Thanh toán tự động')}
                 </h3>
                 <p className="text-xs sm:text-sm text-app-ink/55 leading-snug">
                   {isAutoPaymentQuotaExhausted
@@ -641,7 +642,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
               <div className="flex items-start gap-2.5">
                 <AlertCircle size={18} className="text-app-gold shrink-0 mt-0.5" />
                 <p className="text-xs sm:text-sm">
-                  Gói tự động đã hết lượt trong tháng. Giao diện đã chuyển sang thanh toán trực tiếp qua tài khoản TPBank; admin sẽ kiểm tra và xác nhận thủ công.
+                  {p?.quotaNotice || 'Gói tự động đã hết lượt trong tháng. Giao diện đã chuyển sang thanh toán trực tiếp qua tài khoản TPBank; admin sẽ kiểm tra và xác nhận thủ công.'}
                 </p>
               </div>
             </div>
@@ -758,13 +759,13 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 <div className="payment-amount-card payment-inner-card rounded-xl border border-app-accent/15 bg-white/95 p-3 sm:p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase font-bold text-app-ink/45">Chọn số tiền thanh toán</p>
+                      <p className="text-xs uppercase font-bold text-app-ink/45">{p?.selectAmount || 'Chọn số tiền thanh toán'}</p>
                       <p className="text-sm text-app-ink/55 mt-1">
-                        Còn nợ {maxAutoPaymentAmount.toLocaleString()}đ, có thể trả từng phần.
+                        {(p?.totalDebt || 'Còn nợ {amount}đ, có thể trả từng phần.').replace('{amount}', maxAutoPaymentAmount.toLocaleString())}
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-app-accent whitespace-nowrap">
-                      Đang chọn {activeAutoPaymentAmount.toLocaleString()}đ
+                      {(p?.selectingAmount || 'Đang chọn {amount}đ').replace('{amount}', activeAutoPaymentAmount.toLocaleString())}
                     </p>
                   </div>
 
@@ -790,7 +791,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   </div>
 
                   <label className="block">
-                    <span className="text-xs uppercase font-bold text-app-ink/45">Hoặc nhập số tiền khác</span>
+                    <span className="text-xs uppercase font-bold text-app-ink/45">{p?.orEnterAmount || 'Hoặc nhập số tiền khác'}</span>
                     <div className="mt-2 flex items-center gap-2 rounded-lg border border-app-accent/15 px-3 py-2 focus-within:border-app-accent focus-within:ring-2 focus-within:ring-app-accent/10">
                       <input
                         type="text"
@@ -807,26 +808,26 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
 
                 <div className="payment-transfer-grid grid gap-2 sm:gap-3 sm:grid-cols-2">
                   <div className="payment-transfer-card rounded-xl border border-app-accent/15 bg-white/95 p-4">
-                    <p className="text-xs uppercase font-bold text-app-ink/45">Số tiền QR sẽ tạo</p>
+                    <p className="text-xs uppercase font-bold text-app-ink/45">{p?.qrAmount || 'Số tiền QR sẽ tạo'}</p>
                     <p className="text-2xl font-black text-app-accent mt-1">{activeAutoPaymentAmount.toLocaleString()}đ</p>
-                    <p className="text-xs text-app-ink/50 mt-1">Tổng còn nợ {autoPaymentInfo.amount.toLocaleString()}đ</p>
+                    <p className="text-xs text-app-ink/50 mt-1">{(p?.totalDebt || 'Tổng còn nợ {amount}đ').replace('{amount}', autoPaymentInfo.amount.toLocaleString())}</p>
                   </div>
 
                   <div className="payment-transfer-card rounded-xl border border-app-accent/15 bg-white/95 p-4 min-w-0">
-                    <p className="text-xs uppercase font-bold text-app-ink/45">Nội dung chuyển khoản</p>
+                    <p className="text-xs uppercase font-bold text-app-ink/45">{p?.transferContent || 'Nội dung chuyển khoản'}</p>
                     <div className="mt-1 flex items-center gap-2 min-w-0">
                       <p className="text-lg font-bold text-app-ink truncate">{autoPaymentInfo.transferContent || autoPaymentInfo.code}</p>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(autoPaymentInfo.transferContent || autoPaymentInfo.code, 'code')}
                         className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
-                        title="Copy nội dung chuyển khoản"
+                        title={p?.copyContent || "Copy nội dung chuyển khoản"}
                       >
                         <Copy size={16} className="text-app-ink/60" />
                       </button>
                     </div>
                     {copiedField === 'code' && (
-                      <p className="text-xs text-app-accent mt-1">Đã copy</p>
+                      <p className="text-xs text-app-accent mt-1">{p?.copiedContent || 'Đã copy'}</p>
                     )}
                   </div>
                 </div>
@@ -834,18 +835,18 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 {autoPaymentInfo.bankConfigured && autoPaymentInfo.bank && (
                   <div className="payment-bank-card rounded-xl border border-app-accent/15 bg-white/95 divide-y divide-app-accent/10">
                     <div className="flex items-center justify-between gap-3 p-4">
-                      <span className="text-sm text-app-ink/50">Ngân hàng</span>
+                      <span className="text-sm text-app-ink/50">{p?.bank || 'Ngân hàng'}</span>
                       <span className="font-semibold text-app-ink text-right">{getBankDisplayName(autoPaymentInfo.bank.bankId)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3 p-4">
-                      <span className="text-sm text-app-ink/50">Số tài khoản</span>
+                      <span className="text-sm text-app-ink/50">{p?.accountNo || 'Số tài khoản'}</span>
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="font-semibold text-app-ink truncate font-mono">{getEffectiveAccountNo(autoPaymentInfo.bank.accountNo)}</span>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(getEffectiveAccountNo(autoPaymentInfo.bank?.accountNo).replace(/\s+/g, ''), 'account')}
                           className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
-                          title="Copy số tài khoản"
+                          title={p?.copyAccountNo || "Copy số tài khoản"}
                         >
                           <Copy size={16} className="text-app-ink/60" />
                         </button>
@@ -853,12 +854,12 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                     </div>
                     {autoPaymentInfo.bank.accountName && (
                       <div className="flex items-center justify-between gap-3 p-4">
-                        <span className="text-sm text-app-ink/50">Chủ tài khoản</span>
+                        <span className="text-sm text-app-ink/50">{p?.accountHolder || 'Chủ tài khoản'}</span>
                         <span className="font-semibold text-app-ink text-right">{autoPaymentInfo.bank.accountName}</span>
                       </div>
                     )}
                     {copiedField === 'account' && (
-                      <div className="p-4 text-xs text-app-accent">Đã copy số tài khoản</div>
+                      <div className="p-4 text-xs text-app-accent">{p?.copiedAccountNo || 'Đã copy số tài khoản'}</div>
                     )}
                   </div>
                 )}
@@ -888,8 +889,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                 <History className="text-app-accent" size={22} />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base sm:text-lg font-bold text-app-ink">Lịch sử thanh toán của tôi</h3>
-                <p className="text-xs sm:text-sm text-app-ink/55">Các khoản đã ghi nhận trong tháng đang chọn.</p>
+                <h3 className="text-base sm:text-lg font-bold text-app-ink">{p?.myHistoryTitle || 'Lịch sử thanh toán của tôi'}</h3>
+                <p className="text-xs sm:text-sm text-app-ink/55">{p?.myHistorySubtitle || 'Các khoản đã ghi nhận trong tháng đang chọn.'}</p>
               </div>
             </div>
 
@@ -956,7 +957,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-app-accent/20 p-6 text-center text-app-ink/50">
-              Chưa có thanh toán nào được ghi nhận trong tháng này.
+              {p?.noHistoryThisMonth || 'Chưa có thanh toán nào được ghi nhận trong tháng này.'}
             </div>
           )}
         </div>
