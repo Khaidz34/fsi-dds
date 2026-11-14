@@ -138,7 +138,23 @@ export const TRANSLATIONS = {
       noOrdersTodayToExport: 'Không có đơn hàng nào hôm nay để xuất',
       paymentHistory: 'Lịch sử thanh toán',
       noPaymentHistory: 'Chưa có lịch sử thanh toán',
-      quoteTheme: 'Triết lý cuộc sống'
+      quoteTheme: 'Triết lý cuộc sống',
+      refreshBtn: 'Làm mới',
+      menuMission: 'Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.',
+      vietCuisineChip: 'Cơm Việt',
+      japanCuisineChip: '和の味',
+      selectedDishesMetric: 'Đã chọn',
+      subtitles: {
+        menu: 'Chọn món, kiểm tra tùy chọn và đặt cơm trong một màn hình',
+        paymentCalendar: 'Theo dõi công nợ, QR thanh toán và lịch ăn cá nhân',
+        orders: 'Xem lại các suất cơm đã đặt và trạng thái gần nhất',
+        dashboard: 'Tổng quan đặt cơm, thanh toán và hoạt động trong tuần'
+      },
+      feedbacks: {
+        dish1: 'Đã chọn món 1 (chọn thêm 1 món nữa nếu muốn)',
+        dish2: 'Đã chọn đủ 2 món!',
+        dishReplaced: 'Đã thay thế món 2'
+      }
     },
     // Order Deadline Countdown & Alerts
     deadline: {
@@ -419,7 +435,23 @@ export const TRANSLATIONS = {
       noOrdersTodayToExport: 'No orders today to export',
       paymentHistory: 'Payment History',
       noPaymentHistory: 'No payment history yet',
-      quoteTheme: 'Daily Reflection'
+      quoteTheme: 'Daily Reflection',
+      refreshBtn: 'Refresh',
+      menuMission: 'Helping you choose lunch easily, quickly, and delightfully.',
+      vietCuisineChip: 'Viet Cuisine',
+      japanCuisineChip: 'Japanese Touch',
+      selectedDishesMetric: 'Selected',
+      subtitles: {
+        menu: 'Select dishes, check options, and place your lunch order in one screen',
+        paymentCalendar: 'Track meal debt, QR payments, and personal dining schedule',
+        orders: 'Review placed lunch orders and their latest status',
+        dashboard: 'Overview of lunch orders, payments, and weekly activity'
+      },
+      feedbacks: {
+        dish1: 'Selected 1st dish (choose 1 more if desired)',
+        dish2: 'Selected 2/2 dishes!',
+        dishReplaced: 'Replaced 2nd dish'
+      }
     },
     // Order Deadline Countdown & Alerts
     deadline: {
@@ -700,7 +732,23 @@ export const TRANSLATIONS = {
       noOrdersTodayToExport: 'エクスポートする本日の注文がありません',
       paymentHistory: '支払い履歴',
       noPaymentHistory: 'まだ支払い履歴がありません',
-      quoteTheme: '日々の言葉'
+      quoteTheme: '日々の言葉',
+      refreshBtn: '更新',
+      menuMission: '毎日の昼食選びをより手軽に、素早く、美味しく。',
+      vietCuisineChip: 'ベトナム定食',
+      japanCuisineChip: '和の味',
+      selectedDishesMetric: '選択中',
+      subtitles: {
+        menu: '料理の選択、オプション確認、注文をひとつの画面で',
+        paymentCalendar: '未払い金の確認、決済用QRコード、個人の食事履歴',
+        orders: '注文した昼食履歴と最新ステータスの確認',
+        dashboard: '昼食注文、支払い状況、週間アクティビティの概要'
+      },
+      feedbacks: {
+        dish1: '1品目を選択しました（必要に応じて2品目を選択）',
+        dish2: '2品を選択しました！',
+        dishReplaced: '2品目を変更しました'
+      }
     },
     // Order Deadline Countdown & Alerts
     deadline: {

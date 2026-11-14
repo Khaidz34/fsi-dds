@@ -517,17 +517,25 @@ export default function App() {
   }, [activeTab, t, user?.role]);
   const activePageSubtitle = useMemo(() => {
     if (activeTab === 'banner-video' || activeTab === 'media-mgmt') {
-      return 'Cấu hình banner hiển thị và video overlay toàn hệ thống';
+      return currentLang === 'ja'
+        ? 'システム全体のバナー表示と動画オーバーレイの設定'
+        : currentLang === 'en'
+        ? 'Configure system banners and video overlay'
+        : 'Cấu hình banner hiển thị và video overlay toàn hệ thống';
     }
     if (user?.role === 'admin') {
-      return 'Quản lý suất ăn nội bộ và theo dõi vận hành hằng ngày';
+      return currentLang === 'ja'
+        ? '社内昼食の管理および日々の運用状況のモニタリング'
+        : currentLang === 'en'
+        ? 'Internal meal management and daily operational tracking'
+        : 'Quản lý suất ăn nội bộ và theo dõi vận hành hằng ngày';
     }
 
-    if (activeTab === 'menu') return 'Chọn món, kiểm tra tùy chọn và đặt cơm trong một màn hình';
-    if (activeTab === 'payment-calendar') return 'Theo dõi công nợ, QR thanh toán và lịch ăn cá nhân';
-    if (activeTab === 'orders') return 'Xem lại các suất cơm đã đặt và trạng thái gần nhất';
-    return 'Tổng quan đặt cơm, thanh toán và hoạt động trong tuần';
-  }, [activeTab, user?.role]);
+    if (activeTab === 'menu') return t.ui?.subtitles?.menu || 'Chọn món, kiểm tra tùy chọn và đặt cơm trong một màn hình';
+    if (activeTab === 'payment-calendar') return t.ui?.subtitles?.paymentCalendar || 'Theo dõi công nợ, QR thanh toán và lịch ăn cá nhân';
+    if (activeTab === 'orders') return t.ui?.subtitles?.orders || 'Xem lại các suất cơm đã đặt và trạng thái gần nhất';
+    return t.ui?.subtitles?.dashboard || 'Tổng quan đặt cơm, thanh toán và hoạt động trong tuần';
+  }, [activeTab, user?.role, currentLang, t]);
   const weeklyOrderTotal = useMemo(() => {
     return weeklyData.reduce((total, item) => total + (Number(item.orders) || 0), 0);
   }, [weeklyData]);
@@ -859,16 +867,22 @@ export default function App() {
       // Bỏ chọn món này
       const nextDishes = selectedDishes.filter(id => id !== dishId);
       setSelectedDishes(nextDishes);
-      setDishSelectFeedback('Đã bỏ chọn món');
+      setDishSelectFeedback(
+        currentLang === 'ja' ? '選択を解除しました' : currentLang === 'en' ? 'Removed dish' : 'Đã bỏ chọn món'
+      );
     } else if (selectedDishes.length < 2) {
       // Thêm món mới nếu chưa đủ 2 món
       const nextDishes = [...selectedDishes, dishId];
       setSelectedDishes(nextDishes);
-      setDishSelectFeedback(nextDishes.length === 1 ? 'Đã chọn món 1 (chọn thêm 1 món nữa nếu muốn)' : 'Đã chọn đủ 2 món!');
+      setDishSelectFeedback(
+        nextDishes.length === 1
+          ? (t.ui?.feedbacks?.dish1 || 'Đã chọn món 1 (chọn thêm 1 món nữa nếu muốn)')
+          : (t.ui?.feedbacks?.dish2 || 'Đã chọn đủ 2 món!')
+      );
     } else {
       // Đã chọn đủ 2 món, thay thế món cuối cùng
       setSelectedDishes([selectedDishes[0], dishId]);
-      setDishSelectFeedback('Đã đổi sang món mới (tối đa 2 món)');
+      setDishSelectFeedback(t.ui?.feedbacks?.dishReplaced || 'Đã đổi sang món mới (tối đa 2 món)');
     }
   };
 
@@ -1327,7 +1341,9 @@ export default function App() {
 
       {/* Mobile Sticky Deadline Bar (Toàn trang) */}
       <div className="lg:hidden bg-white/95 border-b border-app-ink/10 px-4 py-1.5 flex items-center justify-between sticky top-[57px] z-40 backdrop-blur-md">
-        <span className="text-[10px] font-black uppercase tracking-wider text-app-ink/40">Hạn chót đặt cơm</span>
+        <span className="text-[10px] font-black uppercase tracking-wider text-app-ink/40">
+          {currentLang === 'ja' ? '昼食注文締切' : currentLang === 'en' ? 'Order Cutoff' : 'Hạn chót đặt cơm'}
+        </span>
         <OrderDeadlineCountdown
           variant="pill"
           isAdmin={user?.role === 'admin'}
@@ -1927,9 +1943,14 @@ export default function App() {
                   {/* Daily Quote Mini Card */}
                   <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">Hôm nay</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">{t.ui?.today || 'Hôm nay'}</p>
                       <p className="mt-1 text-sm font-semibold text-app-ink leading-snug line-clamp-2">
-                        {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {new Date().toLocaleDateString(
+                          currentLang === 'ja' ? 'ja-JP' : currentLang === 'en' ? 'en-US' : 'vi-VN',
+                          currentLang === 'ja'
+                            ? { month: 'long', day: 'numeric', weekday: 'short' }
+                            : { weekday: 'long', day: 'numeric', month: 'long' }
+                        )}
                       </p>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
@@ -2002,12 +2023,12 @@ export default function App() {
                       </p>
                       <p className="mt-1 text-xs font-semibold text-app-ink/45">
                         {dashboardAutoPaymentUsage?.limit && !dashboardAutoPaymentUsage?.providerSynced && dashboardAutoPaymentUsage?.used === 0
-                          ? 'Chưa sync SePay'
+                          ? (t.ui?.notSynced || 'Chưa sync SePay')
                           : dashboardAutoPaymentUsage?.providerSynced
-                          ? 'Còn lại theo SePay'
+                          ? (t.ui?.remainingSePay || 'Còn lại theo SePay')
                           : dashboardAutoPaymentUsage?.remaining !== null && dashboardAutoPaymentUsage?.remaining !== undefined
-                            ? 'Còn lại trong tháng'
-                            : 'Đã ghi nhận'}
+                            ? (t.ui?.remainingMonth || 'Còn lại trong tháng')
+                            : (t.ui?.recorded || 'Đã ghi nhận')}
                       </p>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
@@ -2048,17 +2069,17 @@ export default function App() {
                         <div className="w-44 h-44 flex flex-col items-center justify-center gap-3 text-app-ink">
                           <QrCode size={42} className="text-app-accent" />
                           <p className="text-sm font-bold">
-                            {dashboardAutoPaymentInfo?.isPaid ? 'Đã thanh toán' : 'Chưa có QR động'}
+                            {dashboardAutoPaymentInfo?.isPaid ? (t.ui?.paidComplete || 'Đã thanh toán') : (currentLang === 'ja' ? '動的QR未生成' : currentLang === 'en' ? 'No dynamic QR' : 'Chưa có QR động')}
                           </p>
                           <p className="text-xs text-app-ink/60">
-                            {dashboardAutoPaymentInfo?.isPaid ? 'Hiện không còn khoản nợ.' : 'Mở tab Thanh toán để cập nhật lại.'}
+                            {dashboardAutoPaymentInfo?.isPaid ? (t.ui?.noDebtThisMonth || 'Hiện không còn khoản nợ.') : (currentLang === 'ja' ? '支払いタブを開いて再取得してください。' : currentLang === 'en' ? 'Open Payments tab to refresh.' : 'Mở tab Thanh toán để cập nhật lại.')}
                           </p>
                         </div>
                       )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between w-full mb-2 relative z-10 px-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/60">{t.ui?.paymentThisMonth || 'Thanh toán tháng này'}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-accent/65">{t.ui?.paymentThisMonth || 'Thanh toán tháng này'}</p>
                       <button
                         onClick={() => {
                           loadDashboardAutoPaymentInfo();
@@ -2067,18 +2088,18 @@ export default function App() {
                         }}
                         disabled={isDashboardQrLoading}
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-app-accent hover:text-app-accent/80 transition-colors py-0.5 px-2 rounded-lg hover:bg-app-accent/10 disabled:opacity-50"
-                        title="Đồng bộ lại khoản nợ và QR"
+                        title={currentLang === 'ja' ? '未払い金とQRを再同期' : currentLang === 'en' ? 'Resync balance and QR' : 'Đồng bộ lại khoản nợ và QR'}
                       >
                         <RefreshCw size={12} className={isDashboardQrLoading ? 'animate-spin' : ''} />
-                        <span>Làm mới</span>
+                        <span>{t.ui?.refreshBtn || 'Làm mới'}</span>
                       </button>
                     </div>
                     <h3 className="text-xl font-display font-bold text-app-ink mb-2 relative z-10">
-                      {isDashboardAutoPaymentQuotaExhausted ? 'Thanh toán trực tiếp TPBank' : t.paymentQR}
+                      {isDashboardAutoPaymentQuotaExhausted ? (t.payment?.directTPBank || 'Thanh toán trực tiếp TPBank') : t.paymentQR}
                     </h3>
                     <p className="text-app-ink/55 text-sm mb-4 relative z-10">
                       {isDashboardAutoPaymentQuotaExhausted && dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
-                        ? `Hết lượt tự động, chuyển trực tiếp: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
+                        ? `${currentLang === 'ja' ? '自動枠上限のため直接振込:' : currentLang === 'en' ? 'Direct transfer due to quota limit:' : 'Hết lượt tự động, chuyển trực tiếp:'} ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
                         : dashboardAutoPaymentInfo && !dashboardAutoPaymentInfo.isPaid
                           ? `${t.scanToPay}: ${dashboardAutoPaymentInfo.amount.toLocaleString()}đ`
                           : t.scanToPay}
@@ -2092,20 +2113,20 @@ export default function App() {
                             <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center mb-1.5 shadow-sm">
                               <CheckCircle2 size={20} className="text-emerald-600" />
                             </div>
-                            <div className="font-bold text-base">Đã thanh toán xong!</div>
-                            <div className="text-xs text-slate-500 mt-0.5">Tháng này bạn hiện không còn khoản nợ nào.</div>
+                            <div className="font-bold text-base">{t.ui?.paidComplete || 'Đã thanh toán xong!'}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">{t.ui?.noDebtThisMonth || 'Tháng này bạn hiện không còn khoản nợ nào.'}</div>
                           </div>
                         ) : dashboardAutoPaymentInfo?.bank ? (
                           <>
                             <div className="flex items-center justify-between pb-1.5 border-b border-app-accent/10">
-                              <span className="text-xs text-app-ink/50">Ngân hàng</span>
+                              <span className="text-xs text-app-ink/50">{t.payment?.bank || 'Ngân hàng'}</span>
                               <span className="font-bold text-xs text-app-ink">{getBankDisplayName(dashboardAutoPaymentInfo.bank.bankId)}</span>
                             </div>
                             
                             {/* STK */}
                             <div className="flex items-center justify-between py-1">
                               <div className="min-w-0">
-                                <span className="text-[10px] text-app-ink/50 uppercase font-bold block">Số tài khoản</span>
+                                <span className="text-[10px] text-app-ink/50 uppercase font-bold block">{t.payment?.accountNo || 'Số tài khoản'}</span>
                                 <span className="font-mono font-bold text-xs sm:text-sm text-app-ink">{getEffectiveAccountNo(dashboardAutoPaymentInfo.bank.accountNo)}</span>
                               </div>
                               <button
@@ -2114,7 +2135,7 @@ export default function App() {
                                 className="px-2.5 py-1 bg-white hover:bg-app-accent/10 rounded-lg text-xs font-semibold text-app-accent border border-app-accent/20 flex items-center gap-1 transition-colors shrink-0"
                               >
                                 <Copy size={12} />
-                                <span>{dashboardCopiedField === 'account' ? 'Đã chép!' : 'Chép STK'}</span>
+                                <span>{dashboardCopiedField === 'account' ? (t.payment?.copiedAccountNo || 'Đã chép!') : (t.deadline?.copyAccountNo || 'Chép STK')}</span>
                               </button>
                             </div>
 
@@ -2122,7 +2143,7 @@ export default function App() {
                             {dashboardAutoPaymentInfo.code && (
                               <div className="flex items-center justify-between py-1">
                                 <div className="min-w-0">
-                                  <span className="text-[10px] text-app-ink/50 uppercase font-bold block">Cú pháp chuyển khoản</span>
+                                  <span className="text-[10px] text-app-ink/50 uppercase font-bold block">{t.payment?.transferContent || 'Cú pháp chuyển khoản'}</span>
                                   <span className="font-mono font-bold text-xs sm:text-sm text-app-accent truncate block max-w-[130px] sm:max-w-[160px]">
                                     {dashboardAutoPaymentInfo.transferContent || dashboardAutoPaymentInfo.code}
                                   </span>
@@ -2133,7 +2154,7 @@ export default function App() {
                                   className="px-2.5 py-1 bg-white hover:bg-app-accent/10 rounded-lg text-xs font-semibold text-app-accent border border-app-accent/20 flex items-center gap-1 transition-colors shrink-0"
                                 >
                                   <Copy size={12} />
-                                  <span>{dashboardCopiedField === 'content' ? 'Đã chép!' : 'Chép cú pháp'}</span>
+                                  <span>{dashboardCopiedField === 'content' ? (t.payment?.copiedContent || 'Đã chép!') : (t.deadline?.copyTransferContent || 'Chép cú pháp')}</span>
                                 </button>
                               </div>
                             )}
@@ -2142,7 +2163,7 @@ export default function App() {
                             {dashboardAutoPaymentInfo.amount > 0 && (
                               <div className="flex items-center justify-between py-1">
                                 <div className="min-w-0">
-                                  <span className="text-[10px] text-app-ink/50 uppercase font-bold block">Số tiền</span>
+                                  <span className="text-[10px] text-app-ink/50 uppercase font-bold block">{currentLang === 'ja' ? '金額' : currentLang === 'en' ? 'Amount' : 'Số tiền'}</span>
                                   <span className="font-bold text-xs sm:text-sm text-slate-900">{dashboardAutoPaymentInfo.amount.toLocaleString()}đ</span>
                                 </div>
                                 <button
@@ -2151,26 +2172,26 @@ export default function App() {
                                   className="px-2.5 py-1 bg-white hover:bg-app-accent/10 rounded-lg text-xs font-semibold text-app-accent border border-app-accent/20 flex items-center gap-1 transition-colors shrink-0"
                                 >
                                   <Copy size={12} />
-                                  <span>{dashboardCopiedField === 'amount' ? 'Đã chép!' : 'Chép tiền'}</span>
+                                  <span>{dashboardCopiedField === 'amount' ? (currentLang === 'ja' ? 'コピー済' : currentLang === 'en' ? 'Copied!' : 'Đã chép!') : (t.deadline?.copyAmount || 'Chép tiền')}</span>
                                 </button>
                               </div>
                             )}
 
                             {/* Ghi chú SePay tự động */}
                             <div className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 mt-2 text-center">
-                              💡 Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động gạch nợ sau 30 giây.
+                              💡 {t.deadline?.sepayNote || 'Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động gạch nợ sau 30 giây.'}
                             </div>
 
                             {isDashboardAutoPaymentQuotaExhausted && (
                               <div className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/60 mt-1">
-                                Chế độ chuyển khoản trực tiếp: Admin sẽ đối soát và gạch nợ thủ công.
+                                {currentLang === 'ja' ? '直接振込モード: 管理者が手動で照合・消込を行います。' : currentLang === 'en' ? 'Direct transfer mode: Admin will manually verify and reconcile.' : 'Chế độ chuyển khoản trực tiếp: Admin sẽ đối soát và gạch nợ thủ công.'}
                               </div>
                             )}
                           </>
                         ) : (
                           <>
-                            <div className="font-bold">Chưa có tài khoản thanh toán</div>
-                            <div className="text-xs opacity-90">Kiểm tra cấu hình QR động.</div>
+                            <div className="font-bold">{currentLang === 'ja' ? '決済口座が未設定です' : currentLang === 'en' ? 'No payment account' : 'Chưa có tài khoản thanh toán'}</div>
+                            <div className="text-xs opacity-90">{currentLang === 'ja' ? '動的QR設定を確認してください。' : currentLang === 'en' ? 'Check dynamic QR configuration.' : 'Kiểm tra cấu hình QR động.'}</div>
                           </>
                         )}
                       </div>
@@ -2181,9 +2202,9 @@ export default function App() {
                       onClick={() => setActiveTab('payment-calendar')}
                       className="relative z-10 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-app-accent px-4 py-3 text-sm font-black text-white shadow-lg shadow-app-accent/20 hover:bg-app-accent/90 transition-colors"
                     >
-<Calendar size={17} />
-                      Mở thanh toán
-</button>
+                      <Calendar size={17} />
+                      <span>{t.ui?.openPayment || 'Mở thanh toán'}</span>
+                    </button>
 
                   </div>
                 </div>
@@ -2342,18 +2363,18 @@ export default function App() {
                     <div>
                       <div className="desktop-menu-kicker-row flex flex-wrap items-center gap-2 mb-2">
                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-app-accent/65">{t.todayMenu}</p>
-                        <span className="menu-culture-chip">Cơm Việt</span>
-                        <span className="menu-culture-chip">和の味</span>
+                        <span className="menu-culture-chip">{t.ui?.vietCuisineChip || 'Cơm Việt'}</span>
+                        <span className="menu-culture-chip">{t.ui?.japanCuisineChip || '和の味'}</span>
                       </div>
                       <h3 className="text-[2rem] font-display font-bold tracking-tight text-app-ink leading-tight">{mobileOrderCopy.title}</h3>
                       <p className="mt-1.5 max-w-2xl text-[13px] font-semibold leading-relaxed text-app-ink/50">
-                        Chọn tối đa 2 món, thêm tùy chọn nhanh và kiểm tra lại ở thanh đặt món phía dưới.
+                        {mobileOrderCopy.helper}
                       </p>
                       <div className="personal-menu-mission">
                         <span className="menu-mission-icon" aria-hidden="true">
                           <Sparkles size={15} />
                         </span>
-                        <span className="menu-mission-copy">Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
+                        <span className="menu-mission-copy">{t.ui?.menuMission || 'Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.'}</span>
                       </div>
                     </div>
                   </div>
@@ -2368,7 +2389,7 @@ export default function App() {
                       <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-ink leading-none">{menu?.dishes?.length || 0}</p>
                     </div>
                     <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
-                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">Đã chọn</p>
+                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">{mobileOrderCopy.selected}</p>
                       <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-accent leading-none">{selectedDishes.length}/{maxSelectableDishes}</p>
                     </div>
                     <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
@@ -2405,7 +2426,7 @@ export default function App() {
                     <span className="menu-mission-icon" aria-hidden="true">
                       <Sparkles size={14} />
                     </span>
-                    <span className="menu-mission-copy">Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.</span>
+                    <span className="menu-mission-copy">{t.ui?.menuMission || 'Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.'}</span>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2 relative z-10">
@@ -2549,7 +2570,7 @@ export default function App() {
                                 >
                                   {selectedDishes.includes(dish.id)
                                     ? `${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
-                                    : `Món ${index + 1}`}
+                                    : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
                                 </span>
                               </div>
                               
@@ -2608,7 +2629,7 @@ export default function App() {
                             onClick={() => setIsMobileOrderSheetExpanded(true)}
                             className="px-3.5 py-2 rounded-xl bg-app-accent text-white text-xs font-black shadow-lg shadow-app-accent/25 flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all"
                           >
-                            <span>Xem & Đặt</span>
+                            <span>{currentLang === 'ja' ? '確認＆注文' : currentLang === 'en' ? 'Review & Order' : 'Xem & Đặt'}</span>
                             <ChevronUp size={15} />
                           </button>
                         </div>
@@ -2626,9 +2647,9 @@ export default function App() {
                           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <ShoppingBag size={20} className="text-app-accent" />
-                              <h3 className="font-black text-base text-slate-900">Chi tiết bữa trưa của bạn</h3>
+                              <h3 className="font-black text-base text-slate-900">{currentLang === 'ja' ? '昼食注文の詳細' : currentLang === 'en' ? 'Your Lunch Order Details' : 'Chi tiết bữa trưa của bạn'}</h3>
                               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent">
-                                {selectedDishes.length}/{maxSelectableDishes} món
+                                {selectedDishes.length}/{maxSelectableDishes} {currentLang === 'ja' ? '品' : currentLang === 'en' ? 'dishes' : 'món'}
                               </span>
                             </div>
                             <button
@@ -2672,7 +2693,7 @@ export default function App() {
                                     type="text"
                                     value={orderForSearch}
                                     onChange={(e) => setOrderForSearch(e.target.value)}
-                                    placeholder="Gõ tìm đồng nghiệp..."
+                                    placeholder={currentLang === 'ja' ? '同僚の名前を検索...' : currentLang === 'en' ? 'Search colleague name...' : 'Gõ tìm đồng nghiệp...'}
                                     className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
                                   />
                                 </div>
@@ -2754,7 +2775,11 @@ export default function App() {
                                   <CheckCircle2 size={20} />
                                   <span>
                                     {orderForUserId && orderForUserId !== user?.id
-                                      ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`
+                                      ? (currentLang === 'ja'
+                                          ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文`
+                                          : currentLang === 'en'
+                                          ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'}`
+                                          : `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`)
                                       : t.orderNow}
                                   </span>
                                 </>
@@ -2781,7 +2806,7 @@ export default function App() {
                                 className="text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
                               >
                                 <X size={16} />
-                                Xóa tất cả
+                                {mobileOrderCopy.clear}
                               </button>
                             </div>
                             <div className="space-y-2">
@@ -2806,7 +2831,7 @@ export default function App() {
                               })}
                             </div>
                             <div className="mt-3 p-3 bg-app-accent/10 rounded-xl">
-                              <p className="text-sm text-[#1C1917] font-semibold">Tổng tiền: <span className="text-app-accent text-lg">40,000đ</span></p>
+                              <p className="text-sm text-[#1C1917] font-semibold">{currentLang === 'ja' ? '合計金額: ' : currentLang === 'en' ? 'Total: ' : 'Tổng tiền: '}<span className="text-app-accent text-lg">{mealPriceText}</span></p>
                             </div>
                           </div>
 
@@ -2827,7 +2852,7 @@ export default function App() {
                                     type="text"
                                     value={orderForSearch}
                                     onChange={(e) => setOrderForSearch(e.target.value)}
-                                    placeholder="Gõ tìm đồng nghiệp..."
+                                    placeholder={currentLang === 'ja' ? '同僚の名前を検索...' : currentLang === 'en' ? 'Search colleague name...' : 'Gõ tìm đồng nghiệp...'}
                                     className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
                                   />
                                 </div>
@@ -2910,7 +2935,11 @@ export default function App() {
                                   <CheckCircle2 size={24} />
                                   <span>
                                     {orderForUserId && orderForUserId !== user?.id
-                                      ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`
+                                      ? (currentLang === 'ja'
+                                          ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文${user?.role === 'admin' && isOrderDeadlinePassed ? ' (管理者)' : ''}`
+                                          : currentLang === 'en'
+                                          ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`
+                                          : `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`)
                                       : user?.role === 'admin' && isOrderDeadlinePassed
                                       ? t.deadline?.orderAsAdmin || 'Đặt cơm hôm nay (Quyền Admin)'
                                       : t.orderNow}
@@ -2941,7 +2970,7 @@ export default function App() {
                       {(ordersLoading || ordersUpdating) && (
                         <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-xs font-semibold animate-pulse">
                           <RefreshCw size={12} className="animate-spin text-emerald-600" />
-                          <span>{ordersLoading ? 'Đang tải...' : 'Đang cập nhật...'}</span>
+                          <span>{ordersLoading ? (currentLang === 'ja' ? '読み込み中...' : currentLang === 'en' ? 'Loading...' : 'Đang tải...') : (currentLang === 'ja' ? '更新中...' : currentLang === 'en' ? 'Updating...' : 'Đang cập nhật...')}</span>
                         </span>
                       )}
                     </div>
@@ -2950,7 +2979,7 @@ export default function App() {
                         onClick={() => refetchOrders()}
                         disabled={ordersLoading || ordersUpdating}
                         className="p-3 bg-[#F5F2E9] border border-[#E5E1D1] rounded-xl text-[#1C1917]/70 hover:text-app-accent hover:border-app-accent/30 transition-all disabled:opacity-50"
-                        title="Tải lại danh sách"
+                        title={currentLang === 'ja' ? 'リストを再読み込み' : currentLang === 'en' ? 'Reload list' : 'Tải lại danh sách'}
                       >
                         <RefreshCw size={18} className={ordersLoading || ordersUpdating ? 'animate-spin' : ''} />
                       </button>
@@ -2985,7 +3014,7 @@ export default function App() {
                           {showOrderFilter && (
                             <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#E5E1D1] p-4 z-50">
                               <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#E5E1D1]">
-                                <span className="text-xs font-bold text-[#1C1917]/60 uppercase tracking-wider">Lọc theo người ăn</span>
+                                <span className="text-xs font-bold text-[#1C1917]/60 uppercase tracking-wider">{currentLang === 'ja' ? '利用者で絞り込み' : currentLang === 'en' ? 'Filter by user' : 'Lọc theo người ăn'}</span>
                                 {orderFilterUserId !== 'all' && (
                                   <button 
                                     onClick={() => { setOrderFilterUserId('all'); setOrderPage(1); setShowOrderFilter(false); }}
@@ -3004,7 +3033,7 @@ export default function App() {
                                       : 'hover:bg-gray-100 text-[#1C1917]'
                                   }`}
                                 >
-                                  Tất cả người dùng ({orders.length} đơn)
+                                  {currentLang === 'ja' ? `全ユーザー (${orders.length}件)` : currentLang === 'en' ? `All users (${orders.length} orders)` : `Tất cả người dùng (${orders.length} đơn)`}
                                 </button>
                                 {users.map(u => {
                                   const userOrderCount = orders.filter(o => o.receiver?.id === u.id || o.ordered_for === u.id || o.user_id === u.id).length;
@@ -3035,13 +3064,17 @@ export default function App() {
                     <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-sm">
                       <span className="text-[#DA251D] font-semibold flex items-center gap-2">
                         <Filter size={16} />
-                        Đang lọc các suất ăn của: <strong>{users.find(u => u.id === orderFilterUserId)?.fullname}</strong> ({displayedOrders.length} suất)
+                        {currentLang === 'ja'
+                          ? <><strong>{users.find(u => u.id === orderFilterUserId)?.fullname}</strong>の注文で絞り込み中 ({displayedOrders.length}件)</>
+                          : currentLang === 'en'
+                          ? <>Filtering orders for: <strong>{users.find(u => u.id === orderFilterUserId)?.fullname}</strong> ({displayedOrders.length} orders)</>
+                          : <>Đang lọc các suất ăn của: <strong>{users.find(u => u.id === orderFilterUserId)?.fullname}</strong> ({displayedOrders.length} suất)</>}
                       </span>
                       <button 
                         onClick={() => { setOrderFilterUserId('all'); setOrderPage(1); }}
                         className="text-xs text-[#DA251D] font-bold underline hover:opacity-80"
                       >
-                        Bỏ lọc
+                        {currentLang === 'ja' ? '解除' : currentLang === 'en' ? 'Reset' : 'Bỏ lọc'}
                       </button>
                     </div>
                   )}
@@ -3061,7 +3094,7 @@ export default function App() {
                             <div className="text-center md:text-left">
                               <p className="text-[10px] font-bold text-[#1C1917]/30 uppercase tracking-widest mb-1">{t.date}</p>
                               <p className="text-sm font-bold text-[#1C1917]">
-                                {order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN') : 'N/A'}
+                                {order.created_at ? new Date(order.created_at).toLocaleDateString(currentLang === 'ja' ? 'ja-JP' : currentLang === 'en' ? 'en-US' : 'vi-VN') : 'N/A'}
                               </p>
                               {order.created_at && (
                                 <p className="text-xs font-semibold text-emerald-600 flex items-center justify-center md:justify-start gap-1 mt-0.5" title="Giờ đặt cơm">
@@ -3077,7 +3110,7 @@ export default function App() {
                               <p className="text-sm font-bold text-[#1C1917] truncate">{order.receiver?.fullname || 'N/A'}</p>
                               {order.orderer && order.receiver && order.orderer.id !== order.receiver.id && (
                                 <p className="text-[11px] text-amber-700 font-semibold truncate mt-0.5" title={`Đặt hộ bởi ${order.orderer.fullname}`}>
-                                  (Đặt bởi: {order.orderer.fullname})
+                                  ({currentLang === 'ja' ? `代理注文: ${order.orderer.fullname}` : currentLang === 'en' ? `Ordered by: ${order.orderer.fullname}` : `Đặt bởi: ${order.orderer.fullname}`})
                                 </p>
                               )}
                             </div>
@@ -3115,7 +3148,7 @@ export default function App() {
                                     setShowEditOrderModal(true);
                                   }}
                                   className="p-2 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-all"
-                                  title="Chỉnh sửa đơn hàng"
+                                  title={currentLang === 'ja' ? '注文を編集' : currentLang === 'en' ? 'Edit order' : 'Chỉnh sửa đơn hàng'}
                                 >
                                   <Edit size={16} />
                                 </button>

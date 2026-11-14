@@ -247,11 +247,13 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
   };
 
   const getPaymentMethodLabel = (payment: PaymentHistoryItem) => {
-    if (payment.method === 'transfer') return 'Chuyển khoản';
-    if (payment.method === 'cash') return 'Admin xác nhận';
-    if (payment.notes?.includes('source:bank-webhook')) return 'Chuyển khoản';
-    if (payment.notes?.includes('source:manual')) return 'Admin xác nhận';
-    return 'Thanh toán';
+    if (payment.method === 'transfer' || payment.notes?.includes('source:bank-webhook')) {
+      return p?.methodTransfer || 'Chuyển khoản';
+    }
+    if (payment.method === 'cash' || payment.notes?.includes('source:manual')) {
+      return p?.methodAdmin || 'Admin xác nhận';
+    }
+    return p?.methodDefault || 'Thanh toán';
   };
 
   const getPaymentCodeFromNotes = (notes?: string | null) => {
@@ -262,12 +264,15 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
 
   const formatPaymentDateTime = (value: string) => {
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Không rõ thời gian';
-
-    return `${date.toLocaleDateString('vi-VN')} ${date.toLocaleTimeString('vi-VN', {
+    if (Number.isNaN(date.getTime())) return currentLang === 'ja' ? '日時不明' : currentLang === 'en' ? 'Unknown time' : 'Không rõ thời gian';
+    const locale = currentLang === 'ja' ? 'ja-JP' : currentLang === 'en' ? 'en-US' : 'vi-VN';
+    return date.toLocaleString(locale, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    })}`;
+    });
   };
 
   const getMaxAutoPaymentAmount = (info: AutoPaymentInfo) =>
@@ -620,8 +625,8 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                 </h3>
                 <p className="text-xs sm:text-sm text-app-ink/55 leading-snug">
                   {isAutoPaymentQuotaExhausted
-                    ? 'Hệ thống đã hết lượt tự động trong tháng. Chuyển khoản trực tiếp, admin sẽ xác nhận thủ công.'
-                    : 'Quét mã VietQR để tự điền số tiền và nội dung chuyển khoản.'}
+                    ? (p?.quotaExhaustedSub || 'Hệ thống đã hết lượt tự động trong tháng. Chuyển khoản trực tiếp, admin sẽ xác nhận thủ công.')
+                    : (p?.scanVietQRSub || 'Quét mã VietQR để tự điền số tiền và nội dung chuyển khoản.')}
                 </p>
               </div>
             </div>
@@ -633,7 +638,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
               className="payment-refresh-button inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-app-accent/20 text-sm font-semibold text-app-accent hover:bg-app-accent/5 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               <RefreshCw size={16} className={isAutoPaymentLoading || isRefreshing ? 'animate-spin' : ''} />
-              Cập nhật
+              <span>{p?.updateButton || 'Cập nhật'}</span>
             </button>
           </div>
 
@@ -668,12 +673,20 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
               <div className="flex-1">
                 <p className="font-black text-lg text-emerald-900">
                   {isPastMonth
-                    ? `Kỳ ${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()} đã hoàn tất thanh toán`
+                    ? (currentLang === 'ja'
+                        ? `${translations.paymentDashboard.monthNames[currentDate.getMonth()]}（${currentDate.getFullYear()}年）の支払いは完了しています`
+                        : currentLang === 'en'
+                        ? `Billing period ${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()} is fully paid`
+                        : `Kỳ ${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()} đã hoàn tất thanh toán`)
                     : (translations.deadline?.debtFreeTitle || 'Tuyệt vời! Bạn không còn nợ tiền cơm')}
                 </p>
                 <p className="text-sm mt-1.5 text-emerald-800 leading-relaxed">
                   {isPastMonth
-                    ? 'Toàn bộ các suất ăn trong tháng này đã hoàn tất thanh toán. Bạn không còn khoản nợ nào trong kỳ này.'
+                    ? (currentLang === 'ja'
+                        ? '今月の昼食代はすべて決済済みです。未払い金はありません。'
+                        : currentLang === 'en'
+                        ? 'All meal orders for this month have been fully paid. You have no pending debt.'
+                        : 'Toàn bộ các suất ăn trong tháng này đã hoàn tất thanh toán. Bạn không còn khoản nợ nào trong kỳ này.')
                     : (translations.deadline?.debtFreeDesc || 'Toàn bộ các suất ăn của tháng này đã hoàn tất thanh toán. Cảm ơn bạn!')}
                 </p>
                 {isPastMonth && (
@@ -683,7 +696,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                     className="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-800 transition-colors shadow-sm"
                   >
                     <CalendarIcon size={14} />
-                    Quay về tháng hiện tại
+                    {currentLang === 'ja' ? '今月に戻る' : currentLang === 'en' ? 'Back to current month' : 'Quay về tháng hiện tại'}
                   </button>
                 )}
               </div>
@@ -694,11 +707,18 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                 <AlertCircle size={22} className="text-amber-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-bold text-base">
-                    Đang xem lịch sử công nợ kỳ cũ ({translations.paymentDashboard.monthNames[currentDate.getMonth()]} {currentDate.getFullYear()})
+                    {currentLang === 'ja'
+                      ? `過去の決済履歴 (${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()})`
+                      : currentLang === 'en'
+                      ? `Viewing previous period (${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()})`
+                      : `Đang xem lịch sử công nợ kỳ cũ (${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()})`}
                   </p>
                   <p className="text-sm mt-1.5 text-amber-900 leading-relaxed">
-                    Hệ thống ghi nhận còn nợ tại thời điểm kỳ này là <b>{(paymentStats?.remainingTotal || 0).toLocaleString()}đ</b>.
-                    Để thanh toán số dư công nợ thực tế đến hôm nay và <b>tránh chuyển khoản nhầm kỳ</b>, vui lòng chuyển về <b>Tháng hiện tại</b> để quét mã QR chính xác nhất.
+                    {currentLang === 'ja'
+                      ? <>システム上の未払い残高は <b>{(paymentStats?.remainingTotal || 0).toLocaleString()}đ</b> です。正確なVietQRコードで最新の残高を決済するには、<b>今月に移動</b>してください。</>
+                      : currentLang === 'en'
+                      ? <>System records outstanding balance for this period as <b>{(paymentStats?.remainingTotal || 0).toLocaleString()}đ</b>. To pay your actual current balance, please switch to <b>Current month</b>.</>
+                      : <>Hệ thống ghi nhận còn nợ tại thời điểm kỳ này là <b>{(paymentStats?.remainingTotal || 0).toLocaleString()}đ</b>. Để thanh toán số dư công nợ thực tế đến hôm nay và <b>tránh chuyển khoản nhầm kỳ</b>, vui lòng chuyển về <b>Tháng hiện tại</b> để quét mã QR chính xác nhất.</>}
                   </p>
                   <div className="mt-3.5 flex flex-wrap gap-2.5">
                     <button
@@ -707,7 +727,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-app-accent text-white text-xs sm:text-sm font-bold hover:bg-app-accent/90 transition-colors shadow-sm"
                     >
                       <CalendarIcon size={16} />
-                      Chuyển về tháng hiện tại để thanh toán
+                      {currentLang === 'ja' ? '今月に移動して決済' : currentLang === 'en' ? 'Switch to current month to pay' : 'Chuyển về tháng hiện tại để thanh toán'}
                     </button>
                   </div>
                 </div>
@@ -736,7 +756,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                           className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-app-accent/10 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1 transition-colors"
                         >
                           <Copy size={12} className="text-app-accent" />
-                          <span>{copiedField === 'account' ? 'Đã chép STK!' : 'Chép STK'}</span>
+                          <span>{copiedField === 'account' ? (currentLang === 'ja' ? '口座コピー済!' : currentLang === 'en' ? 'Account Copied!' : 'Đã chép STK!') : (currentLang === 'ja' ? '口座コピー' : currentLang === 'en' ? 'Copy Acc' : 'Chép STK')}</span>
                         </button>
                       )}
                       <button
@@ -745,7 +765,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                         className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-app-accent/10 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1 transition-colors"
                       >
                         <Copy size={12} className="text-app-accent" />
-                        <span>{copiedField === 'code' ? 'Đã chép cú pháp!' : 'Chép cú pháp'}</span>
+                        <span>{copiedField === 'code' ? (currentLang === 'ja' ? 'コードコピー済!' : currentLang === 'en' ? 'Code Copied!' : 'Đã chép cú pháp!') : (currentLang === 'ja' ? 'コードコピー' : currentLang === 'en' ? 'Copy Code' : 'Chép cú pháp')}</span>
                       </button>
                       <button
                         type="button"
@@ -753,12 +773,12 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                         className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-app-accent/10 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1 transition-colors"
                       >
                         <Copy size={12} className="text-app-accent" />
-                        <span>{copiedField === 'amount' ? 'Đã chép tiền!' : 'Chép số tiền'}</span>
+                        <span>{copiedField === 'amount' ? (currentLang === 'ja' ? '金額コピー済!' : currentLang === 'en' ? 'Amount Copied!' : 'Đã chép tiền!') : (currentLang === 'ja' ? '金額コピー' : currentLang === 'en' ? 'Copy Amount' : 'Chép số tiền')}</span>
                       </button>
                     </div>
 
                     <p className="mt-2 text-[11px] font-semibold text-slate-500 leading-tight">
-                      💡 Giữ nguyên nội dung CK để gạch nợ tự động sau 30s.
+                      {currentLang === 'ja' ? '💡 30秒で自動照合するため送金内容を変更しないでください。' : currentLang === 'en' ? '💡 Keep transfer content unchanged for automatic settlement after 30s.' : '💡 Giữ nguyên nội dung CK để gạch nợ tự động sau 30s.'}
                     </p>
                   </>
                 ) : (
@@ -857,7 +877,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                       </button>
                     </div>
                     {copiedField === 'amount' && (
-                      <p className="text-xs text-app-accent mt-1">Đã copy số tiền</p>
+                      <p className="text-xs text-app-accent mt-1">{currentLang === 'ja' ? '金額をコピーしました' : currentLang === 'en' ? 'Amount copied' : 'Đã copy số tiền'}</p>
                     )}
                     <p className="text-xs text-app-ink/50 mt-1">{(p?.totalDebt || 'Tổng còn nợ {amount}đ').replace('{amount}', autoPaymentInfo.amount.toLocaleString())}</p>
                   </div>
@@ -966,12 +986,14 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-bold text-app-ink">{getPaymentMethodLabel(payment)}</p>
                         <span className="px-2 py-1 rounded-full bg-app-accent/10 text-app-accent text-xs font-bold">
-                          {payment.status || 'completed'}
+                          {payment.status === 'completed' || !payment.status ? (p?.statusCompleted || 'Đã ghi nhận') : payment.status}
                         </span>
                       </div>
                       <p className="text-sm text-app-ink/50 mt-1">{formatPaymentDateTime(payment.created_at)}</p>
                       {paymentCode && (
-                        <p className="text-xs text-app-accent font-semibold mt-1">Mã: {paymentCode}</p>
+                        <p className="text-xs text-app-accent font-semibold mt-1">
+                          {currentLang === 'ja' ? 'コード: ' : currentLang === 'en' ? 'Code: ' : 'Mã: '}{paymentCode}
+                        </p>
                       )}
                     </div>
 
@@ -1050,7 +1072,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                 onClick={goToCurrentMonth}
                 className="px-2.5 py-1 text-xs font-bold rounded-lg border border-app-accent/20 bg-white text-app-accent hover:bg-app-accent/5 transition-colors shrink-0"
               >
-                Về tháng này
+                {currentLang === 'ja' ? '今月に戻る' : currentLang === 'en' ? 'This month' : 'Về tháng này'}
               </button>
             )}
           </div>
