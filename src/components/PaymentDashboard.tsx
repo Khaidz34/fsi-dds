@@ -8,6 +8,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Utensils,
   QrCode,
   Copy,
@@ -108,6 +110,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
   const [autoPaymentUsage, setAutoPaymentUsage] = useState<AutoPaymentUsage | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
   const [isPaymentHistoryLoading, setIsPaymentHistoryLoading] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   // Tạo dữ liệu calendar từ orders thực tế
   const [monthlyOrders, setMonthlyOrders] = useState<DayOrder[]>([]);
@@ -901,7 +904,7 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
             </div>
           ) : paymentHistory.length > 0 ? (
             <div className="space-y-3">
-              {paymentHistory.map((payment) => {
+              {(showAllHistory ? paymentHistory : paymentHistory.slice(0, 3)).map((payment) => {
                 const paymentCode = getPaymentCodeFromNotes(payment.notes);
 
                 return (
@@ -928,6 +931,28 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations }) => 
                   </div>
                 );
               })}
+
+              {paymentHistory.length > 3 && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllHistory((prev) => !prev)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-app-accent bg-app-accent/10 hover:bg-app-accent/15 border border-app-accent/20 transition-all shadow-sm active:scale-95"
+                  >
+                    {showAllHistory ? (
+                      <>
+                        <ChevronUp size={15} />
+                        <span>Thu gọn (chỉ hiển thị 3 lần gần nhất)</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={15} />
+                        <span>Xem thêm ({paymentHistory.length - 3} lần chuyển khoản trước)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-app-accent/20 p-6 text-center text-app-ink/50">

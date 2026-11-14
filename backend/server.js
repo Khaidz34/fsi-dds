@@ -2,6 +2,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
@@ -48,37 +49,75 @@ const clearCache = (key) => {
 // SSE (Server-Sent Events) Manager for Real-time Updates
 // =====================================================
 
-const sseConnections = new Map(); // userId -> { res, lastHeartbeat }
+const sseConnections = new Map(); // userId -> Set<{ res, lastHeartbeat, role }>
 
 const sendSSENotification = (userId, notification) => {
-  const connection = sseConnections.get(userId);
-  if (connection && connection.res && !connection.res.writableEnded) {
-    try {
-      connection.res.write(`data: ${JSON.stringify(notification)}\n\n`);
-      console.log(`📤 SSE notification sent to user ${userId}:`, notification.type);
-    } catch (err) {
-      console.error(`❌ Error sending SSE to user ${userId}:`, err.message);
-      sseConnections.delete(userId);
-    }
+  const userConns = sseConnections.get(Number(userId));
+  if (userConns && userConns.size > 0) {
+    const deadConns = [];
+    userConns.forEach((conn) => {
+      if (conn.res && !conn.res.writableEnded) {
+        try {
+          conn.res.write(`data: ${JSON.stringify(notification)}\n\n`);
+          console.log(`📤 SSE notification sent to user ${userId}:`, notification.type);
+        } catch (err) {
+          console.error(`❌ Error sending SSE to user ${userId}:`, err.message);
+          deadConns.push(conn);
+        }
+      } else {
+        deadConns.push(conn);
+      }
+    });
+    deadConns.forEach(c => userConns.delete(c));
+    if (userConns.size === 0) sseConnections.delete(Number(userId));
   }
 };
 
 const sendSSEHeartbeat = (userId) => {
-  const connection = sseConnections.get(userId);
-  if (connection && connection.res && !connection.res.writableEnded) {
-    try {
-      connection.res.write(`:heartbeat\n\n`);
-      connection.lastHeartbeat = Date.now();
-    } catch (err) {
-      console.error(`❌ Error sending heartbeat to user ${userId}:`, err.message);
-      sseConnections.delete(userId);
-    }
+  const userConns = sseConnections.get(Number(userId));
+  if (userConns && userConns.size > 0) {
+    const deadConns = [];
+    userConns.forEach((conn) => {
+      if (conn.res && !conn.res.writableEnded) {
+        try {
+          conn.res.write(`:heartbeat\n\n`);
+          conn.lastHeartbeat = Date.now();
+        } catch (err) {
+          deadConns.push(conn);
+        }
+      } else {
+        deadConns.push(conn);
+      }
+    });
+    deadConns.forEach(c => userConns.delete(c));
+    if (userConns.size === 0) sseConnections.delete(Number(userId));
+  }
+};
+
+const broadcastToAdmins = (notification) => {
+  let count = 0;
+  sseConnections.forEach((conns, userId) => {
+    conns.forEach(conn => {
+      if (conn.role === 'admin' || conn.role === 'staff') {
+        if (conn.res && !conn.res.writableEnded) {
+          try {
+            conn.res.write(`data: ${JSON.stringify(notification)}\n\n`);
+            count++;
+          } catch (err) {
+            console.error(`❌ Error broadcasting to admin ${userId}:`, err.message);
+          }
+        }
+      }
+    });
+  });
+  if (count > 0) {
+    console.log(`📢 Broadcasted notification to ${count} active admin SSE sessions`);
   }
 };
 
 // Send heartbeat to all connected users every 30 seconds
 setInterval(() => {
-  sseConnections.forEach((connection, userId) => {
+  sseConnections.forEach((_, userId) => {
     sendSSEHeartbeat(userId);
   });
 }, 30000);
@@ -166,6 +205,13 @@ app.use(cors({
     callback(null, isAllowed);
   },
   credentials: true
+}));
+
+// HTTP Security Headers
+app.disable('x-powered-by');
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
 
 // Enable gzip compression for responses
@@ -481,24 +527,52 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
   res.json(userWithoutPassword);
 });
 
-// Reset password endpoint
-app.post('/api/auth/reset-password', async (req, res) => {
+// Reset password endpoint - secured with rate limit & admin protection
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
   try {
-    const { username, newPassword } = req.body;
+    const { username, newPassword, currentPassword } = req.body;
 
     if (!username || !newPassword) {
       return res.status(400).json({ error: 'Username và mật khẩu mới là bắt buộc' });
     }
 
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+    }
+
     // Check if user exists
     const { data: user, error: fetchError } = await supabase
       .from('users')
-      .select('id')
+      .select('id, role, password')
       .eq('username', username)
       .single();
 
     if (fetchError || !user) {
       return res.status(404).json({ error: 'Tài khoản không tồn tại' });
+    }
+
+    // Bảo vệ tài khoản admin: Không cho phép đổi mật khẩu admin tự do mà không xác thực mật khẩu cũ hoặc không qua admin panel
+    if (user.role === 'admin') {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      let isVerifiedAdmin = false;
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET);
+          if (decoded.role === 'admin') isVerifiedAdmin = true;
+        } catch {}
+      }
+
+      if (!isVerifiedAdmin && currentPassword) {
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (isMatch) isVerifiedAdmin = true;
+      }
+
+      if (!isVerifiedAdmin) {
+        return res.status(403).json({ 
+          error: 'Tài khoản Quản trị viên chỉ có thể đổi mật khẩu khi đăng nhập hoặc cung cấp mật khẩu hiện tại.' 
+        });
+      }
     }
 
     // Hash new password
@@ -620,6 +694,9 @@ app.get('/api/menu/today', async (req, res) => {
 // Create simple menu (single language)
 app.post('/api/menu', authenticateToken, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền tạo thực đơn' });
+    }
     console.log('=== CREATE MENU REQUEST ===');
     console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
     console.log('Request body:', req.body);
@@ -686,6 +763,9 @@ app.post('/api/menu', authenticateToken, async (req, res) => {
 
 app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền tạo thực đơn đa ngôn ngữ' });
+    }
     console.log('=== CREATE MULTILINGUAL MENU REQUEST ===');
     console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
     console.log('Request body:', req.body);
@@ -755,7 +835,7 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/orders/today', async (req, res) => {
+app.get('/api/orders/today', authenticateToken, async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     
@@ -2717,11 +2797,15 @@ const hasValidAutoPaymentSecret = (req) => {
     .map(s => String(s).trim().replace(/^["']|["']$/g, ''))
     .filter(s => s.length > 0);
 
-  // 1. Kiểm tra khớp chuỗi bí mật
+  // 1. Kiểm tra khớp chuỗi bí mật (an toàn chống tấn công timing attack)
   for (const inc of cleanIncoming) {
     for (const conf of configuredSecrets) {
-      if (inc === conf) {
-        return true;
+      if (inc.length === conf.length) {
+        try {
+          if (crypto.timingSafeEqual(Buffer.from(inc), Buffer.from(conf))) {
+            return true;
+          }
+        } catch {}
       }
     }
   }
@@ -3583,11 +3667,17 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for real-time
     
-    // Store connection
-    sseConnections.set(userId, {
+    // Store connection in Set (supports multiple tabs / devices per user)
+    const connObj = {
       res,
-      lastHeartbeat: Date.now()
-    });
+      lastHeartbeat: Date.now(),
+      role: decoded.role || 'user'
+    };
+    const uidNum = Number(userId);
+    if (!sseConnections.has(uidNum)) {
+      sseConnections.set(uidNum, new Set());
+    }
+    sseConnections.get(uidNum).add(connObj);
     
     // Send initial connection message
     res.write(`data: ${JSON.stringify({ type: 'connected', userId, timestamp: Date.now() })}\n\n`);
@@ -3595,12 +3685,20 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
     // Handle client disconnect
     req.on('close', () => {
       console.log(`🔌 SSE connection closed for user ${userId}`);
-      sseConnections.delete(userId);
+      const userConns = sseConnections.get(uidNum);
+      if (userConns) {
+        userConns.delete(connObj);
+        if (userConns.size === 0) sseConnections.delete(uidNum);
+      }
     });
     
     req.on('error', (err) => {
       console.error(`❌ SSE error for user ${userId}:`, err.message);
-      sseConnections.delete(userId);
+      const userConns = sseConnections.get(uidNum);
+      if (userConns) {
+        userConns.delete(connObj);
+        if (userConns.size === 0) sseConnections.delete(uidNum);
+      }
     });
   } catch (err) {
     console.error('❌ SSE endpoint error:', err);
@@ -3612,22 +3710,31 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
   }
 });
 
+// Direct manual payment creation - Admin only
 app.post('/api/payments', authenticateToken, async (req, res) => {
   try {
-    const { amount, method, notes } = req.body;
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Chỉ Quản trị viên mới có quyền tạo giao dịch thanh toán trực tiếp. Vui lòng thanh toán qua quét mã QR hoặc liên hệ Admin.' 
+      });
+    }
+
+    const { amount, method, notes, userId } = req.body;
+    const targetUserId = Number(userId || req.user.id);
     
-    if (!amount || amount <= 0) {
+    if (!amount || Number(amount) <= 0) {
       return res.status(400).json({ error: 'Số tiền không hợp lệ' });
     }
 
     const paymentData = {
-      user_id: req.user.id,
-      amount: amount,
-      status: 'completed'
+      user_id: targetUserId,
+      amount: Number(amount),
+      status: 'completed',
+      method: method || 'manual_admin',
+      notes: notes || 'Admin ghi nhận thanh toán trực tiếp'
     };
 
-    const { data: payment, error } = await supabase
-      .from('payments')
+    const { data: payment, error } = await dbForWrite('payments')
       .insert([paymentData])
       .select()
       .single();
@@ -3635,6 +3742,10 @@ app.post('/api/payments', authenticateToken, async (req, res) => {
     if (error) {
       return res.status(500).json({ error: 'Lỗi tạo thanh toán' });
     }
+
+    // Invalidate caches
+    const currentMonth = normalizePaymentMonth();
+    invalidatePaymentCaches(targetUserId, currentMonth, 'manual_admin_payment');
 
     res.json({ success: true, payment });
   } catch (error) {

@@ -21,6 +21,8 @@ interface UseNotificationsReturn {
   requestPermission: () => Promise<void>;
   isSupported: boolean;
   isConnected: boolean;
+  latestNotification: OrderNotificationData | null;
+  clearLatestNotification: () => void;
 }
 
 export function useNotifications(
@@ -31,7 +33,12 @@ export function useNotifications(
   onOrderUpdate?: () => void
 ): UseNotificationsReturn {
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
+  const [latestNotification, setLatestNotification] = useState<OrderNotificationData | null>(null);
   const isSupported = notificationService.isBrowserSupported();
+
+  const clearLatestNotification = useCallback(() => {
+    setLatestNotification(null);
+  }, []);
 
   // Check if user should receive notifications (admin or staff only)
   const shouldReceiveNotifications = user && (user.role === 'admin' || user.role === 'staff');
@@ -72,12 +79,6 @@ export function useNotifications(
         return;
       }
 
-      // Check permission
-      if (permissionStatus !== 'granted') {
-        console.log('Skipping notification: permission not granted');
-        return;
-      }
-
       try {
         console.log('📬 Processing order notification:', data);
 
@@ -113,9 +114,20 @@ export function useNotifications(
           language,
         };
 
-        // Display notification
-        notificationService.showOrderNotification(notificationData, onNavigateToOrders);
-        
+        // Always play gentle audio chime for new orders
+        notificationService.playOrderChime();
+
+        // Update in-app floating banner state
+        setLatestNotification(notificationData);
+        setTimeout(() => {
+          setLatestNotification(prev => prev?.orderId === notificationData.orderId ? null : prev);
+        }, 8000);
+
+        // Display desktop notification if permission granted
+        if (permissionStatus === 'granted') {
+          notificationService.showOrderNotification(notificationData, onNavigateToOrders);
+        }
+
         // Trigger live refresh in app
         if (onOrderUpdate) {
           onOrderUpdate();
@@ -150,5 +162,7 @@ export function useNotifications(
     requestPermission,
     isSupported,
     isConnected,
+    latestNotification,
+    clearLatestNotification
   };
 }

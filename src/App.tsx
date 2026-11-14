@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   ShoppingBag,
   Bell,
   Search,
@@ -320,7 +321,13 @@ export default function App() {
     window.dispatchEvent(new CustomEvent('app:order-update'));
   }, [refetchOrders, refetchAdminPayments, refetchDashboardStats, user?.role]);
   
-  const { permissionStatus, isSupported: notificationsSupported } = useNotifications(
+  const { 
+    permissionStatus, 
+    requestPermission: requestNotificationPermission, 
+    isSupported: notificationsSupported,
+    latestNotification,
+    clearLatestNotification
+  } = useNotifications(
     user,
     token,
     currentLang,
@@ -572,12 +579,17 @@ export default function App() {
       stats: t.admin.statistics,
       payments: t.admin.payments,
       invoicing: t.admin.invoicing,
-      accounts: t.admin.accountManagement
+      accounts: t.admin.accountManagement,
+      'banner-video': t.admin.bannerVideo || 'Quản lý Banner & Video',
+      'media-mgmt': t.admin.bannerVideo || 'Quản lý Banner & Video'
     };
 
     return labels[activeTab] || activeTab;
   }, [activeTab, t, user?.role]);
   const activePageSubtitle = useMemo(() => {
+    if (activeTab === 'banner-video' || activeTab === 'media-mgmt') {
+      return 'Cấu hình banner hiển thị và video overlay toàn hệ thống';
+    }
     if (user?.role === 'admin') {
       return 'Quản lý suất ăn nội bộ và theo dõi vận hành hằng ngày';
     }
@@ -590,6 +602,16 @@ export default function App() {
   const weeklyOrderTotal = useMemo(() => {
     return weeklyData.reduce((total, item) => total + (Number(item.orders) || 0), 0);
   }, [weeklyData]);
+
+  // Trạng thái mở rộng lịch sử thanh toán của từng user (mặc định chỉ hiện 3 lần gần nhất)
+  const [expandedUserHistory, setExpandedUserHistory] = useState<Record<string, boolean>>({});
+  const toggleUserHistoryExpanded = useCallback((userKey: string) => {
+    setExpandedUserHistory(prev => ({
+      ...prev,
+      [userKey]: !prev[userKey]
+    }));
+  }, []);
+
   const paymentHistoryPageSize = 5;
   const paymentHistoryGroups = useMemo(() => {
     const grouped = paymentHistory.reduce((acc, history: any) => {
@@ -600,6 +622,11 @@ export default function App() {
       acc[fullname].push(history);
       return acc;
     }, {} as Record<string, any[]>);
+
+    // Sắp xếp mỗi danh sách giao dịch của từng người dùng theo ngày mới nhất trước
+    Object.values(grouped).forEach(list => {
+      list.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    });
 
     return Object.entries(grouped).sort(([, firstHistory], [, secondHistory]) => {
       const firstDate = new Date(firstHistory?.[0]?.created_at || 0).getTime();
@@ -1257,6 +1284,36 @@ export default function App() {
 
   return (
     <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
+      {/* Toast floating notification for admin/staff */}
+      {latestNotification && (
+        <div 
+          onClick={() => {
+            setActiveTab('orders');
+            clearLatestNotification();
+          }}
+          className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-900/95 backdrop-blur-md text-white border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl cursor-pointer hover:scale-[1.02] transition-transform animate-bounce"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+              <Bell className="text-amber-400" size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Đơn hàng mới!</p>
+              <p className="font-bold text-sm text-white truncate mt-0.5">{latestNotification.customerName}</p>
+              <p className="text-xs text-slate-300 line-clamp-1 mt-0.5">{latestNotification.dishNames?.join(', ')}</p>
+            </div>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                clearLatestNotification();
+              }}
+              className="text-slate-400 hover:text-white p-1"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Video Overlay is rendered inside <main> as a dashboard replacement */}
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
@@ -1472,6 +1529,15 @@ export default function App() {
                           refetchOrders();
                         }} 
                       />
+                      <MobileSidebarItem 
+                        icon={<Play size={18} />} 
+                        label={t.admin.bannerVideo} 
+                        active={activeTab === 'banner-video'} 
+                        onClick={() => {
+                          setActiveTab('banner-video');
+                          setIsMobileMenuOpen(false);
+                        }} 
+                      />
                     </>
                   )}
                 </div>
@@ -1612,6 +1678,12 @@ export default function App() {
                 label={t.admin.accountManagement} 
                 active={activeTab === 'accounts'} 
                 onClick={() => setActiveTab('accounts')} 
+              />
+              <SidebarItem 
+                icon={<Play size={20} />} 
+                label={t.admin.bannerVideo} 
+                active={activeTab === 'banner-video'} 
+                onClick={() => setActiveTab('banner-video')} 
               />
             </div>
           )}
@@ -1780,6 +1852,29 @@ export default function App() {
                 </button>
               ))}
             </div>
+
+            {/* Notification Bell toggle for Admin/Staff */}
+            {user?.role === 'admin' && (
+              <button
+                type="button"
+                onClick={requestNotificationPermission}
+                title={
+                  permissionStatus === 'granted'
+                    ? 'Thông báo đơn mới: Đang BẬT'
+                    : 'Nhấn để BẬT thông báo đơn mới trên trình duyệt'
+                }
+                className={`relative p-2.5 rounded-xl border transition-all ${
+                  permissionStatus === 'granted'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 animate-pulse'
+                }`}
+              >
+                <Bell size={18} />
+                {permissionStatus === 'granted' && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500" />
+                )}
+              </button>
+            )}
 
             <div className="flex items-center gap-4 pl-6 border-l border-[#E5E1D1]">
               <div className="hidden md:block text-right">
@@ -2013,12 +2108,6 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                {/* Banner Management Control */}
-                <React.Suspense fallback={null}><AdminBannerControl user={user} /></React.Suspense>
-
-                {/* Video Overlay Control */}
-                <React.Suspense fallback={null}><AdminVideoControl user={user} /></React.Suspense>
-
                 {/* Admin Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <StatCard 
@@ -3792,74 +3881,124 @@ export default function App() {
                   {paymentHistory.length > 0 ? (
                     <div className="space-y-8">
                       {/* Group payment history by user */}
-                      {paginatedPaymentHistoryGroups.map(([fullname, userHistory]: [string, any]) => (
-                        <div key={fullname} className="border-b-2 border-[#E5E1D1] pb-6 last:border-b-0">
-                          {/* User Header */}
-                          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#E5D4B8]">
-                            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                              <UserIcon size={20} className="text-emerald-600" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-[#1C1917]">{fullname}</p>
-                              <p className="text-xs text-[#1C1917]/50">
-                                {userHistory.length} lần thanh toán
-                              </p>
-                            </div>
-                          </div>
+                      {paginatedPaymentHistoryGroups.map(([fullname, userHistory]: [string, any]) => {
+                        const isExpanded = !!expandedUserHistory[fullname];
+                        const displayedHistory = isExpanded ? userHistory : userHistory.slice(0, 3);
+                        const hasMore = userHistory.length > 3;
 
-                          {/* Payment Table */}
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b-2 border-[#E5D4B8]">
-                                  <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Người chuyển</th>
-                                  <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Ngày giờ</th>
-                                  <th className="text-right py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Số tiền</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {userHistory.map((history: any) => (
-                                  <tr key={history.id} className="border-b border-[#E5E1D1] hover:bg-[#FDF4E3]/50 transition-colors">
-                                    <td className="py-3 px-4">
-                                      <div className="space-y-1">
-                                        <p className="font-bold text-[#1C1917]">
-                                          {history.payerName || history.payer_name || 'Chưa có thông tin'}
-                                        </p>
-                                        {(history.payment_code || history.transfer_description) && (
-                                          <p className="text-xs text-[#1C1917]/45 line-clamp-1">
-                                            {history.payment_code || history.transfer_description}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="py-3 px-4">
-                                      <div className="flex items-center gap-2">
-                                        <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
-                                        <span className="text-[#1C1917]">
-                                          {new Date(history.created_at).toLocaleDateString('vi-VN')} lúc {new Date(history.created_at).toLocaleTimeString('vi-VN')}
-                                        </span>
-                                      </div>
-                                    </td>
-                                    <td className="py-3 px-4 text-right">
-                                      <p className="font-bold text-emerald-600">{history.amount.toLocaleString()}đ</p>
-                                    </td>
+                        return (
+                          <div key={fullname} className="border-b-2 border-[#E5E1D1] pb-6 last:border-b-0">
+                            {/* User Header */}
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#E5D4B8]">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                  <UserIcon size={20} className="text-emerald-600" />
+                                </div>
+                                <div>
+                                  <p className="font-bold text-[#1C1917]">{fullname}</p>
+                                  <p className="text-xs text-[#1C1917]/50">
+                                    {userHistory.length} lần thanh toán {hasMore && !isExpanded && `(đang hiện 3 lần gần nhất)`}
+                                  </p>
+                                </div>
+                              </div>
+                              {hasMore && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUserHistoryExpanded(fullname)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200/60"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp size={14} />
+                                      <span>Thu gọn</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown size={14} />
+                                      <span>Xem thêm ({userHistory.length - 3})</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Payment Table */}
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b-2 border-[#E5D4B8]">
+                                    <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Người chuyển</th>
+                                    <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Ngày giờ</th>
+                                    <th className="text-right py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Số tiền</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                                </thead>
+                                <tbody>
+                                  {displayedHistory.map((history: any) => (
+                                    <tr key={history.id} className="border-b border-[#E5E1D1] hover:bg-[#FDF4E3]/50 transition-colors">
+                                      <td className="py-3 px-4">
+                                        <div className="space-y-1">
+                                          <p className="font-bold text-[#1C1917]">
+                                            {history.payerName || history.payer_name || 'Chưa có thông tin'}
+                                          </p>
+                                          {(history.payment_code || history.transfer_description) && (
+                                            <p className="text-xs text-[#1C1917]/45 line-clamp-1">
+                                              {history.payment_code || history.transfer_description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <div className="flex items-center gap-2">
+                                          <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+                                          <span className="text-[#1C1917]">
+                                            {new Date(history.created_at).toLocaleDateString('vi-VN')} lúc {new Date(history.created_at).toLocaleTimeString('vi-VN')}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="py-3 px-4 text-right">
+                                        <p className="font-bold text-emerald-600">{history.amount.toLocaleString()}đ</p>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
 
-                          {/* User Total */}
-                          <div className="flex justify-end mt-3 pt-3 border-t border-[#E5D4B8]">
-                            <div className="text-right">
-                              <p className="text-xs text-[#1C1917]/60 font-semibold mb-1">Tổng thanh toán</p>
-                              <p className="text-lg font-black text-emerald-600">
-                                {userHistory.reduce((sum: number, h: any) => sum + h.amount, 0).toLocaleString()}đ
-                              </p>
+                            {/* Nút Xem thêm ở dưới của danh sách lịch sử thanh toán của mỗi user */}
+                            {hasMore && (
+                              <div className="flex justify-center mt-3 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUserHistoryExpanded(fullname)}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all shadow-sm active:scale-95"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp size={15} />
+                                      <span>Thu gọn (chỉ hiển thị 3 lần gần nhất)</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown size={15} />
+                                      <span>Xem thêm ({userHistory.length - 3} lần chuyển khoản trước)</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* User Total */}
+                            <div className="flex justify-end mt-3 pt-3 border-t border-[#E5D4B8]">
+                              <div className="text-right">
+                                <p className="text-xs text-[#1C1917]/60 font-semibold mb-1">Tổng thanh toán</p>
+                                <p className="text-lg font-black text-emerald-600">
+                                  {userHistory.reduce((sum: number, h: any) => sum + h.amount, 0).toLocaleString()}đ
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div className="flex flex-col gap-3 border-t border-[#E5E1D1] pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm font-semibold text-[#1C1917]/55">
                           Hiển thị {paginatedPaymentHistoryGroups.length} / {paymentHistoryGroups.length} người dùng ({paymentHistory.length} giao dịch)
@@ -3971,6 +4110,17 @@ export default function App() {
                   onDeleteUser={deleteUser}
                 />
               </React.Suspense>
+            )}
+
+            {activeTab === 'banner-video' && user?.role === 'admin' && (
+              <div key="banner-video-page" className="space-y-8">
+                <React.Suspense fallback={<TabLoadingSkeleton />}>
+                  <AdminBannerControl user={user} />
+                </React.Suspense>
+                <React.Suspense fallback={<TabLoadingSkeleton />}>
+                  <AdminVideoControl user={user} />
+                </React.Suspense>
+              </div>
             )}
           </AnimatePresence>
         </div>

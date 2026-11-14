@@ -114,9 +114,55 @@ class NotificationService {
   }
 
   /**
+   * Play gentle notification audio chime using Web Audio API
+   */
+  playOrderChime(): void {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const playTone = (freq: number, startTime: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.25, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      const now = ctx.currentTime;
+      playTone(587.33, now, 0.2); // D5 note
+      playTone(880.00, now + 0.15, 0.35); // A5 note
+    } catch (e) {
+      console.warn('Audio chime could not be played:', e);
+    }
+  }
+
+  /**
    * Display order notification
    */
   showOrderNotification(data: OrderNotificationData, onClickNavigate?: () => void): void {
+    // Prevent duplicate notifications within window
+    if (displayedNotifications.has(data.orderId)) {
+      console.log('Skipping duplicate notification for order:', data.orderId);
+      return;
+    }
+
+    // Always play gentle audio chime for new order
+    this.playOrderChime();
+
     // Check browser support
     if (!this.isSupported) {
       console.warn('Cannot show notification: browser not supported');
@@ -126,12 +172,6 @@ class NotificationService {
     // Check permission
     if (Notification.permission !== 'granted') {
       console.warn('Cannot show notification: permission not granted');
-      return;
-    }
-
-    // Prevent duplicate notifications
-    if (displayedNotifications.has(data.orderId)) {
-      console.log('Skipping duplicate notification for order:', data.orderId);
       return;
     }
 
