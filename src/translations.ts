@@ -164,7 +164,24 @@ export const TRANSLATIONS = {
       alertExpiredEdit: 'Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.',
       orderAsAdmin: 'Đặt cơm hôm nay (Quyền Admin)',
       orderFor: 'Đặt cơm cho {name}',
-      orderForAdmin: 'Đặt cơm cho {name} (Admin)'
+      orderForAdmin: 'Đặt cơm cho {name} (Admin)',
+      adminOverrideLabel: 'Chế độ khóa sổ:',
+      adminOverrideAuto: 'Tự động (11:00)',
+      adminOverrideLock: 'Khóa ngay',
+      adminOverrideExtend15: 'Mở thêm 15p',
+      adminLockedTitle: 'Hệ thống đã khóa nhận đơn sớm',
+      adminLockedDesc: 'Quản trị viên đã bấm khóa nhận đơn sớm để chốt số lượng cho bếp.',
+      adminExtendedTitle: 'Đã mở thêm thời gian đặt',
+      adminExtendedDesc: 'Bếp đã gia hạn mở thêm 15 phút đặt cơm ({deadline}).',
+      pillAdminLocked: 'Khóa sớm bởi Admin',
+      pillAdminExtended: 'Gia hạn 15p ({time})',
+      debtFreeTitle: 'Tuyệt vời! Bạn không còn nợ tiền cơm',
+      debtFreeDesc: 'Toàn bộ các suất ăn của tháng này đã hoàn tất thanh toán.',
+      payNowWithQr: 'Thanh toán ngay bằng QR',
+      copyAmount: 'Sao chép số tiền',
+      copyTransferContent: 'Sao chép cú pháp',
+      copyAccountNo: 'Sao chép STK',
+      sepayNote: 'Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động gạch nợ sau 30 giây.'
     },
     // Accounts Management View
     accounts: {
@@ -428,7 +445,24 @@ export const TRANSLATIONS = {
       alertExpiredEdit: 'Editing meals for today is closed (cutoff is {deadline}). The kitchen has finalized orders for cooking.',
       orderAsAdmin: 'Place order today (Admin Role)',
       orderFor: 'Order meal for {name}',
-      orderForAdmin: 'Order meal for {name} (Admin)'
+      orderForAdmin: 'Order meal for {name} (Admin)',
+      adminOverrideLabel: 'Cutoff control:',
+      adminOverrideAuto: 'Auto (11:00)',
+      adminOverrideLock: 'Lock now',
+      adminOverrideExtend15: 'Extend 15m',
+      adminLockedTitle: 'Orders locked early by Admin',
+      adminLockedDesc: 'Admin has locked order intake early to finalize quantities for kitchen.',
+      adminExtendedTitle: 'Ordering window extended',
+      adminExtendedDesc: 'Kitchen extended ordering window by 15 minutes ({deadline}).',
+      pillAdminLocked: 'Locked by Admin',
+      pillAdminExtended: 'Extended +15m ({time})',
+      debtFreeTitle: 'Awesome! You have zero meal debt',
+      debtFreeDesc: 'All meals for this month have been fully paid.',
+      payNowWithQr: 'Pay now with QR',
+      copyAmount: 'Copy amount',
+      copyTransferContent: 'Copy syntax',
+      copyAccountNo: 'Copy account',
+      sepayNote: 'Please keep the transfer note unchanged so system can auto-clear debt in 30s.'
     },
     // Accounts Management View
     accounts: {
@@ -692,7 +726,24 @@ export const TRANSLATIONS = {
       alertExpiredEdit: '本日の注文変更は締め切られました（締切: {deadline}）。調理準備のため注文リストは確定しました。',
       orderAsAdmin: '本日の注文（管理者権限）',
       orderFor: '{name} 様の代理注文',
-      orderForAdmin: '{name} 様の代理注文（管理者）'
+      orderForAdmin: '{name} 様の代理注文（管理者）',
+      adminOverrideLabel: '締切制御モード:',
+      adminOverrideAuto: '自動 (11:00)',
+      adminOverrideLock: '今すぐ締切',
+      adminOverrideExtend15: '+15分延長',
+      adminLockedTitle: '管理者により早期締切中',
+      adminLockedDesc: '調理準備のため、管理者が早期に注文受付を締め切りました。',
+      adminExtendedTitle: '注文受付時間を延長中',
+      adminExtendedDesc: '厨房の準備状況により15分間注文受付を延長しました（締切: {deadline}）。',
+      pillAdminLocked: '管理者早期締切',
+      pillAdminExtended: '15分延長中 ({time})',
+      debtFreeTitle: '素晴らしい！今月の未払いはありません',
+      debtFreeDesc: '今月の昼食代はすべて決済済みです。',
+      payNowWithQr: 'QRコードで今すぐ支払う',
+      copyAmount: '金額をコピー',
+      copyTransferContent: '振込依頼人名をコピー',
+      copyAccountNo: '口座番号をコピー',
+      sepayNote: 'システムが30秒以内に自動消込できるよう、振込内容は変更せず送金してください。'
     },
     // Accounts Management View
     accounts: {

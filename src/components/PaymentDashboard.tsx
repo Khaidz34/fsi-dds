@@ -661,26 +661,26 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
               </div>
             </div>
           ) : autoPaymentInfo?.isPaid || (paymentStats?.remainingTotal || 0) <= 0 ? (
-            <div className="flex items-start gap-3 rounded-xl border border-app-accent/20 bg-app-accent/5 p-4 sm:p-5 text-app-ink">
-              <CheckCircle size={22} className="mt-0.5 shrink-0 text-app-accent" />
+            <div className="flex items-start gap-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50/90 p-5 sm:p-6 text-emerald-950 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0 shadow-xs">
+                <CheckCircle size={28} className="text-emerald-600" />
+              </div>
               <div className="flex-1">
-                <p className="font-bold text-base">
+                <p className="font-black text-lg text-emerald-900">
                   {isPastMonth
-                    ? `Kỳ ${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()} đã được thanh toán`
-                    : 'Tháng này đã được thanh toán'}
+                    ? `Kỳ ${translations.paymentDashboard.monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()} đã hoàn tất thanh toán`
+                    : (translations.deadline?.debtFreeTitle || 'Tuyệt vời! Bạn không còn nợ tiền cơm')}
                 </p>
-                <p className="text-sm mt-1 text-app-ink/70">
+                <p className="text-sm mt-1.5 text-emerald-800 leading-relaxed">
                   {isPastMonth
                     ? 'Toàn bộ các suất ăn trong tháng này đã hoàn tất thanh toán. Bạn không còn khoản nợ nào trong kỳ này.'
-                    : (isAutoPaymentQuotaExhausted
-                        ? 'Nếu vừa chuyển khoản trực tiếp, admin sẽ kiểm tra và xác nhận thủ công.'
-                        : 'Nếu vừa chuyển khoản, hãy bấm cập nhật sau khi ngân hàng gửi webhook về hệ thống.')}
+                    : (translations.deadline?.debtFreeDesc || 'Toàn bộ các suất ăn của tháng này đã hoàn tất thanh toán. Cảm ơn bạn!')}
                 </p>
                 {isPastMonth && (
                   <button
                     type="button"
                     onClick={goToCurrentMonth}
-                    className="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-app-accent text-white text-xs font-bold hover:bg-app-accent/90 transition-colors shadow-sm"
+                    className="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-800 transition-colors shadow-sm"
                   >
                     <CalendarIcon size={14} />
                     Quay về tháng hiện tại
@@ -715,16 +715,52 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
             </div>
           ) : autoPaymentInfo ? (
             <div className="payment-action-grid grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,260px)_1fr]">
-              <div className="payment-qr-panel rounded-2xl border border-app-accent/15 bg-white p-3 sm:p-4 flex items-center justify-center min-h-[188px] sm:min-h-[260px]">
+              <div className="payment-qr-panel rounded-2xl border border-app-accent/15 bg-white p-3 sm:p-4 flex flex-col items-center justify-center min-h-[188px] sm:min-h-[260px] text-center">
                 {currentAutoPaymentQrUrl ? (
-                  <img
-                    key={`${autoPaymentInfo.code}-${activeAutoPaymentAmount}`}
-                    src={currentAutoPaymentQrUrl}
-                    alt="QR thanh toán"
-                    referrerPolicy="no-referrer"
-                    className="payment-qr-image w-full max-w-[172px] sm:max-w-[220px] rounded-lg bg-white"
-                    onError={(event) => handleQrImageError(event, autoPaymentInfo)}
-                  />
+                  <>
+                    <img
+                      key={`${autoPaymentInfo.code}-${activeAutoPaymentAmount}`}
+                      src={currentAutoPaymentQrUrl}
+                      alt="QR thanh toán"
+                      referrerPolicy="no-referrer"
+                      className="payment-qr-image w-full max-w-[172px] sm:max-w-[220px] rounded-lg bg-white shadow-xs border border-slate-100"
+                      onError={(event) => handleQrImageError(event, autoPaymentInfo)}
+                    />
+                    
+                    {/* Quick copy 1-chạm buttons below QR */}
+                    <div className="mt-3 w-full flex flex-wrap items-center justify-center gap-1.5">
+                      {autoPaymentInfo.bank && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(getEffectiveAccountNo(autoPaymentInfo.bank?.accountNo).replace(/\s+/g, ''), 'account')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-app-accent/10 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1 transition-colors"
+                        >
+                          <Copy size={12} className="text-app-accent" />
+                          <span>{copiedField === 'account' ? 'Đã chép STK!' : 'Chép STK'}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(autoPaymentInfo.transferContent || autoPaymentInfo.code, 'code')}
+                        className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-app-accent/10 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1 transition-colors"
+                      >
+                        <Copy size={12} className="text-app-accent" />
+                        <span>{copiedField === 'code' ? 'Đã chép cú pháp!' : 'Chép cú pháp'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(String(activeAutoPaymentAmount), 'amount')}
+                        className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-app-accent/10 border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-1 transition-colors"
+                      >
+                        <Copy size={12} className="text-app-accent" />
+                        <span>{copiedField === 'amount' ? 'Đã chép tiền!' : 'Chép số tiền'}</span>
+                      </button>
+                    </div>
+
+                    <p className="mt-2 text-[11px] font-semibold text-slate-500 leading-tight">
+                      💡 Giữ nguyên nội dung CK để gạch nợ tự động sau 30s.
+                    </p>
+                  </>
                 ) : (
                   <div className="text-center px-4">
                     <Building2 className="mx-auto text-app-accent/45 mb-3" size={36} />
@@ -809,7 +845,20 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
                 <div className="payment-transfer-grid grid gap-2 sm:gap-3 sm:grid-cols-2">
                   <div className="payment-transfer-card rounded-xl border border-app-accent/15 bg-white/95 p-4">
                     <p className="text-xs uppercase font-bold text-app-ink/45">{p?.qrAmount || 'Số tiền QR sẽ tạo'}</p>
-                    <p className="text-2xl font-black text-app-accent mt-1">{activeAutoPaymentAmount.toLocaleString()}đ</p>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="text-2xl font-black text-app-accent">{activeAutoPaymentAmount.toLocaleString()}đ</p>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(String(activeAutoPaymentAmount), 'amount')}
+                        className="shrink-0 p-2 rounded-lg hover:bg-app-accent/5 transition-colors"
+                        title={translations.deadline?.copyAmount || "Sao chép số tiền"}
+                      >
+                        <Copy size={16} className="text-app-ink/60" />
+                      </button>
+                    </div>
+                    {copiedField === 'amount' && (
+                      <p className="text-xs text-app-accent mt-1">Đã copy số tiền</p>
+                    )}
                     <p className="text-xs text-app-ink/50 mt-1">{(p?.totalDebt || 'Tổng còn nợ {amount}đ').replace('{amount}', autoPaymentInfo.amount.toLocaleString())}</p>
                   </div>
 

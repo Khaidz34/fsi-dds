@@ -182,7 +182,7 @@ export default function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, token } = useAuth();
 
   const videoSettings = useVideoSettings();
-  const { isPassed: isOrderDeadlinePassed } = useOrderDeadline();
+  const { isPassed: isOrderDeadlinePassed } = useOrderDeadline(currentLang);
   const canPlaceOrder = user?.role === 'admin' || !isOrderDeadlinePassed;
 
   const [theme, setTheme] = useState<'fusion' | 'corporate'>('corporate'); // Default to corporate
@@ -1243,15 +1243,20 @@ export default function App() {
             setActiveTab('orders');
             clearLatestNotification();
           }}
-          className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-900/95 backdrop-blur-md text-white border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl cursor-pointer hover:scale-[1.02] transition-all duration-300 animate-slide-down"
+          className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-950/90 backdrop-blur-xl text-white border border-amber-500/50 rounded-2xl shadow-2xl cursor-pointer hover:scale-[1.02] transition-all duration-300 animate-slide-in-right overflow-hidden ring-1 ring-white/10"
         >
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+          <div className="p-4 flex items-start gap-3">
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-amber-600/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
               <Bell className="text-amber-400" size={20} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Đơn hàng mới!</p>
-              <p className="font-bold text-sm text-white truncate mt-0.5">{latestNotification.customerName}</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  Đơn hàng mới!
+                </span>
+              </div>
+              <p className="font-bold text-sm text-white truncate mt-1">{latestNotification.customerName}</p>
               <p className="text-xs text-slate-300 line-clamp-1 mt-0.5">{latestNotification.dishNames?.join(', ')}</p>
             </div>
             <button 
@@ -1259,11 +1264,13 @@ export default function App() {
                 e.stopPropagation();
                 clearLatestNotification();
               }}
-              className="text-slate-400 hover:text-white p-1"
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
             >
               <X size={16} />
             </button>
           </div>
+          {/* Animated 6-second progress bar */}
+          <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 w-full animate-toast-progress" />
         </div>
       )}
       {/* Video Overlay is rendered inside <main> as a dashboard replacement */}
@@ -1930,16 +1937,56 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/35">{t.ui?.paymentDue || 'Cần thanh toán'}</p>
-                      <p className="mt-2 text-3xl font-black text-app-accent">
-                        {(dashboardAutoPaymentInfo?.isPaid ? 0 : dashboardAutoPaymentInfo?.amount || 0).toLocaleString()}đ
-                      </p>
-                      <p className="mt-1 text-xs font-semibold text-app-ink/45">{dashboardAutoPaymentInfo?.isPaid ? (t.ui?.paidComplete || 'Đã thanh toán xong') : (t.ui?.monthlyQr || 'Theo QR tháng này')}</p>
+                  {/* Debt / Payment Due Card */}
+                  <div className={`desktop-summary-card lacquer-card p-5 flex items-center justify-between gap-4 transition-all ${
+                    dashboardAutoPaymentInfo?.isPaid || (dashboardAutoPaymentInfo?.amount || 0) <= 0
+                      ? 'border-2 border-emerald-300 bg-emerald-50/80 text-emerald-950'
+                      : 'border-2 border-amber-300 bg-amber-50/60 text-slate-900'
+                  }`}>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-app-ink/40">{t.ui?.paymentDue || 'Cần thanh toán'}</p>
+                      {dashboardAutoPaymentInfo?.isPaid || (dashboardAutoPaymentInfo?.amount || 0) <= 0 ? (
+                        <>
+                          <p className="mt-1.5 text-base sm:text-lg font-black text-emerald-800 leading-snug">
+                            {t.deadline?.debtFreeTitle || 'Tuyệt vời! Bạn không còn nợ tiền cơm'}
+                          </p>
+                          <p className="mt-0.5 text-xs text-emerald-700/80 font-medium">
+                            {t.deadline?.debtFreeDesc || 'Toàn bộ các suất ăn tháng này đã hoàn tất.'}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mt-1.5 text-3xl font-black text-[#DA251D]">
+                            {(dashboardAutoPaymentInfo?.amount || 0).toLocaleString()}đ
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const qrCard = document.querySelector('.desktop-qr-card');
+                              if (qrCard) {
+                                qrCard.scrollIntoView({ behavior: 'smooth' });
+                              } else {
+                                setActiveTab('payment-calendar');
+                              }
+                            }}
+                            className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-accent text-white text-xs font-bold hover:bg-app-accent/90 transition-all shadow-sm shadow-app-accent/20"
+                          >
+                            <QrCode size={13} />
+                            <span>{t.deadline?.payNowWithQr || 'Thanh toán ngay bằng QR'}</span>
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center">
-                      <QrCode size={24} />
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                      dashboardAutoPaymentInfo?.isPaid || (dashboardAutoPaymentInfo?.amount || 0) <= 0
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {dashboardAutoPaymentInfo?.isPaid || (dashboardAutoPaymentInfo?.amount || 0) <= 0 ? (
+                        <CheckCircle2 size={24} />
+                      ) : (
+                        <QrCode size={24} />
+                      )}
                     </div>
                   </div>
 
@@ -2108,6 +2155,11 @@ export default function App() {
                                 </button>
                               </div>
                             )}
+
+                            {/* Ghi chú SePay tự động */}
+                            <div className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 mt-2 text-center">
+                              💡 Vui lòng giữ nguyên nội dung chuyển khoản để hệ thống tự động gạch nợ sau 30 giây.
+                            </div>
 
                             {isDashboardAutoPaymentQuotaExhausted && (
                               <div className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/60 mt-1">
