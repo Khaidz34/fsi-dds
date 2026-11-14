@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, SkipBack, SkipForward } from 'lucide-react';
+import { X, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { useVideoSettings } from '../hooks/useVideoSettings';
 
 interface VideoOverlayProps {
@@ -8,12 +8,13 @@ interface VideoOverlayProps {
 }
 
 /**
- * Full-screen video overlay — auto-plays intro then main with sound.
- * Uses muted-start → 1s-delay → unmute trick to bypass browser autoplay restrictions.
+ * Full-screen video overlay — auto-plays intro then main quietly (muted by default).
+ * Provides clear one-click button to unmute sound politely for office environments.
  */
 export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, forceVisible = false }) => {
   const { enabled, videoUrl, introVideoUrl, isLoading } = useVideoSettings();
   const [hidden, setHidden] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
 
@@ -36,6 +37,13 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     }
   };
 
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
   // When intro finishes, auto-advance
   useEffect(() => {
     const video = videoRef.current;
@@ -47,21 +55,15 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
     return () => video.removeEventListener('ended', onEnded);
   }, [canNext, currentIndex]);
 
-  // Start muted, unmute after 1s to get sound past browser restrictions
+  // Autoplay quietly (muted) by default to prevent startling people in office
   useEffect(() => {
     if (!currentVideoUrl) return;
     const video = videoRef.current;
     if (!video) return;
 
-    video.muted = true;
+    video.muted = isMuted;
     video.load();
     video.play().catch(() => {});
-
-    const timer = setTimeout(() => {
-      video.muted = false;
-    }, 1000);
-
-    return () => clearTimeout(timer);
   }, [currentVideoUrl]);
 
   // Mount: pick starting video
@@ -138,6 +140,17 @@ export const VideoOverlay: React.FC<VideoOverlayProps> = ({ canDismiss = true, f
             </button>
           </div>
         )}
+
+        {/* Audio Mute/Unmute toggle button */}
+        <button
+          type="button"
+          onClick={toggleMute}
+          className="absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-black/75 hover:bg-black/90 text-white text-xs font-semibold backdrop-blur-md transition-all shadow-lg border border-white/20 hover:scale-105"
+          title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+        >
+          {isMuted ? <VolumeX size={16} className="text-amber-400" /> : <Volume2 size={16} className="text-emerald-400" />}
+          <span>{isMuted ? 'Bấm để bật âm thanh' : 'Đang bật âm thanh'}</span>
+        </button>
 
         {canDismiss && (
           <button

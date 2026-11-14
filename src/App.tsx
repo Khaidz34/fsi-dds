@@ -21,6 +21,7 @@ import {
   Search,
   Filter,
   X,
+  Copy,
   Globe,
   Plus,
   PlusCircle,
@@ -408,6 +409,20 @@ export default function App() {
   const [dashboardAutoPaymentUsage, setDashboardAutoPaymentUsage] = useState<DashboardAutoPaymentUsage | null>(null);
   const [dashboardQrImageFailed, setDashboardQrImageFailed] = useState(false);
   const [isDashboardQrLoading, setIsDashboardQrLoading] = useState(false);
+  const [dashboardCopiedField, setDashboardCopiedField] = useState<'account' | 'content' | 'amount' | null>(null);
+  const [dishSelectFeedback, setDishSelectFeedback] = useState<string | null>(null);
+  const [isMobileOrderSheetExpanded, setIsMobileOrderSheetExpanded] = useState(false);
+  const [orderForSearch, setOrderForSearch] = useState('');
+
+  const handleCopyDashboardField = async (text: string, field: 'account' | 'content' | 'amount') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setDashboardCopiedField(field);
+      setTimeout(() => setDashboardCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Copy error:', err);
+    }
+  };
 
   const t = TRANSLATIONS[currentLang];
 
@@ -833,18 +848,41 @@ export default function App() {
     }
   };
 
+  const filteredOrderForUsers = useMemo(() => {
+    if (!orderForSearch.trim()) return allUsers;
+    const term = orderForSearch.toLowerCase().trim();
+    return allUsers.filter(u => u.fullname?.toLowerCase().includes(term) || String(u.id).includes(term));
+  }, [allUsers, orderForSearch]);
+
   const handleSelectDish = (dishId: number) => {
     if (selectedDishes.includes(dishId)) {
       // Bỏ chọn món này
-      setSelectedDishes(selectedDishes.filter(id => id !== dishId));
+      const nextDishes = selectedDishes.filter(id => id !== dishId);
+      setSelectedDishes(nextDishes);
+      setDishSelectFeedback('Đã bỏ chọn món');
     } else if (selectedDishes.length < 2) {
       // Thêm món mới nếu chưa đủ 2 món
-      setSelectedDishes([...selectedDishes, dishId]);
+      const nextDishes = [...selectedDishes, dishId];
+      setSelectedDishes(nextDishes);
+      setDishSelectFeedback(nextDishes.length === 1 ? 'Đã chọn món 1 (chọn thêm 1 món nữa nếu muốn)' : 'Đã chọn đủ 2 món!');
     } else {
       // Đã chọn đủ 2 món, thay thế món cuối cùng
       setSelectedDishes([selectedDishes[0], dishId]);
+      setDishSelectFeedback('Đã đổi sang món mới (tối đa 2 món)');
     }
   };
+
+  useEffect(() => {
+    if (!dishSelectFeedback) return;
+    const timer = setTimeout(() => setDishSelectFeedback(null), 2500);
+    return () => clearTimeout(timer);
+  }, [dishSelectFeedback]);
+
+  useEffect(() => {
+    if (selectedDishes.length === 0) {
+      setIsMobileOrderSheetExpanded(false);
+    }
+  }, [selectedDishes.length]);
 
   const handleShowOrderSummary = () => {
     if (!user || selectedDishes.length === 0) return;
@@ -1205,7 +1243,7 @@ export default function App() {
             setActiveTab('orders');
             clearLatestNotification();
           }}
-          className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-900/95 backdrop-blur-md text-white border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl cursor-pointer hover:scale-[1.02] transition-transform animate-bounce"
+          className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-900/95 backdrop-blur-md text-white border-2 border-amber-500/60 rounded-2xl p-4 shadow-2xl cursor-pointer hover:scale-[1.02] transition-all duration-300 animate-slide-down"
         >
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
@@ -2000,24 +2038,81 @@ export default function App() {
                     </p>
                     
                     {/* Payment Info */}
-                    <div className="bg-app-accent/5 px-5 py-4 rounded-2xl border border-app-accent/15 relative z-10 mb-4 w-full">
-                      <div className="text-app-ink text-sm space-y-1">
+                    <div className="bg-app-accent/5 px-4 py-3.5 rounded-2xl border border-app-accent/15 relative z-10 mb-4 w-full">
+                      <div className="text-app-ink text-sm space-y-2">
                         {dashboardAutoPaymentInfo?.isPaid ? (
-                          <>
-                            <div className="font-bold">Không cần chuyển khoản</div>
-                            <div className="text-xs opacity-90">Tháng này hiện không còn khoản nợ.</div>
-                          </>
+                          <div className="flex flex-col items-center justify-center py-2 text-center text-emerald-700">
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center mb-1.5 shadow-sm">
+                              <CheckCircle2 size={20} className="text-emerald-600" />
+                            </div>
+                            <div className="font-bold text-base">Đã thanh toán xong!</div>
+                            <div className="text-xs text-slate-500 mt-0.5">Tháng này bạn hiện không còn khoản nợ nào.</div>
+                          </div>
                         ) : dashboardAutoPaymentInfo?.bank ? (
                           <>
-                            <div className="font-bold">{dashboardAutoPaymentInfo.bank.accountName || 'Tài khoản thanh toán'}</div>
-                            <div className="font-mono">{getEffectiveAccountNo(dashboardAutoPaymentInfo.bank.accountNo)}</div>
-                            <div className="font-semibold">{getBankDisplayName(dashboardAutoPaymentInfo.bank.bankId)}</div>
+                            <div className="flex items-center justify-between pb-1.5 border-b border-app-accent/10">
+                              <span className="text-xs text-app-ink/50">Ngân hàng</span>
+                              <span className="font-bold text-xs text-app-ink">{getBankDisplayName(dashboardAutoPaymentInfo.bank.bankId)}</span>
+                            </div>
+                            
+                            {/* STK */}
+                            <div className="flex items-center justify-between py-1">
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-app-ink/50 uppercase font-bold block">Số tài khoản</span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-app-ink">{getEffectiveAccountNo(dashboardAutoPaymentInfo.bank.accountNo)}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyDashboardField(getEffectiveAccountNo(dashboardAutoPaymentInfo.bank?.accountNo).replace(/\s+/g, ''), 'account')}
+                                className="px-2.5 py-1 bg-white hover:bg-app-accent/10 rounded-lg text-xs font-semibold text-app-accent border border-app-accent/20 flex items-center gap-1 transition-colors shrink-0"
+                              >
+                                <Copy size={12} />
+                                <span>{dashboardCopiedField === 'account' ? 'Đã chép!' : 'Chép STK'}</span>
+                              </button>
+                            </div>
+
+                            {/* Nội dung CK */}
                             {dashboardAutoPaymentInfo.code && (
-                              <div className="font-mono text-xs opacity-90">{dashboardAutoPaymentInfo.transferContent || dashboardAutoPaymentInfo.code}</div>
+                              <div className="flex items-center justify-between py-1">
+                                <div className="min-w-0">
+                                  <span className="text-[10px] text-app-ink/50 uppercase font-bold block">Cú pháp chuyển khoản</span>
+                                  <span className="font-mono font-bold text-xs sm:text-sm text-app-accent truncate block max-w-[130px] sm:max-w-[160px]">
+                                    {dashboardAutoPaymentInfo.transferContent || dashboardAutoPaymentInfo.code}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyDashboardField(dashboardAutoPaymentInfo.transferContent || dashboardAutoPaymentInfo.code, 'content')}
+                                  className="px-2.5 py-1 bg-white hover:bg-app-accent/10 rounded-lg text-xs font-semibold text-app-accent border border-app-accent/20 flex items-center gap-1 transition-colors shrink-0"
+                                >
+                                  <Copy size={12} />
+                                  <span>{dashboardCopiedField === 'content' ? 'Đã chép!' : 'Chép cú pháp'}</span>
+                                </button>
+                              </div>
                             )}
-                            <div className="text-xs opacity-80">NAPAS 247</div>
+
+                            {/* Số tiền */}
+                            {dashboardAutoPaymentInfo.amount > 0 && (
+                              <div className="flex items-center justify-between py-1">
+                                <div className="min-w-0">
+                                  <span className="text-[10px] text-app-ink/50 uppercase font-bold block">Số tiền</span>
+                                  <span className="font-bold text-xs sm:text-sm text-slate-900">{dashboardAutoPaymentInfo.amount.toLocaleString()}đ</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyDashboardField(String(dashboardAutoPaymentInfo.amount), 'amount')}
+                                  className="px-2.5 py-1 bg-white hover:bg-app-accent/10 rounded-lg text-xs font-semibold text-app-accent border border-app-accent/20 flex items-center gap-1 transition-colors shrink-0"
+                                >
+                                  <Copy size={12} />
+                                  <span>{dashboardCopiedField === 'amount' ? 'Đã chép!' : 'Chép tiền'}</span>
+                                </button>
+                              </div>
+                            )}
+
                             {isDashboardAutoPaymentQuotaExhausted && (
-                              <div className="text-xs font-semibold opacity-95">Admin sẽ xác nhận thủ công</div>
+                              <div className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/60 mt-1">
+                                Chế độ chuyển khoản trực tiếp: Admin sẽ đối soát và gạch nợ thủ công.
+                              </div>
                             )}
                           </>
                         ) : (
@@ -2231,66 +2326,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Mystical Website Integration - Asian Style */}
-                <div className="bazi-mobile-hero hidden sm:block lg:hidden w-full h-[300px] rounded-2xl overflow-hidden shadow-2xl relative cursor-pointer" onClick={() => window.open('https://thuatso.onrender.com/', '_blank')}>
-                      {/* Preload image for faster loading */}
-                      <link rel="preload" as="image" href="/Background3.png?v=2" />
-                      
-                      {/* Background Image */}
-                      <div className="absolute inset-0">
-                        {/* Single background image - Background3.png */}
-                        <div 
-                          className="absolute inset-0 bg-center"
-                          style={{
-                            backgroundImage: 'url(/Background3.png?v=2)',
-                            backgroundSize: '100% 100%',
-                            imageRendering: 'crisp-edges'
-                          }}
-                        />
-                        {/* Light overlay for brightness */}
-                        <div className="absolute inset-0 bg-black/20" />
-                      </div>
-
-                      {/* Content - Left aligned text and right button */}
-                       <div className="bazi-hero-content relative z-10 h-full flex items-center justify-between px-12">
-                        {/* Left Content */}
-                         <div className="bazi-hero-copy flex-1">
-                          <p className="text-amber-400 text-xs tracking-[0.3em] mb-3 font-serif font-bold uppercase">
-                            — THIẾT KẾ MỆNH LÝ —
-                          </p>
-                           <h2 className="bazi-hero-title text-white text-6xl font-serif font-bold mb-2 drop-shadow-lg" style={{fontWeight: 700}}>
-                            HUYỀN CƠ
-                          </h2>
-                           <h3 className="bazi-hero-subtitle text-amber-400 text-5xl font-serif font-bold italic mb-4 drop-shadow-lg" style={{fontWeight: 700}}>
-                            BẤT TỰ
-                          </h3>
-                           <p className="bazi-hero-description text-white/80 text-sm max-w-md leading-relaxed font-serif font-semibold italic" style={{fontWeight: 600}}>
-                            Giải mã vận mệnh qua tinh hoa Bát Tự truyền thống.
-                          </p>
-                        </div>
-                        
-                        {/* Right Content */}
-                         <div className="bazi-hero-actions flex flex-col items-end gap-4">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open('https://thuatso.onrender.com/', '_blank');
-                            }}
-                            className="bazi-hero-button bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-10 py-4 rounded-lg font-bold text-lg tracking-wider shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
-                          >
-                            LẬP LÁ SỐ NGAY
-                          </button>
-                          <div className="text-right">
-                            <p className="text-white/90 text-sm flex items-center gap-2 justify-end">
-                            </p>
-                            <p className="text-white/70 text-xs mt-1">
-                              KIẾN TẠO THỊNH VƯỢNG
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                 <div className="mobile-menu-hero-card menu-heritage-surface lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm relative overflow-hidden">
                   <div className="mobile-menu-postcard" aria-hidden="true">
                     <span className="personal-postcard-label">seal</span>
@@ -2335,8 +2370,23 @@ export default function App() {
 
                 {/* Menu List */}
                 <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-4 xl:gap-5 lg:pb-64 ${
-                  selectedDishes.length > 0 ? 'pb-[34rem] sm:pb-[24rem]' : 'pb-28'
+                  selectedDishes.length > 0 ? 'pb-36 sm:pb-36' : 'pb-28'
                 }`}>
+                  {/* Floating micro-toast when selecting dishes */}
+                  <AnimatePresence>
+                    {dishSelectFeedback && (
+                      <div
+                        key="dish-select-toast"
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-4 py-2 rounded-full text-xs font-bold shadow-2xl flex items-center gap-2 border border-slate-700 animate-slide-down backdrop-blur-md pointer-events-none"
+                      >
+                        <Sparkles size={14} className="text-amber-400" />
+                        <span>{dishSelectFeedback}</span>
+                      </div>
+                    )}
+                  </AnimatePresence>
                   <AnimatePresence mode="wait">
                     {isLanguageChanging ? (
                       <div
@@ -2479,169 +2529,193 @@ export default function App() {
 
                 {/* Place Order Bar - Mobile Optimized */}
                 {selectedDishes.length > 0 && (
-                  <div 
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 100, opacity: 0 }}
-                    className="fixed bottom-0 left-0 right-0 z-[60] bg-white border-t-4 border-app-accent shadow-2xl mobile-order-action-sheet lg:z-50"
-                  >
-                    <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 lg:py-4">
-                      {/* Mobile: Compact View */}
-                      <div className="lg:hidden">
-                        <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-slate-200" />
-
-                        <div className="flex items-start justify-between gap-3 mb-2.5">
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-app-accent/70">
-                              {mobileOrderCopy.selected}
-                            </p>
-                            <h4 className="text-base font-black text-slate-950 flex items-center gap-2">
-                              <ShoppingBag size={17} className="text-app-accent" />
-                              {selectedDishes.length}/{maxSelectableDishes} {t.selectedDishes}
-                            </h4>
-                            {selectedDishes.length === 1 && (
-                              <p className="text-xs text-slate-500 mt-0.5">{mobileOrderCopy.chooseMore}</p>
-                            )}
+                  <>
+                    {/* Mobile: Floating Bottom Bar when collapsed */}
+                    {!isMobileOrderSheetExpanded && (
+                      <div className="lg:hidden fixed bottom-16 left-3 right-3 z-40 bg-white/95 backdrop-blur-md border border-app-accent/25 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 animate-slide-up">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-app-accent text-white flex items-center justify-center font-black text-sm shrink-0 shadow-md shadow-app-accent/20">
+                            {selectedDishes.length}/{maxSelectableDishes}
                           </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-slate-900 truncate">
+                              {selectedDishDetails.map(d => getDishDisplayName(d, currentLang)).join(' + ')}
+                            </p>
+                            <p className="text-[11px] font-bold text-app-accent mt-0.5">{mealPriceText}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => setSelectedDishes([])}
+                            className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
+                            title={mobileOrderCopy.clear}
+                          >
+                            <X size={15} />
+                          </button>
+                          <button
+                            onClick={() => setIsMobileOrderSheetExpanded(true)}
+                            className="px-3.5 py-2 rounded-xl bg-app-accent text-white text-xs font-black shadow-lg shadow-app-accent/25 flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all"
+                          >
+                            <span>Xem & Đặt</span>
+                            <ChevronUp size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className="text-right">
-                              <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.perMeal}</p>
-                              <span className="text-sm font-black text-app-accent">{mealPriceText}</span>
+                    {/* Mobile: Slide-up Bottom Sheet Modal when expanded */}
+                    {isMobileOrderSheetExpanded && (
+                      <div className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-fade-in">
+                        <div 
+                          className="fixed inset-0" 
+                          onClick={() => setIsMobileOrderSheetExpanded(false)} 
+                        />
+                        <div className="relative z-10 bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl border-t-4 border-app-accent overflow-hidden animate-slide-up">
+                          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShoppingBag size={20} className="text-app-accent" />
+                              <h3 className="font-black text-base text-slate-900">Chi tiết bữa trưa của bạn</h3>
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent">
+                                {selectedDishes.length}/{maxSelectableDishes} món
+                              </span>
                             </div>
                             <button
-                              onClick={() => setSelectedDishes([])}
-                              className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center justify-center"
-                              aria-label={mobileOrderCopy.clear}
+                              onClick={() => setIsMobileOrderSheetExpanded(false)}
+                              className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                             >
-                              <X size={17} />
+                              <ChevronDown size={20} />
+                            </button>
+                          </div>
+
+                          <div className="p-4 overflow-y-auto space-y-4 flex-1">
+                            {/* Selected dishes */}
+                            <div className="space-y-1.5">
+                              {selectedDishDetails.map((dish, index) => (
+                                <div key={dish.id} className="flex items-start justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-7 h-7 bg-app-accent text-white rounded-full flex items-center justify-center font-black text-xs shrink-0">
+                                      {index + 1}
+                                    </div>
+                                    <span className="mobile-selected-dish-name font-bold text-slate-950 text-sm leading-snug">
+                                      {getDishDisplayName(dish, currentLang)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
+                                    className="w-8 h-8 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors shrink-0"
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Đặt cho ai with search */}
+                            <div>
+                              <span className="block text-xs font-black text-slate-500 mb-1.5">{mobileOrderCopy.orderFor}</span>
+                              {allUsers.length > 5 && (
+                                <div className="relative mb-2">
+                                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                  <input
+                                    type="text"
+                                    value={orderForSearch}
+                                    onChange={(e) => setOrderForSearch(e.target.value)}
+                                    placeholder="Gõ tìm đồng nghiệp..."
+                                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
+                                  />
+                                </div>
+                              )}
+                              <select
+                                value={orderForUserId || user?.id || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value ? Number(e.target.value) : null;
+                                  setOrderForUserId(value);
+                                }}
+                                className="w-full min-h-11 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-sm"
+                              >
+                                <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
+                                {filteredOrderForUsers.filter(u => u.id !== user?.id).map(u => (
+                                  <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Quick options */}
+                            <div>
+                              <div className="mobile-order-options-header mb-1.5">
+                                <p>{mobileOrderCopy.quickOptions}</p>
+                                <span>{orderOptionItems.filter(option => option.checked).length}/{orderOptionItems.length}</span>
+                              </div>
+                              <div className="mobile-order-option-grid">
+                                {orderOptionItems.map(option => (
+                                  <label
+                                    key={option.key}
+                                    className={`mobile-order-option-chip ${option.checked ? 'is-selected' : ''}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={option.checked}
+                                      onChange={(e) => option.onChange(e.target.checked)}
+                                      className="sr-only"
+                                    />
+                                    <span className="mobile-order-option-check" aria-hidden="true" />
+                                    <span className="mobile-order-option-label">{option.compactLabel}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Notes */}
+                            <div>
+                              <span className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
+                                <FileText size={14} className="text-app-accent" />
+                                {t.orderNotes}
+                              </span>
+                              <textarea
+                                value={orderNotes}
+                                onChange={(e) => setOrderNotes(e.target.value)}
+                                placeholder={t.orderNotesPlaceholder}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent resize-none text-slate-950 text-sm"
+                                rows={2}
+                              />
+                            </div>
+
+                            {/* Place order button */}
+                            <button 
+                              onClick={handleShowOrderSummary}
+                              disabled={!canPlaceOrder || selectedDishes.length === 0}
+                              className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 ${
+                                !canPlaceOrder || selectedDishes.length === 0
+                                  ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                                  : theme === 'corporate' 
+                                    ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
+                                    : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
+                              }`}
+                            >
+                              {!canPlaceOrder ? (
+                                <>
+                                  <Lock size={18} />
+                                  <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', '11:00')}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 size={20} />
+                                  <span>
+                                    {orderForUserId && orderForUserId !== user?.id
+                                      ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`
+                                      : t.orderNow}
+                                  </span>
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>
-
-                        <div className="space-y-1.5 mb-2.5">
-                          {selectedDishDetails.map((dish, index) => (
-                            <div key={dish.id} className="flex items-start justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-7 h-7 bg-app-accent text-white rounded-full flex items-center justify-center font-black text-xs shrink-0">
-                                  {index + 1}
-                                </div>
-                                <span className="mobile-selected-dish-name font-bold text-slate-950 text-[13px] leading-snug">
-                                  {getDishDisplayName(dish, currentLang)}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
-                                className="w-8 h-8 bg-white text-slate-500 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
-                                aria-label={mobileOrderCopy.removeDish}
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 mb-3">
-                          <label className="block">
-                            <span className="block text-xs font-black text-slate-500 mb-1.5">{mobileOrderCopy.orderFor}</span>
-                            <select
-                              value={orderForUserId || user?.id || ''}
-                              onChange={(e) => {
-                                const value = e.target.value ? Number(e.target.value) : null;
-                                console.log('Selected user ID:', value);
-                                setOrderForUserId(value);
-                              }}
-                              className="w-full min-h-12 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-base"
-                            >
-                              <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
-                              {allUsers.length > 0 ? (
-                                allUsers.filter(u => u.id !== user?.id).map(u => (
-                                  <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
-                                ))
-                              ) : (
-                                <option disabled>{mobileOrderCopy.loadingUsers}</option>
-                              )}
-                            </select>
-                          </label>
-                        </div>
-
-                        <div className="mb-2.5">
-                          <div className="mobile-order-options-header">
-                            <p>{mobileOrderCopy.quickOptions}</p>
-                            <span>{orderOptionItems.filter(option => option.checked).length}/{orderOptionItems.length}</span>
-                          </div>
-                          <div className="mobile-order-option-grid">
-                            {orderOptionItems.map(option => (
-                              <label
-                                key={option.key}
-                                className={`mobile-order-option-chip ${option.checked ? 'is-selected' : ''}`}
-                                title={option.label}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={option.checked}
-                                  onChange={(e) => option.onChange(e.target.checked)}
-                                  className="sr-only"
-                                />
-                                <span className="mobile-order-option-check" aria-hidden="true" />
-                                <span className="mobile-order-option-label">{option.compactLabel}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-
-                        <details className="mobile-order-notes mb-16 rounded-xl border border-slate-200 bg-white">
-                          <summary className="min-h-11 px-3 py-2 flex items-center justify-between gap-3 cursor-pointer text-sm font-black text-slate-600">
-                            <span className="flex items-center gap-2">
-                              <FileText size={16} className="text-app-accent" />
-                              {mobileOrderCopy.noteHint}
-                            </span>
-                            <ChevronDown size={16} />
-                          </summary>
-                          <div className="px-3 pb-3">
-                            <textarea
-                              value={orderNotes}
-                              onChange={(e) => setOrderNotes(e.target.value)}
-                              placeholder={t.orderNotesPlaceholder}
-                              className="mobile-order-note w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent resize-none text-slate-950 text-base"
-                              rows={2}
-                            />
-                          </div>
-                        </details>
-
-                        <button 
-                          onClick={handleShowOrderSummary}
-                          disabled={!canPlaceOrder || selectedDishes.length === 0}
-                          className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 mobile-order-primary ${
-                            !canPlaceOrder || selectedDishes.length === 0
-                              ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
-                              : theme === 'corporate' 
-                                ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
-                                : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
-                          }`}
-                        >
-                          {!canPlaceOrder ? (
-                            <>
-                              <Lock size={20} />
-                              <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', '11:00')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 size={21} />
-                              <span>
-                                {orderForUserId && orderForUserId !== user?.id
-                                  ? `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}${user?.role === 'admin' && isOrderDeadlinePassed ? ' (Admin)' : ''}`
-                                  : user?.role === 'admin' && isOrderDeadlinePassed
-                                  ? 'Đặt cơm (Quyền Admin)'
-                                  : t.orderNow}
-                              </span>
-                            </>
-                          )}
-                        </button>
                       </div>
+                    )}
 
-                      {/* Desktop: Full View */}
-                      <div className="hidden lg:block">
+                    {/* Desktop: Full View */}
+                    <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-50 bg-white border-t-4 border-app-accent shadow-2xl">
+                      <div className="max-w-7xl mx-auto px-6 py-4">
                         <div className="grid grid-cols-3 gap-6">
                           {/* Left: Selected Dishes */}
                           <div className="col-span-1">
@@ -2694,23 +2768,30 @@ export default function App() {
                             {/* Đặt cho ai */}
                             <div className="mb-4">
                               <label className="block text-sm font-semibold text-[#1C1917] mb-2">{t.orderForLabel}</label>
+                              {allUsers.length > 5 && (
+                                <div className="relative mb-2">
+                                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                  <input
+                                    type="text"
+                                    value={orderForSearch}
+                                    onChange={(e) => setOrderForSearch(e.target.value)}
+                                    placeholder="Gõ tìm đồng nghiệp..."
+                                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
+                                  />
+                                </div>
+                              )}
                               <select
                                 value={orderForUserId || user?.id || ''}
                                 onChange={(e) => {
                                   const value = e.target.value ? Number(e.target.value) : null;
-                                  console.log('Selected user ID:', value);
                                   setOrderForUserId(value);
                                 }}
-                                className="w-full px-4 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-app-accent bg-white text-[#1C1917] font-medium"
+                                className="w-full px-4 py-2 border-2 border-[#E5E1D1] rounded-xl focus:outline-none focus:border-app-accent bg-white text-[#1C1917] font-medium text-sm"
                               >
                                 <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
-                                {allUsers.length > 0 ? (
-                                  allUsers.filter(u => u.id !== user?.id).map(u => (
-                                    <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
-                                  ))
-                                ) : (
-                                  <option disabled>Đang tải danh sách...</option>
-                                )}
+                                {filteredOrderForUsers.filter(u => u.id !== user?.id).map(u => (
+                                  <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
+                                ))}
                               </select>
                             </div>
                             
@@ -2789,7 +2870,7 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}
