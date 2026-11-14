@@ -34,18 +34,11 @@ import {
   Activity,
   QrCode,
   Flame,
-  Dna,
-  Coffee,
-  IceCream,
   Trash2,
   Edit,
-  Pizza,
-  Soup,
-  Fish,
   DollarSign,
   Menu,
   Palette,
-  Sword,
   Play,
   Sparkles,
   Lock,
@@ -100,7 +93,6 @@ const DailyQuote = lazyWithRetry(() => import('./components/DailyQuote'));
 const PaymentDashboard = lazyWithRetry(() => import('./components/PaymentDashboard'));
 const AdminStatsView = lazyWithRetry(() => import('./components/AdminStatsView').then(m => ({ default: m.AdminStatsView })));
 const AdminMonthlyCalendar = lazyWithRetry(() => import('./components/AdminMonthlyCalendar').then(m => ({ default: m.AdminMonthlyCalendar })));
-const FusionSliceGame = lazyWithRetry(() => import('./components/FusionSliceGame').then(m => ({ default: m.FusionSliceGame })));
 const AdminBannerControl = lazyWithRetry(() => import('./components/AdminBannerControl').then(m => ({ default: m.AdminBannerControl })));
 const AdminVideoControl = lazyWithRetry(() => import('./components/AdminVideoControl').then(m => ({ default: m.AdminVideoControl })));
 const VideoOverlay = lazyWithRetry(() => import('./components/VideoOverlay').then(m => ({ default: m.VideoOverlay })));
@@ -183,81 +175,6 @@ const getDishName = (dish: any, lang: Language): string => {
 
 const getDishDisplayName = (dish: any, lang: Language): string => {
   return getDishName(dish, lang).replace(/^\s*\d+[.)]\s*/, '').trim();
-};
-
-const FallingPetals = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
-  const items = useMemo(() => Array.from({ length: 20 }).map((_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    delay: `-${Math.random() * 15}s`,
-    duration: `${8 + Math.random() * 12}s`,
-    size: 8 + Math.random() * 12,
-    rotation: Math.random() * 360,
-  })), []);
-
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      {items.map((item, i) => (
-        <div
-          key={item.id}
-          className={`absolute animate-fall ${
-            theme === 'fusion' 
-              ? (i % 2 === 0 ? 'text-pink-400/30' : 'text-white/40')
-              : (i % 2 === 0 ? 'text-blue-400/20' : 'text-white/30')
-          }`}
-          style={{
-            left: item.left,
-            animationDelay: item.delay,
-            animationDuration: item.duration,
-          }}
-        >
-          <div 
-            className="w-4 h-6 bg-current blur-[1px]" 
-            style={{ 
-              borderRadius: '100% 0 100% 0',
-              transform: `rotate(${item.rotation}deg)`,
-              width: item.size,
-              height: item.size * 1.5
-            }} 
-          />
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const FallingFood = ({ theme }: { theme: 'fusion' | 'corporate' }) => {
-  const foodIcons = [Pizza, Soup, Fish, Coffee, IceCream, Utensils];
-  const items = useMemo(() => Array.from({ length: 30 }).map((_, i) => ({
-    id: i,
-    Icon: foodIcons[i % foodIcons.length],
-    left: `${Math.random() * 100}%`,
-    delay: `-${Math.random() * 20}s`,
-    duration: `${10 + Math.random() * 15}s`,
-    size: 20 + Math.random() * 20,
-  })), []);
-
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      {items.map((item, i) => (
-        <div
-          key={item.id}
-          className={`absolute animate-fall ${
-            theme === 'fusion' 
-              ? (i % 2 === 0 ? 'text-app-accent/45' : 'text-app-gold/45')
-              : (i % 2 === 0 ? 'text-app-accent/45' : 'text-app-gold/45')
-          }`}
-          style={{
-            left: item.left,
-            animationDelay: item.delay,
-            animationDuration: item.duration,
-          }}
-        >
-          <item.Icon size={item.size} />
-        </div>
-      ))}
-    </div>
-  );
 };
 
 export default function App() {
@@ -470,9 +387,6 @@ export default function App() {
     topDishes: Array<{ name: string; orderCount: number }>;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  
-  // Game state
-  const [showFusionSliceGame, setShowFusionSliceGame] = useState(false);
 
   // Banner visibility state
   const [showBanner, setShowBanner] = useState(true);
@@ -1316,7 +1230,7 @@ export default function App() {
       )}
       {/* Video Overlay is rendered inside <main> as a dashboard replacement */}
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white border-b border-app-ink/10 p-4 flex items-center justify-between sticky top-0 z-50">
+      <div className="lg:hidden bg-white border-b border-app-ink/10 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="fsi-logo">
           <div className="fsi-logo-icon">
             {/* FSI Logo Pattern */}
@@ -1364,6 +1278,17 @@ export default function App() {
             <Menu size={20} />
           </button>
         </div>
+      </div>
+
+      {/* Mobile Sticky Deadline Bar (Toàn trang) */}
+      <div className="lg:hidden bg-white/95 border-b border-app-ink/10 px-4 py-1.5 flex items-center justify-between sticky top-[57px] z-40 backdrop-blur-md">
+        <span className="text-[10px] font-black uppercase tracking-wider text-app-ink/40">Hạn chót đặt cơm</span>
+        <OrderDeadlineCountdown
+          variant="pill"
+          isAdmin={user?.role === 'admin'}
+          currentLang={currentLang}
+          translations={t}
+        />
       </div>
 
       {/* Mobile Navigation Overlay */}
@@ -1470,11 +1395,11 @@ export default function App() {
                         {currentLang === 'vi' ? 'Quản trị' : currentLang === 'en' ? 'Admin' : '管理'}
                       </p>
                       <MobileSidebarItem 
-                        icon={<ChefHat size={18} />} 
+                        icon={<Settings size={18} />} 
                         label={t.admin.menuManagement} 
-                        active={activeTab === 'admin-menu'} 
+                        active={activeTab === 'menu-mgmt'} 
                         onClick={() => {
-                          setActiveTab('admin-menu');
+                          setActiveTab('menu-mgmt');
                           setIsMobileMenuOpen(false);
                           refetchOrders();
                         }} 
@@ -1482,9 +1407,9 @@ export default function App() {
                       <MobileSidebarItem 
                         icon={<ClipboardList size={18} />} 
                         label={t.admin.allOrders} 
-                        active={activeTab === 'admin-orders'} 
+                        active={activeTab === 'orders'} 
                         onClick={() => {
-                          setActiveTab('admin-orders');
+                          setActiveTab('orders');
                           setIsMobileMenuOpen(false);
                           refetchOrders();
                         }} 
@@ -1492,9 +1417,9 @@ export default function App() {
                       <MobileSidebarItem 
                         icon={<BarChart3 size={18} />} 
                         label={t.admin.statistics} 
-                        active={activeTab === 'admin-stats'} 
+                        active={activeTab === 'stats'} 
                         onClick={() => {
-                          setActiveTab('admin-stats');
+                          setActiveTab('stats');
                           setIsMobileMenuOpen(false);
                           refetchOrders();
                         }} 
@@ -1502,19 +1427,29 @@ export default function App() {
                       <MobileSidebarItem 
                         icon={<DollarSign size={18} />} 
                         label={t.admin.payments} 
-                        active={activeTab === 'admin-payments'} 
+                        active={activeTab === 'payments'} 
                         onClick={() => {
-                          setActiveTab('admin-payments');
+                          setActiveTab('payments');
                           setIsMobileMenuOpen(false);
                           refetchOrders();
                         }} 
                       />
                       <MobileSidebarItem 
-                        icon={<FileText size={18} />} 
-                        label={t.admin.feedback} 
-                        active={activeTab === 'admin-feedback'} 
+                        icon={<Calendar size={18} />} 
+                        label={t.admin.invoicing} 
+                        active={activeTab === 'invoicing'} 
                         onClick={() => {
-                          setActiveTab('admin-feedback');
+                          setActiveTab('invoicing');
+                          setIsMobileMenuOpen(false);
+                          refetchOrders();
+                        }} 
+                      />
+                      <MobileSidebarItem 
+                        icon={<MessageSquare size={18} />} 
+                        label={t.admin.feedback} 
+                        active={activeTab === 'feedback'} 
+                        onClick={() => {
+                          setActiveTab('feedback');
                           setIsMobileMenuOpen(false);
                           refetchOrders();
                         }} 
@@ -1522,9 +1457,9 @@ export default function App() {
                       <MobileSidebarItem 
                         icon={<UserIcon size={18} />} 
                         label={t.admin.accountManagement} 
-                        active={activeTab === 'admin-users'} 
+                        active={activeTab === 'accounts'} 
                         onClick={() => {
-                          setActiveTab('admin-users');
+                          setActiveTab('accounts');
                           setIsMobileMenuOpen(false);
                           refetchOrders();
                         }} 
@@ -1818,7 +1753,15 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 xl:gap-6">
+            {/* Live Order Deadline Countdown Pill */}
+            <OrderDeadlineCountdown
+              variant="pill"
+              isAdmin={user?.role === 'admin'}
+              currentLang={currentLang}
+              translations={t}
+            />
+
             <div className="flex items-center gap-2 bg-app-cream p-1.5 rounded-xl border border-app-ink/10">
               {(['fusion', 'corporate'] as const).map((t) => (
                 <button
@@ -4494,13 +4437,6 @@ export default function App() {
             <h3 className="text-xl font-bold text-gray-900 mb-2">Đặt món thành công!</h3>
             <p className="text-gray-600">Đơn hàng của bạn đã được ghi nhận</p>
           </div>
-        )}
-      </AnimatePresence>
-
-      {/* Fusion Slice Game */}
-      <AnimatePresence>
-        {showFusionSliceGame && (
-          <FusionSliceGame onClose={() => setShowFusionSliceGame(false)} />
         )}
       </AnimatePresence>
 
