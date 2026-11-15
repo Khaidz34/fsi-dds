@@ -4163,8 +4163,7 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
 
     res.json({
       ...stats,
-      timestamp: Date.now()
-    });
+      timestamp: Date.now(),
       cached: false
     });
   } catch (error) {
