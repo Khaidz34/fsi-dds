@@ -1044,21 +1044,21 @@ const isOrderDeadlinePassed = (user) => {
   if (user && user.role === 'admin') {
     return false;
   }
-  const now = new Date();
-  const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const vnDate = new Date(vnTimeStr);
-  const today = getVietnamDateStr(now);
 
+  const today = getVietnamDateStr();
   const override = getSystemDeadlineOverride();
   if (override && override.date === today) {
     if (override.mode === 'locked') {
       return true;
     }
     if (override.mode === 'extended_15' && override.extendedUntilTimestamp) {
-      return vnDate.getTime() >= override.extendedUntilTimestamp;
+      return Date.now() >= override.extendedUntilTimestamp;
     }
   }
 
+  const now = new Date();
+  const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const vnDate = new Date(vnTimeStr);
   const totalMinutes = vnDate.getHours() * 60 + vnDate.getMinutes();
   const deadlineMinutes = 11 * 60; // 11:00 AM VN Time = 660 phút
   return totalMinutes > deadlineMinutes;
@@ -1085,16 +1085,24 @@ app.post('/api/deadline-override', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Chế độ không hợp lệ (yêu cầu: auto, locked, extended_15).' });
   }
 
-  const now = new Date();
-  const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const vnNow = new Date(vnTimeStr);
-  const today = getVietnamDateStr(now);
-
+  const today = getVietnamDateStr();
   let extendedUntilTimestamp = null;
   if (mode === 'extended_15') {
-    // Gia hạn đến 11:15 hoặc +15 phút từ thời điểm admin bấm nếu hiện tại đã quá 11:15
-    const base1115 = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 15, 0).getTime();
-    extendedUntilTimestamp = Math.max(base1115, vnNow.getTime() + 15 * 60 * 1000);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    });
+    const parts = formatter.formatToParts(new Date());
+    const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+    const y = getPart('year');
+    const m = getPart('month');
+    const d = getPart('day');
+    // 11:15 AM VN (UTC+7) = 04:15 AM UTC
+    const base1115Utc = Date.UTC(y, m - 1, d, 4, 15, 0);
+    // Nếu trước 11:15 thì mở đến 11:15; nếu đã quá 11:15 thì mở thêm đúng 15 phút từ thời điểm hiện tại:
+    extendedUntilTimestamp = Math.max(base1115Utc, Date.now() + 15 * 60 * 1000);
   }
 
   const updatedOverride = {

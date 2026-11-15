@@ -26,12 +26,39 @@ const STORAGE_KEY = 'fsi_order_deadline_override';
 const EVENT_NAME = 'fsi_order_deadline_override_changed';
 
 /**
- * Lấy thời gian hiện tại theo múi giờ Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
+ * Lấy ngày tháng năm theo múi giờ Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
  */
-export function getVietnamNow(): Date {
-  const now = new Date();
-  const vnString = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-  return new Date(vnString);
+export function getVietnamDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  return {
+    year: getPart('year'),
+    month: getPart('month'),
+    day: getPart('day'),
+    dateString: `${getPart('year')}-${getPart('month')}-${getPart('day')}`
+  };
+}
+
+/**
+ * Lấy mốc 11:00 AM VN (UTC+7 = 04:00 AM UTC) dưới dạng epoch timestamp chuẩn xác
+ */
+export function getVietnam1100Timestamp(date = new Date()): number {
+  const { year, month, day } = getVietnamDateParts(date);
+  return Date.UTC(year, month - 1, day, 4, 0, 0);
+}
+
+/**
+ * Lấy mốc 11:15 AM VN (UTC+7 = 04:15 AM UTC) dưới dạng epoch timestamp chuẩn xác
+ */
+export function getVietnam1115Timestamp(date = new Date()): number {
+  const { year, month, day } = getVietnamDateParts(date);
+  return Date.UTC(year, month - 1, day, 4, 15, 0);
 }
 
 /**
@@ -42,11 +69,10 @@ export function getDeadlineOverride(): DeadlineOverrideData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { mode: 'auto', date: '' };
     const parsed: DeadlineOverrideData = JSON.parse(raw);
-    const vnNow = getVietnamNow();
-    const today = `${vnNow.getFullYear()}-${vnNow.getMonth() + 1}-${vnNow.getDate()}`;
-    if (parsed.date !== today) {
+    const { dateString } = getVietnamDateParts();
+    if (parsed.date !== dateString) {
       // Sang ngày mới tự động hoàn về chế độ Auto
-      return { mode: 'auto', date: today };
+      return { mode: 'auto', date: dateString };
     }
     return parsed;
   } catch {
@@ -59,19 +85,18 @@ export function getDeadlineOverride(): DeadlineOverrideData {
  * Đồng bộ cả LocalStorage và Backend Server (phát tán realtime tới toàn bộ user)
  */
 export async function setDeadlineOverride(mode: AdminDeadlineMode): Promise<void> {
-  const vnNow = getVietnamNow();
-  const today = `${vnNow.getFullYear()}-${vnNow.getMonth() + 1}-${vnNow.getDate()}`;
+  const { dateString } = getVietnamDateParts();
   let extendedUntilTimestamp: number | undefined;
 
   if (mode === 'extended_15') {
-    // Gia hạn đến 11:15 hoặc +15 phút từ thời điểm bấm nếu đã quá 11:15
-    const base1115 = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 15, 0).getTime();
-    extendedUntilTimestamp = Math.max(base1115, vnNow.getTime() + 15 * 60 * 1000);
+    // Gia hạn đến 11:15 hoặc +15 phút từ thời điểm hiện tại nếu đã quá 11:15
+    const base1115Utc = getVietnam1115Timestamp();
+    extendedUntilTimestamp = Math.max(base1115Utc, Date.now() + 15 * 60 * 1000);
   }
 
   const data: DeadlineOverrideData = {
     mode,
-    date: today,
+    date: dateString,
     extendedUntilTimestamp
   };
 
@@ -103,12 +128,11 @@ export function isOrderDeadlinePassed(): boolean {
   if (override.mode === 'locked') {
     return true;
   }
-  const vnNow = getVietnamNow();
   if (override.mode === 'extended_15' && override.extendedUntilTimestamp) {
-    return vnNow.getTime() >= override.extendedUntilTimestamp;
+    return Date.now() >= override.extendedUntilTimestamp;
   }
-  const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 0, 0);
-  return vnNow.getTime() >= deadline.getTime();
+  const deadline1100Utc = getVietnam1100Timestamp();
+  return Date.now() >= deadline1100Utc;
 }
 
 /**
@@ -116,7 +140,7 @@ export function isOrderDeadlinePassed(): boolean {
  */
 export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadlineState {
   const calculateState = useCallback((): OrderDeadlineState => {
-    const vnNow = getVietnamNow();
+    const nowMs = Date.now();
     const override = getDeadlineOverride();
 
     // 1. Chế độ Khóa đơn ngay lập tức bởi Admin
@@ -140,16 +164,18 @@ export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadline
 
     if (override.mode === 'extended_15' && override.extendedUntilTimestamp) {
       deadlineMs = override.extendedUntilTimestamp;
-      const extDate = new Date(deadlineMs);
-      const extH = String(extDate.getHours()).padStart(2, '0');
-      const extM = String(extDate.getMinutes()).padStart(2, '0');
-      deadlineString = `${extH}:${extM}`;
+      deadlineString = new Date(deadlineMs).toLocaleTimeString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
     } else {
-      const deadline = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 0, 0);
-      deadlineMs = deadline.getTime();
+      deadlineMs = getVietnam1100Timestamp();
+      deadlineString = '11:00';
     }
 
-    const diffMs = deadlineMs - vnNow.getTime();
+    const diffMs = deadlineMs - nowMs;
 
     if (diffMs <= 0) {
       return {
