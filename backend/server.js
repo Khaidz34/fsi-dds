@@ -4346,18 +4346,20 @@ app.get('/api/banner/settings', async (req, res) => {
 
     if (error) {
       console.error('Database error fetching banner settings:', error);
-      // Fallback to default game banner
+      // Fallback to default none banner
       const fallback = {
-        bannerType: 'game',
+        bannerType: 'none',
         updatedAt: new Date().toISOString(),
         updatedBy: null
       };
       return res.json(fallback);
     }
 
-    // Format response - create new object to avoid frozen object issues
+    // Format response - normalize legacy 'game' to 'none'
+    const rawType = settings.banner_type;
+    const normalizedType = rawType === 'anniversary' ? 'anniversary' : 'none';
     const response = {
-      bannerType: settings.banner_type || 'game',
+      bannerType: normalizedType,
       updatedAt: settings.updated_at || new Date().toISOString(),
       updatedBy: settings.updated_by || null
     };
@@ -4369,9 +4371,9 @@ app.get('/api/banner/settings', async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error fetching banner settings:', error);
-    // Fallback to default game banner
+    // Fallback to default none banner
     res.json({
-      bannerType: 'game',
+      bannerType: 'none',
       updatedAt: new Date().toISOString(),
       updatedBy: null
     });
@@ -4386,14 +4388,18 @@ app.post('/api/banner/settings', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const { bannerType } = req.body;
+    let { bannerType } = req.body;
 
     // Validate banner type
-    if (!bannerType || !['game', 'anniversary'].includes(bannerType)) {
+    if (!bannerType || !['none', 'anniversary', 'game'].includes(bannerType)) {
       return res.status(400).json({
         error: 'Invalid banner type',
-        message: 'Banner type must be "game" or "anniversary"'
+        message: 'Banner type must be "none" or "anniversary"'
       });
+    }
+
+    if (bannerType === 'game') {
+      bannerType = 'none';
     }
 
     // Try to update first

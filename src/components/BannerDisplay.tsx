@@ -1,7 +1,6 @@
 import React from 'react';
 import { useBannerSettings } from '../hooks/useBannerSettings';
 import { AnniversaryBanner } from './AnniversaryBanner';
-import { GameBannerPreview } from './GameBannerPreview';
 
 interface BannerDisplayProps {
   onClose?: () => void;
@@ -21,16 +20,14 @@ export const BannerDisplay: React.FC<BannerDisplayProps> = ({ onClose }) => {
     );
   }
 
-  if (error) {
-    console.warn('Banner display error, showing game banner preview:', error);
-    return <GameBannerPreview onClose={onClose} />;
+  if (error || !bannerType || bannerType === 'none' || (bannerType as string) === 'game') {
+    return null;
   }
 
   try {
     switch (bannerType) {
       case 'anniversary':
         return <AnniversaryBanner onClose={onClose} />;
-      case 'game':
       default:
         return null;
     }

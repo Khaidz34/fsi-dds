@@ -3472,12 +3472,12 @@ export default function App() {
                               transition: { duration: 0.2 }
                             }}
                             whileTap={{ scale: 0.98 }}
-                            className={`lacquer-card p-6 flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
+                            className={`mobile-dish-card desktop-dish-card menu-dish-card lacquer-card p-5 flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
                               selectedDishes.includes(dish.id) 
-                                ? 'border-[#DA251D] ring-2 ring-[#DA251D]/20 bg-[#DA251D]/5' 
+                                ? 'menu-dish-card-selected border-2 border-app-accent ring-4 ring-app-accent/25 bg-app-accent/15 shadow-xl shadow-app-accent/25 scale-[1.02] -translate-y-1' 
                                 : selectedDishes.length >= 2 
-                                  ? 'menu-dish-card-muted border-gray-200 bg-white/95'
-                                  : 'hover:border-[#DA251D]/40 hover:shadow-lg'
+                                  ? 'menu-dish-card-muted border-slate-200 bg-white/80 opacity-60'
+                                  : 'hover:border-app-accent/40 hover:shadow-lg bg-white/95 border-slate-200'
                             }`}
                             onClick={() => handleSelectDish(dish.id)}
                           >
@@ -3485,10 +3485,11 @@ export default function App() {
                               <div 
                                 initial={{ scale: 0, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                className="absolute top-4 right-4 z-10"
+                                className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10"
                               >
-                                <div className="bg-[#DA251D] text-white p-1 rounded-full shadow-lg">
-                                  <CheckCircle2 size={16} />
+                                <div className="bg-app-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-app-accent/30 flex items-center gap-1.5 text-xs font-black tracking-wide border border-white/40">
+                                  <CheckCircle2 size={14} className="stroke-[3]" />
+                                  <span>{selectedDishes.indexOf(dish.id) === 0 ? (currentLang === 'ja' ? '第1品' : currentLang === 'en' ? 'Dish 1' : 'Món 1') : (currentLang === 'ja' ? '第2品' : currentLang === 'en' ? 'Dish 2' : 'Món 2')}</span>
                                 </div>
                               </div>
                             )}
@@ -3500,37 +3501,43 @@ export default function App() {
                                   initial={{ opacity: 0, x: -10 }}
                                   animate={{ opacity: 1, x: 0 }}
                                   transition={{ delay: index * 0.05 + 0.1 }}
-                                  className={`text-lg font-display font-bold transition-colors duration-300 ${
+                                  className={`mobile-dish-title text-[15px] sm:text-[17px] font-display leading-snug break-words pr-9 transition-all duration-300 ${
                                     selectedDishes.includes(dish.id) 
-                                      ? 'text-[#DA251D]' 
+                                      ? 'text-app-accent font-black tracking-tight drop-shadow-xs text-[16px] sm:text-[18px]' 
                                       : selectedDishes.length >= 2 
-                                      ? 'text-slate-500'
-                                        : 'text-[#1C1917] group-hover:text-[#DA251D]'
+                                      ? 'text-slate-400 font-semibold'
+                                        : 'text-[#1C1917] font-bold group-hover:text-app-accent'
                                   }`}
                                 >
-                                  {getDishName(dish, currentLang)}
+                                  {getDishDisplayName(dish, currentLang)}
                                 </h4>
                               </div>
                               
                               {/* Selection indicator */}
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  {selectedDishes.includes(dish.id) && (
-                                    <span 
-                                      initial={{ opacity: 0, scale: 0.8 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      className="text-xs bg-[#DA251D] text-white px-2 py-1 rounded-full font-bold"
-                                    >
-                                      Món {selectedDishes.indexOf(dish.id) + 1}
-                                    </span>
-                                  )}
+                                  <span 
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className={`menu-dish-status text-[11px] px-2.5 py-1 rounded-full font-black transition-colors ${
+                                      selectedDishes.includes(dish.id)
+                                        ? 'bg-app-accent text-white shadow-xs ring-1 ring-white/30'
+                                        : 'bg-white text-app-ink/45 border border-app-accent/10'
+                                    }`}
+                                  >
+                                    {selectedDishes.includes(dish.id)
+                                      ? `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
+                                      : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
+                                  </span>
                                 </div>
                                 
                                 {!selectedDishes.includes(dish.id) && selectedDishes.length < 2 && (
                                   <div 
                                     whileHover={{ scale: 1.1 }}
-                                    className="w-6 h-6 border-2 border-[#DA251D]/30 rounded-full group-hover:border-[#DA251D] transition-colors"
-                                  />
+                                    className="w-7 h-7 border-2 border-app-accent/30 rounded-full group-hover:border-app-accent transition-colors flex items-center justify-center bg-white"
+                                  >
+                                    <Plus size={14} className="text-app-accent/70" />
+                                  </div>
                                 )}
                               </div>
                             </div>

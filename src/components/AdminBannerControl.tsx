@@ -23,7 +23,7 @@ export const AdminBannerControl: React.FC<AdminBannerControlProps> = ({ user }) 
     );
   }
 
-  const handleBannerChange = async (type: 'game' | 'anniversary') => {
+  const handleBannerChange = async (type: 'none' | 'anniversary') => {
     if (type === selectedBanner) return;
 
     try {
@@ -34,6 +34,8 @@ export const AdminBannerControl: React.FC<AdminBannerControlProps> = ({ user }) 
       console.error('Error updating banner:', err);
     }
   };
+
+  const currentSelection = selectedBanner === 'anniversary' ? 'anniversary' : 'none';
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
@@ -53,20 +55,20 @@ export const AdminBannerControl: React.FC<AdminBannerControlProps> = ({ user }) 
           Chọn loại banner hiển thị
         </label>
 
-        <div className="flex gap-4">
-          {/* Game Banner Option */}
+        <div className="flex flex-wrap gap-4">
+          {/* None (Hidden) Option */}
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="radio"
               name="banner-type"
-              value="game"
-              checked={selectedBanner === 'game'}
-              onChange={() => handleBannerChange('game')}
+              value="none"
+              checked={currentSelection === 'none'}
+              onChange={() => handleBannerChange('none')}
               disabled={isSaving}
               className="w-4 h-4 text-teal-600 cursor-pointer"
             />
             <span className="text-sm font-medium text-gray-700">
-              🎮 Game Banner (Fusion Slice)
+              🚫 Ẩn banner (Không hiển thị)
             </span>
           </label>
 
@@ -76,13 +78,13 @@ export const AdminBannerControl: React.FC<AdminBannerControlProps> = ({ user }) 
               type="radio"
               name="banner-type"
               value="anniversary"
-              checked={selectedBanner === 'anniversary'}
+              checked={currentSelection === 'anniversary'}
               onChange={() => handleBannerChange('anniversary')}
               disabled={isSaving}
               className="w-4 h-4 text-teal-600 cursor-pointer"
             />
             <span className="text-sm font-medium text-gray-700">
-              🎉 Anniversary Banner (1 năm)
+              🎉 Anniversary Banner (Kỷ niệm 1 năm)
             </span>
           </label>
         </div>

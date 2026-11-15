@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { bannerAPI } from '../services/api';
 
+export type BannerType = 'none' | 'anniversary';
+
 interface AdminBannerControl {
-  selectedBanner: 'game' | 'anniversary';
-  updateBanner: (type: 'game' | 'anniversary') => Promise<void>;
+  selectedBanner: BannerType;
+  updateBanner: (type: BannerType) => Promise<void>;
   isSaving: boolean;
   error: Error | null;
 }
@@ -13,7 +15,7 @@ interface AdminBannerControl {
  * Manages banner selection and updates with optimistic updates
  */
 export const useAdminBannerControl = (): AdminBannerControl => {
-  const [selectedBanner, setSelectedBanner] = useState<'game' | 'anniversary'>('game');
+  const [selectedBanner, setSelectedBanner] = useState<BannerType>('none');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -22,7 +24,7 @@ export const useAdminBannerControl = (): AdminBannerControl => {
     const fetchSettings = async () => {
       try {
         const settings = await bannerAPI.getSettings();
-        setSelectedBanner(settings.bannerType);
+        setSelectedBanner(settings.bannerType === 'anniversary' ? 'anniversary' : 'none');
       } catch (err) {
         console.error('Error fetching banner settings:', err);
         setError(err as Error);
@@ -32,7 +34,7 @@ export const useAdminBannerControl = (): AdminBannerControl => {
     fetchSettings();
   }, []);
 
-  const updateBanner = useCallback(async (type: 'game' | 'anniversary') => {
+  const updateBanner = useCallback(async (type: BannerType) => {
     // Store previous value for rollback
     const previousBanner = selectedBanner;
     

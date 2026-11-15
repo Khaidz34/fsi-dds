@@ -333,15 +333,15 @@ export const adminAPI = {
 export const bannerAPI = {
   getSettings: () =>
     apiCall<{
-      bannerType: 'game' | 'anniversary';
+      bannerType: 'none' | 'anniversary' | 'game';
       updatedAt: string;
       updatedBy: number | null;
     }>('/banner/settings'),
 
-  updateSettings: (bannerType: 'game' | 'anniversary') =>
+  updateSettings: (bannerType: 'none' | 'anniversary' | 'game') =>
     apiCall<{
       success: boolean;
-      bannerType: 'game' | 'anniversary';
+      bannerType: 'none' | 'anniversary' | 'game';
       updatedAt: string;
       updatedBy: number;
     }>('/banner/settings', {

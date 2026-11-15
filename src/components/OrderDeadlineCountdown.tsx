@@ -471,11 +471,11 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
         : (d?.tagNormal || 'Thời gian đặt cơm');
 
   const todayCutoffText = isExtended
-    ? (d?.adminExtendedDesc || 'Bếp đã gia hạn mở thêm 15 phút đặt cơm ({deadline})').replace('{deadline}', deadlineString)
+    ? (d?.adminExtendedCutoff || 'Hạn chót mới: {deadline}').replace('{deadline}', deadlineString)
     : (d?.todayCutoff || 'Hạn chót: {deadline} trưa nay').replace('{deadline}', deadlineString);
 
   const messageText = isExtended
-    ? (d?.adminExtendedDesc || 'Bếp đã gia hạn mở thêm 15 phút đặt cơm ({deadline})').replace('{deadline}', deadlineString)
+    ? (d?.adminExtendedDesc || 'Bếp đã gia hạn mở thêm 15 phút đặt cơm ({deadline}). Hãy nhanh chóng chọn món trước giờ khóa sổ.').replace('{deadline}', deadlineString)
     : isCritical
       ? (d?.msgCritical || 'Khẩn cấp: Hãy hoàn tất đặt món hoặc chỉnh sửa ngay trước khi hệ thống khóa sổ!')
       : isUrgent

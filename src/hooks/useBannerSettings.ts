@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { bannerAPI } from '../services/api';
 import { cacheService } from '../services/cache';
 
+export type BannerType = 'none' | 'anniversary';
+
 interface BannerSettings {
-  bannerType: 'game' | 'anniversary' | null;
+  bannerType: BannerType | null;
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
@@ -14,17 +16,19 @@ interface BannerSettings {
  * Fetches banner settings on mount with caching
  */
 export const useBannerSettings = (): BannerSettings => {
-  const [bannerType, setBannerType] = useState<'game' | 'anniversary' | null>(() => {
-    return cacheService.get<'game' | 'anniversary'>('banner_settings');
+  const [bannerType, setBannerType] = useState<BannerType | null>(() => {
+    const cached = cacheService.get<string>('banner_settings');
+    if (!cached) return null;
+    return cached === 'anniversary' ? 'anniversary' : 'none';
   });
   const [isLoading, setIsLoading] = useState(() => !cacheService.has('banner_settings'));
   const [error, setError] = useState<Error | null>(null);
 
   const fetchSettings = useCallback(async (forceFresh = false) => {
     if (!forceFresh) {
-      const cached = cacheService.get<'game' | 'anniversary'>('banner_settings');
+      const cached = cacheService.get<string>('banner_settings');
       if (cached) {
-        setBannerType(cached);
+        setBannerType(cached === 'anniversary' ? 'anniversary' : 'none');
         setIsLoading(false);
         return;
       }
@@ -34,13 +38,13 @@ export const useBannerSettings = (): BannerSettings => {
       setIsLoading(true);
       setError(null);
       const settings = await bannerAPI.getSettings();
-      cacheService.set('banner_settings', settings.bannerType, 300); // Cache 5 phút
-      setBannerType(settings.bannerType);
+      const normalized: BannerType = settings.bannerType === 'anniversary' ? 'anniversary' : 'none';
+      cacheService.set('banner_settings', normalized, 300); // Cache 5 phút
+      setBannerType(normalized);
     } catch (err) {
       console.error('Error fetching banner settings:', err);
       setError(err as Error);
-      // Fallback to game banner on error
-      setBannerType('game');
+      setBannerType('none');
     } finally {
       setIsLoading(false);
     }
