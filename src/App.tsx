@@ -439,7 +439,7 @@ export default function App() {
     const copies = {
       vi: {
         title: 'Chọn món hôm nay',
-        helper: 'Chạm vào món để chọn, kiểm tra lại ở thanh đặt món phía dưới.',
+        helper: 'Chọn 2 món giá 40k',
         perMeal: 'Mỗi suất',
         limit: 'Tối đa 2 món',
         selected: 'Đã chọn',
@@ -455,7 +455,7 @@ export default function App() {
       },
       en: {
         title: "Today's meal",
-        helper: 'Tap dishes to choose, then review the tray at the bottom.',
+        helper: 'Choose 2 dishes for 40,000đ',
         perMeal: 'Per meal',
         limit: 'Up to 2 dishes',
         selected: 'Selected',
@@ -471,7 +471,7 @@ export default function App() {
       },
       ja: {
         title: '今日の食事',
-        helper: '料理をタップして選び、下の注文欄で確認してください。',
+        helper: '2品選択で40,000đ',
         perMeal: '1食',
         limit: '最大2品',
         selected: '選択済み',
@@ -2513,10 +2513,10 @@ export default function App() {
                           whileTap={{ scale: 0.98 }}
                           className={`mobile-dish-card desktop-dish-card menu-dish-card lacquer-card p-4 sm:p-4 lg:p-4 xl:p-5 min-h-[92px] sm:min-h-[128px] lg:min-h-[154px] flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
                             selectedDishes.includes(dish.id) 
-                              ? 'border-app-accent ring-2 ring-app-accent/20 bg-app-accent/5' 
+                              ? 'menu-dish-card-selected border-2 border-app-accent ring-4 ring-app-accent/25 bg-app-accent/15 shadow-xl shadow-app-accent/25 scale-[1.02] -translate-y-1' 
                               : selectedDishes.length >= 2 
-                                ? 'menu-dish-card-muted border-slate-200 bg-white/95'
-                                : 'hover:border-app-accent/40 hover:shadow-lg'
+                                ? 'menu-dish-card-muted border-slate-200 bg-white/80 opacity-60'
+                                : 'hover:border-app-accent/40 hover:shadow-lg bg-white/95 border-slate-200'
                           }`}
                           onClick={() => handleSelectDish(dish.id)}
                         >
@@ -2524,16 +2524,21 @@ export default function App() {
                             <div 
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
-                              className="absolute top-3 right-3 z-10"
+                              className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10"
                             >
-                              <div className="bg-app-accent text-white p-1 rounded-full shadow-lg">
-                                <CheckCircle2 size={14} />
+                              <div className="bg-app-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-app-accent/30 flex items-center gap-1.5 text-xs font-black tracking-wide border border-white/40">
+                                <CheckCircle2 size={14} className="stroke-[3]" />
+                                <span>{selectedDishes.indexOf(dish.id) === 0 ? (currentLang === 'ja' ? '第1品' : currentLang === 'en' ? 'Dish 1' : 'Món 1') : (currentLang === 'ja' ? '第2品' : currentLang === 'en' ? 'Dish 2' : 'Món 2')}</span>
                               </div>
                             </div>
                           )}
                           
                           
-                          <div className="menu-dish-number inline-flex mb-2.5 lg:mb-3 w-fit items-center gap-2 rounded-full border border-app-accent/15 bg-app-accent/5 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-app-accent">
+                          <div className={`menu-dish-number inline-flex mb-2.5 lg:mb-3 w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] transition-all ${
+                            selectedDishes.includes(dish.id)
+                              ? 'bg-app-accent text-white shadow-xs'
+                              : 'border border-app-accent/15 bg-app-accent/5 text-app-accent'
+                          }`}>
                             #{index + 1}
                           </div>
 
@@ -2544,12 +2549,12 @@ export default function App() {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.05 + 0.1 }}
-                                className={`mobile-dish-title text-[15px] sm:text-[17px] lg:text-[1.05rem] xl:text-[1.1rem] font-display font-bold leading-snug break-words pr-9 transition-colors duration-300 ${
+                                className={`mobile-dish-title text-[15px] sm:text-[17px] lg:text-[1.05rem] xl:text-[1.1rem] font-display leading-snug break-words pr-9 transition-all duration-300 ${
                                   selectedDishes.includes(dish.id) 
-                                    ? 'text-app-accent' 
+                                    ? 'text-app-accent font-black tracking-tight drop-shadow-xs text-[16px] sm:text-[18px] lg:text-[1.12rem]' 
                                     : selectedDishes.length >= 2 
-                                      ? 'text-slate-500'
-                                      : 'text-[#1C1917] group-hover:text-app-accent'
+                                      ? 'text-slate-400 font-semibold'
+                                      : 'text-[#1C1917] font-bold group-hover:text-app-accent'
                                 }`}
                               >
                                 {getDishDisplayName(dish, currentLang)}
@@ -2562,14 +2567,14 @@ export default function App() {
                                 <span
                                   initial={{ opacity: 0, scale: 0.8 }}
                                   animate={{ opacity: 1, scale: 1 }}
-                                  className={`menu-dish-status text-[11px] px-2.5 py-1 rounded-full font-black ${
+                                  className={`menu-dish-status text-[11px] px-2.5 py-1 rounded-full font-black transition-colors ${
                                     selectedDishes.includes(dish.id)
-                                      ? 'bg-app-accent text-white'
+                                      ? 'bg-app-accent text-white shadow-xs ring-1 ring-white/30'
                                       : 'bg-white text-app-ink/45 border border-app-accent/10'
                                   }`}
                                 >
                                   {selectedDishes.includes(dish.id)
-                                    ? `${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
+                                    ? `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
                                     : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
                                 </span>
                               </div>

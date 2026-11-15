@@ -1602,6 +1602,25 @@
   min-width: 0;
 }
 
+.menu-dish-card-selected {
+  background: color-mix(in srgb, var(--color-app-accent) 14%, white) !important;
+  border-color: var(--color-app-accent) !important;
+  box-shadow: 0 14px 28px -6px color-mix(in srgb, var(--color-app-accent) 30%, transparent), 0 0 0 2px var(--color-app-accent) !important;
+}
+
+.menu-dish-card-selected::before {
+  opacity: 1 !important;
+  width: 6px !important;
+  background: var(--color-app-accent) !important;
+}
+
+.menu-dish-card-selected::after {
+  opacity: 0.95 !important;
+  background:
+    linear-gradient(135deg, transparent 0%, color-mix(in srgb, var(--color-app-accent) 25%, white) 46%, color-mix(in srgb, var(--color-app-gold) 35%, white) 100%),
+    repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--color-app-accent) 20%, transparent) 8px 10px) !important;
+}
+
 .menu-dish-card-muted {
   opacity: 1;
   background:
