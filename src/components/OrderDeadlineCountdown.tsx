@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, AlertTriangle, Lock, ShieldCheck, ToggleLeft } from 'lucide-react';
+import { deadlineAPI } from '../services/api';
 
 export type AdminDeadlineMode = 'auto' | 'locked' | 'extended_15';
 
@@ -55,8 +56,9 @@ export function getDeadlineOverride(): DeadlineOverrideData {
 
 /**
  * Admin đặt trạng thái ghi đè: [Tự động theo giờ / Khóa đơn ngay lập tức / Mở thêm 15 phút]
+ * Đồng bộ cả LocalStorage và Backend Server (phát tán realtime tới toàn bộ user)
  */
-export function setDeadlineOverride(mode: AdminDeadlineMode): void {
+export async function setDeadlineOverride(mode: AdminDeadlineMode): Promise<void> {
   const vnNow = getVietnamNow();
   const today = `${vnNow.getFullYear()}-${vnNow.getMonth() + 1}-${vnNow.getDate()}`;
   let extendedUntilTimestamp: number | undefined;
@@ -73,11 +75,23 @@ export function setDeadlineOverride(mode: AdminDeadlineMode): void {
     extendedUntilTimestamp
   };
 
+  // 1. Phản hồi tức thì trên UI Admin
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: data }));
   } catch (e) {
-    console.error('Failed to save deadline override', e);
+    console.error('Failed to save deadline override locally', e);
+  }
+
+  // 2. Đồng bộ lên Backend Server để toàn bộ nhân viên và backend logic cùng mở
+  try {
+    const res = await deadlineAPI.setOverride(mode);
+    if (res?.override) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.override));
+      window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: res.override }));
+    }
+  } catch (err: any) {
+    console.error('Failed to sync deadline override to server:', err.message || err);
   }
 }
 
@@ -181,6 +195,37 @@ export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadline
   }, [lang]);
 
   const [state, setState] = useState<OrderDeadlineState>(calculateState);
+
+  useEffect(() => {
+    // Đồng bộ trạng thái hạn chốt từ Server (đáp ứng khi Admin mở thêm giờ hoặc khóa sổ)
+    let isMounted = true;
+    const syncFromServer = async () => {
+      try {
+        const res = await deadlineAPI.getOverride();
+        if (res?.override && isMounted) {
+          const current = getDeadlineOverride();
+          if (
+            current.mode !== res.override.mode ||
+            current.date !== res.override.date ||
+            current.extendedUntilTimestamp !== res.override.extendedUntilTimestamp
+          ) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(res.override));
+            window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: res.override }));
+          }
+        }
+      } catch {
+        // im lặng nếu mạng bận
+      }
+    };
+
+    syncFromServer();
+    const interval = setInterval(syncFromServer, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     setState(calculateState());

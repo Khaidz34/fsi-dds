@@ -963,9 +963,82 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
   }
 });
 
+// =====================================================
+// System Order Deadline Override (Synced across all clients)
+// =====================================================
+const DEADLINE_OVERRIDE_FILE = path.join(__dirname, 'deadline-override.json');
+
+const getVietnamDateStr = (date = new Date()) => {
+  const vnTimeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const d = new Date(vnTimeStr);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+let systemDeadlineOverride = {
+  mode: 'auto', // 'auto' | 'locked' | 'extended_15'
+  date: getVietnamDateStr(),
+  extendedUntilTimestamp: null
+};
+
+// Load saved override if active for today
+try {
+  if (fs.existsSync(DEADLINE_OVERRIDE_FILE)) {
+    const raw = fs.readFileSync(DEADLINE_OVERRIDE_FILE, 'utf8');
+    const saved = JSON.parse(raw);
+    if (saved && saved.date === getVietnamDateStr()) {
+      systemDeadlineOverride = saved;
+      console.log('📅 Loaded saved deadline override from file:', systemDeadlineOverride);
+    }
+  }
+} catch (e) {
+  console.warn('Could not read deadline-override.json:', e.message);
+}
+
+const getSystemDeadlineOverride = () => {
+  const today = getVietnamDateStr();
+  if (systemDeadlineOverride.date !== today) {
+    systemDeadlineOverride = {
+      mode: 'auto',
+      date: today,
+      extendedUntilTimestamp: null
+    };
+  }
+  return systemDeadlineOverride;
+};
+
+const saveSystemDeadlineOverride = (override) => {
+  systemDeadlineOverride = override;
+  try {
+    fs.writeFileSync(DEADLINE_OVERRIDE_FILE, JSON.stringify(override, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('Could not save deadline-override.json:', e.message);
+  }
+};
+
+const broadcastToAllUsers = (notification) => {
+  let count = 0;
+  sseConnections.forEach((conns, userId) => {
+    conns.forEach(conn => {
+      if (conn.res && !conn.res.writableEnded) {
+        try {
+          conn.res.write(`data: ${JSON.stringify(notification)}\n\n`);
+          count++;
+        } catch (err) {
+          // ignore dead connection
+        }
+      }
+    });
+  });
+  return count;
+};
+
 /**
- * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay (11h00 theo múi giờ Việt Nam UTC+7) hay chưa.
- * Admin được miễn trừ kiểm tra này để linh hoạt hỗ trợ người dùng.
+ * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay hay chưa.
+ * Có tính toán đến thiết lập ghi đè (override) của Admin:
+ * - 'auto': Hạn chót mặc định 11h00 VN
+ * - 'locked': Khóa ngay lập tức
+ * - 'extended_15': Mở thêm 15 phút đến mốc extendedUntilTimestamp
+ * Admin luôn được miễn trừ kiểm tra này để linh hoạt hỗ trợ người dùng.
  */
 const isOrderDeadlinePassed = (user) => {
   if (user && user.role === 'admin') {
@@ -974,10 +1047,79 @@ const isOrderDeadlinePassed = (user) => {
   const now = new Date();
   const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
   const vnDate = new Date(vnTimeStr);
+  const today = getVietnamDateStr(now);
+
+  const override = getSystemDeadlineOverride();
+  if (override && override.date === today) {
+    if (override.mode === 'locked') {
+      return true;
+    }
+    if (override.mode === 'extended_15' && override.extendedUntilTimestamp) {
+      return vnDate.getTime() >= override.extendedUntilTimestamp;
+    }
+  }
+
   const totalMinutes = vnDate.getHours() * 60 + vnDate.getMinutes();
   const deadlineMinutes = 11 * 60; // 11:00 AM VN Time = 660 phút
   return totalMinutes > deadlineMinutes;
 };
+
+// GET /api/deadline-override: Lấy trạng thái hạn chốt cơm hiện tại của toàn hệ thống
+app.get('/api/deadline-override', (req, res) => {
+  const override = getSystemDeadlineOverride();
+  res.json({
+    success: true,
+    override,
+    serverTimeVN: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
+  });
+});
+
+// POST /api/deadline-override: Admin thiết lập hạn chốt (Tự động / Khóa ngay / Mở thêm 15 phút)
+app.post('/api/deadline-override', authenticateToken, async (req, res) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Chỉ Admin mới có quyền đổi chế độ hạn chốt cơm.' });
+  }
+
+  const { mode } = req.body;
+  if (!['auto', 'locked', 'extended_15'].includes(mode)) {
+    return res.status(400).json({ error: 'Chế độ không hợp lệ (yêu cầu: auto, locked, extended_15).' });
+  }
+
+  const now = new Date();
+  const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const vnNow = new Date(vnTimeStr);
+  const today = getVietnamDateStr(now);
+
+  let extendedUntilTimestamp = null;
+  if (mode === 'extended_15') {
+    // Gia hạn đến 11:15 hoặc +15 phút từ thời điểm admin bấm nếu hiện tại đã quá 11:15
+    const base1115 = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate(), 11, 15, 0).getTime();
+    extendedUntilTimestamp = Math.max(base1115, vnNow.getTime() + 15 * 60 * 1000);
+  }
+
+  const updatedOverride = {
+    mode,
+    date: today,
+    extendedUntilTimestamp,
+    updatedAt: new Date().toISOString(),
+    updatedBy: req.user.fullname || req.user.username
+  };
+
+  saveSystemDeadlineOverride(updatedOverride);
+
+  // Broadcast ngay lập tức tới TẤT CẢ client đang mở ứng dụng qua SSE
+  broadcastToAllUsers({
+    type: 'deadline_override_changed',
+    data: updatedOverride
+  });
+
+  console.log(`⏰ Admin ${req.user.username} đã cập nhật hạn chốt cơm: "${mode}"`, updatedOverride);
+
+  res.json({
+    success: true,
+    override: updatedOverride
+  });
+});
 
 app.post('/api/orders', authenticateToken, async (req, res) => {
   try {

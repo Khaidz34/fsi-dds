@@ -374,3 +374,34 @@ export const videoAPI = {
       body: JSON.stringify({ enabled, videoUrl, introVideoUrl })
     })
 };
+
+// Deadline Override API
+export const deadlineAPI = {
+  getOverride: () =>
+    apiCall<{
+      success: boolean;
+      override: {
+        mode: 'auto' | 'locked' | 'extended_15';
+        date: string;
+        extendedUntilTimestamp?: number | null;
+        updatedAt?: string;
+        updatedBy?: string;
+      };
+      serverTimeVN: string;
+    }>('/deadline-override'),
+
+  setOverride: (mode: 'auto' | 'locked' | 'extended_15') =>
+    apiCall<{
+      success: boolean;
+      override: {
+        mode: 'auto' | 'locked' | 'extended_15';
+        date: string;
+        extendedUntilTimestamp?: number | null;
+        updatedAt?: string;
+        updatedBy?: string;
+      };
+    }>('/deadline-override', {
+      method: 'POST',
+      body: JSON.stringify({ mode })
+    })
+};

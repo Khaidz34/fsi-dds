@@ -187,7 +187,7 @@ export default function App() {
   const [isThemeChanging, setIsThemeChanging] = useState(false);
 
   const videoSettings = useVideoSettings();
-  const { isPassed: isOrderDeadlinePassed } = useOrderDeadline(currentLang);
+  const { isPassed: isOrderDeadlinePassed, deadlineString } = useOrderDeadline(currentLang);
   const canPlaceOrder = user?.role === 'admin' || !isOrderDeadlinePassed;
   
   // Mobile navigation state
@@ -907,7 +907,7 @@ export default function App() {
     if (!user || selectedDishes.length === 0) return;
     
     if (!canPlaceOrder) {
-      alert((t.deadline?.alertExpiredOrder || 'Đã hết giờ đặt cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', '11:00'));
+      alert((t.deadline?.alertExpiredOrder || 'Đã hết giờ đặt cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', deadlineString || '11:00'));
       return;
     }
     
@@ -2768,7 +2768,7 @@ export default function App() {
                               {!canPlaceOrder ? (
                                 <>
                                   <Lock size={18} />
-                                  <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', '11:00')}</span>
+                                  <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', deadlineString || '11:00')}</span>
                                 </>
                               ) : (
                                 <>
@@ -2928,7 +2928,7 @@ export default function App() {
                               {!canPlaceOrder ? (
                                 <>
                                   <Lock size={22} />
-                                  <span>{(t.deadline?.btnExpiredFull || 'Đã hết giờ đặt cơm hôm nay ({deadline})').replace('{deadline}', '11:00')}</span>
+                                  <span>{(t.deadline?.btnExpiredFull || 'Đã hết giờ đặt cơm hôm nay ({deadline})').replace('{deadline}', deadlineString || '11:00')}</span>
                                 </>
                               ) : (
                                 <>
@@ -4704,7 +4704,7 @@ export default function App() {
                   <button
                     onClick={async () => {
                       if (!canPlaceOrder) {
-                        alert((t.deadline?.alertExpiredEdit || 'Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', '11:00'));
+                        alert((t.deadline?.alertExpiredEdit || 'Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', deadlineString || '11:00'));
                         return;
                       }
                       if (!editDish1) {

@@ -132,6 +132,15 @@ export function useSSE(
                 optionsRef.current.onPaymentMarked(data);
               }
               break;
+            case 'deadline_override_changed':
+              try {
+                const override = (data as any).data || data;
+                localStorage.setItem('fsi_order_deadline_override', JSON.stringify(override));
+                window.dispatchEvent(new CustomEvent('fsi_order_deadline_override_changed', { detail: override }));
+              } catch (e) {
+                console.error('Failed to handle deadline_override_changed SSE:', e);
+              }
+              break;
             default:
               console.log('Unknown SSE event type:', data.type);
           }
