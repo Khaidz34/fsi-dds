@@ -69,14 +69,20 @@ export const AdminStatsView: React.FC<AdminStatsViewProps> = ({
   }, []);
 
   // Compute accurate statistics strictly from orders of selectedMonth
-  const todayStr = useMemo(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  }, []);
-
   const todayOrdersCount = useMemo(() => {
-    return orders.filter(o => o.created_at && o.created_at.startsWith(todayStr)).length;
-  }, [orders, todayStr]);
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const todayVnStr = formatter.format(new Date());
+    return orders.filter(o => {
+      if (!o.created_at) return false;
+      const orderDate = new Date(o.created_at);
+      return formatter.format(orderDate) === todayVnStr;
+    }).length;
+  }, [orders]);
 
   const monthOrdersCount = useMemo(() => {
     return orders.length;

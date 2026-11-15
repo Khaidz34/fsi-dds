@@ -58,7 +58,8 @@ export const useOrders = (language?: string) => {
     try {
       const response = await ordersAPI.create(orderData);
       // Fetch fresh orders silently in background without blocking UI
-      fetchOrders(true);
+      await fetchOrders(true);
+      window.dispatchEvent(new CustomEvent('app:order-update'));
       return response;
     } catch (err) {
       throw err;
@@ -78,6 +79,7 @@ export const useOrders = (language?: string) => {
           ? { ...order, ...response.order }
           : order
       ));
+      window.dispatchEvent(new CustomEvent('app:order-update'));
       return response;
     } catch (err) {
       throw err;

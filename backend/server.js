@@ -1233,14 +1233,12 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 
         // Broadcast notification to all admin and staff users
         if (adminStaffUsers && adminStaffUsers.length > 0) {
-          adminStaffUsers.forEach(user => {
-            if (user.id !== targetOrderedFor && user.id !== req.user.id) {
-              sendSSENotification(user.id, {
-                type: 'order_created',
-                userId: user.id,
-                data: notificationData
-              });
-            }
+          adminStaffUsers.forEach(adminStaff => {
+            sendSSENotification(adminStaff.id, {
+              type: 'order_created',
+              userId: adminStaff.id,
+              data: notificationData
+            });
           });
         }
       } catch (notifyError) {
@@ -4097,36 +4095,30 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
 
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    // Calculate today's exact boundaries in Vietnam timezone (UTC+7) converted to UTC ISO
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    });
+    const parts = formatter.formatToParts(new Date());
+    const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+    const y = getPart('year');
+    const m = getPart('month');
+    const d = getPart('day');
+    // Vietnam 00:00:00 (UTC+7) = previous day 17:00:00 UTC
+    const vnTodayStartUtc = new Date(Date.UTC(y, m - 1, d, -7, 0, 0, 0)).toISOString();
+    // Vietnam 23:59:59.999 (UTC+7) = today 16:59:59.999 UTC
+    const vnTodayEndUtc = new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)).toISOString();
     
-    // Check cache first (10-minute TTL for stats)
-    const cacheKey = `stats:dashboard:${currentMonth}`;
-    const cachedStats = cache.get(cacheKey);
-    
-    if (cachedStats) {
-      return res.json({
-        ...cachedStats,
-        cached: true
-      });
-    }
-
-    // Calculate today in Vietnam timezone (UTC+7)
-    const now = new Date();
-    const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-    const vnDate = new Date(vnTimeStr);
-    const yyyy = vnDate.getFullYear();
-    const mm = String(vnDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(vnDate.getDate()).padStart(2, '0');
-    const vnTodayStart = `${yyyy}-${mm}-${dd}T00:00:00+07:00`;
-    const vnTodayEnd = `${yyyy}-${mm}-${dd}T23:59:59+07:00`;
-    
-    // Get today's orders
+    // Get today's orders (live count, always fresh)
     const { count: ordersToday, error: ordersTodayError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .is('deleted_at', null)
-      .gte('created_at', vnTodayStart)
-      .lte('created_at', vnTodayEnd);
+      .gte('created_at', vnTodayStartUtc)
+      .lte('created_at', vnTodayEndUtc);
 
     // Get total users
     const { count: totalUsers, error: usersError } = await supabase
@@ -4145,6 +4137,7 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
       .limit(5);
 
     if (ordersTodayError || usersError || dishesError) {
+      console.error('Admin dashboard stats query error:', { ordersTodayError, usersError, dishesError });
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
@@ -4168,11 +4161,10 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
       popularDishes: popularDishesArray
     };
 
-    // Cache the stats (10-minute TTL)
-    cache.set(cacheKey, stats, 10 * 60 * 1000);
-
     res.json({
       ...stats,
+      timestamp: Date.now()
+    });
       cached: false
     });
   } catch (error) {

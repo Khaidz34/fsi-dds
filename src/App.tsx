@@ -215,6 +215,24 @@ export default function App() {
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers();
+
+  // Tính chính xác số đơn hôm nay theo giờ Việt Nam từ mảng orders thời gian thực
+  const liveAdminTodayOrdersCount = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const todayVnStr = formatter.format(new Date());
+    
+    return orders.filter(order => {
+      if (!order.created_at) return false;
+      const orderDate = new Date(order.created_at);
+      const orderDateVnStr = formatter.format(orderDate);
+      return orderDateVnStr === todayVnStr;
+    }).length;
+  }, [orders]);
   const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading, refetch: refetchDashboardStats } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
@@ -840,6 +858,29 @@ export default function App() {
       };
     }
   }, [activeTab, user?.id, user?.role, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
+
+  // Tự động đồng bộ số đơn hôm nay và thống kê Admin thời gian thực (chạy ngầm mỗi 15s hoặc khi quay lại tab)
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      const handleAdminSync = () => {
+        if (document.visibilityState === 'visible') {
+          refetchOrders();
+          refetchDashboardStats(true);
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleAdminSync);
+      window.addEventListener('focus', handleAdminSync);
+
+      const intervalId = setInterval(handleAdminSync, 15000);
+
+      return () => {
+        document.removeEventListener('visibilitychange', handleAdminSync);
+        window.removeEventListener('focus', handleAdminSync);
+        clearInterval(intervalId);
+      };
+    }
+  }, [user?.role, refetchOrders, refetchDashboardStats]);
 
   const fetchAllUsers = async () => {
     try {
@@ -2224,7 +2265,7 @@ export default function App() {
                   <StatCard 
                     icon={<Utensils className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} />} 
                     label={t.admin.ordersToday} 
-                    value={dashboardStatsLoading ? "..." : (dashboardStats?.ordersToday || 0).toString()} 
+                    value={ordersLoading && orders.length === 0 ? (dashboardStats?.ordersToday?.toString() || "...") : liveAdminTodayOrdersCount.toString()} 
                     unit={t.units.orders} 
                   />
                   <StatCard 
