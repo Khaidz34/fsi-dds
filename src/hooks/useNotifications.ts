@@ -124,7 +124,8 @@ export function useNotifications(
         }, 8000);
 
         // Display desktop notification if permission granted
-        if (permissionStatus === 'granted') {
+        const currentPerm = notificationService.getPermissionStatus();
+        if (currentPerm === 'granted') {
           notificationService.showOrderNotification(notificationData, onNavigateToOrders);
         }
 

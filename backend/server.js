@@ -94,9 +94,11 @@ const sendSSEHeartbeat = (userId) => {
   }
 };
 
-const broadcastToAdmins = (notification) => {
+const broadcastToAdmins = (notification, excludeUserIds = []) => {
   let count = 0;
+  const excludeSet = new Set(excludeUserIds.map(Number));
   sseConnections.forEach((conns, userId) => {
+    if (excludeSet.has(Number(userId))) return;
     conns.forEach(conn => {
       if (conn.role === 'admin' || conn.role === 'staff') {
         if (conn.res && !conn.res.writableEnded) {
@@ -1187,60 +1189,58 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       try {
         const currentMonth = new Date().toISOString().slice(0, 7);
 
-        // Fetch dish details, customer name, and admin/staff users in parallel
-        const [dish1Res, dish2Res, customerRes, adminStaffRes] = await Promise.all([
-          supabase.from('dishes').select('name_vi, name_en, name_ja').eq('id', dish1Id).single(),
-          dish2Id ? supabase.from('dishes').select('name_vi, name_en, name_ja').eq('id', dish2Id).single() : Promise.resolve({ data: null }),
-          supabase.from('users').select('fullname').eq('id', targetOrderedFor).single(),
-          supabase.from('users').select('id').in('role', ['admin', 'staff'])
+        // Fetch dish details, customer name in parallel
+        const [dish1Res, dish2Res, customerRes] = await Promise.all([
+          supabase.from('dishes').select('id, name, name_vi, name_en, name_ja').eq('id', dish1Id).single(),
+          dish2Id ? supabase.from('dishes').select('id, name, name_vi, name_en, name_ja').eq('id', dish2Id).single() : Promise.resolve({ data: null }),
+          supabase.from('users').select('fullname').eq('id', targetOrderedFor).single()
         ]);
 
         const dish1 = dish1Res?.data;
         const dish2 = dish2Res?.data;
         const customer = customerRes?.data;
-        const adminStaffUsers = adminStaffRes?.data;
 
         const notificationData = {
           orderId: order.id,
           price: order.price,
           month: currentMonth,
           timestamp: Date.now(),
-          dish1Name: dish1?.name_vi,
-          dish1NameEn: dish1?.name_en,
-          dish1NameJa: dish1?.name_ja,
-          dish2Name: dish2?.name_vi,
-          dish2NameEn: dish2?.name_en,
-          dish2NameJa: dish2?.name_ja,
-          customerName: customer?.fullname,
+          dish1Name: dish1?.name_vi || dish1?.name || '',
+          dish1NameEn: dish1?.name_en || dish1?.name || '',
+          dish1NameJa: dish1?.name_ja || dish1?.name || '',
+          dish2Name: dish2?.name_vi || dish2?.name || '',
+          dish2NameEn: dish2?.name_en || dish2?.name || '',
+          dish2NameJa: dish2?.name_ja || dish2?.name || '',
+          customerName: customer?.fullname || 'Đồng nghiệp',
           orderedFor: targetOrderedFor
         };
 
-        // Send SSE notification to the user whose payment is affected
+        const sentUserIds = new Set();
+
+        // 1. Send SSE notification to the user whose payment is affected
         sendSSENotification(targetOrderedFor, {
           type: 'order_created',
           userId: targetOrderedFor,
           data: notificationData
         });
+        sentUserIds.add(Number(targetOrderedFor));
 
-        // Also send notification to the person who placed the order (if different)
+        // 2. Also send notification to the person who placed the order (if different)
         if (req.user.id !== targetOrderedFor) {
           sendSSENotification(req.user.id, {
             type: 'order_created',
             userId: req.user.id,
             data: notificationData
           });
+          sentUserIds.add(Number(req.user.id));
         }
 
-        // Broadcast notification to all admin and staff users
-        if (adminStaffUsers && adminStaffUsers.length > 0) {
-          adminStaffUsers.forEach(adminStaff => {
-            sendSSENotification(adminStaff.id, {
-              type: 'order_created',
-              userId: adminStaff.id,
-              data: notificationData
-            });
-          });
-        }
+        // 3. Broadcast notification immediately to all active admin and staff connections
+        broadcastToAdmins({
+          type: 'order_created',
+          userId: 0,
+          data: notificationData
+        }, Array.from(sentUserIds));
       } catch (notifyError) {
         console.error('Background order notification error:', notifyError);
       }
@@ -3794,9 +3794,11 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
 
     // Verify token
     let userId;
+    let userRole = 'user';
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       userId = decoded.userId;
+      userRole = decoded.role || 'user';
       
       if (!userId) {
         throw new Error('No userId in token');
@@ -3806,7 +3808,7 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
 
-    console.log(`🔌 SSE connection established for user ${userId}`);
+    console.log(`🔌 SSE connection established for user ${userId} (${userRole})`);
     
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
@@ -3819,7 +3821,7 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
     const connObj = {
       res,
       lastHeartbeat: Date.now(),
-      role: decoded.role || 'user'
+      role: userRole
     };
     const uidNum = Number(userId);
     if (!sseConnections.has(uidNum)) {

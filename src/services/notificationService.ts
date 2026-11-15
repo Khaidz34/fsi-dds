@@ -48,12 +48,36 @@ const activeNotifications = new Map<number, Notification>();
 
 class NotificationService {
   private isSupported: boolean;
+  private audioCtx: AudioContext | null = null;
+  private lastChimeTime: number = 0;
 
   constructor() {
-    this.isSupported = 'Notification' in window;
+    this.isSupported = typeof window !== 'undefined' && 'Notification' in window;
     
     if (!this.isSupported) {
       console.warn('This browser does not support desktop notifications');
+    }
+
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        try {
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            if (!this.audioCtx) {
+              this.audioCtx = new AudioCtx();
+            }
+            if (this.audioCtx.state === 'suspended') {
+              this.audioCtx.resume();
+            }
+          }
+        } catch (e) {
+          // Ignore
+        }
+        window.removeEventListener('pointerdown', unlockAudio);
+        window.removeEventListener('keydown', unlockAudio);
+      };
+      window.addEventListener('pointerdown', unlockAudio, { passive: true, once: true });
+      window.addEventListener('keydown', unlockAudio, { passive: true, once: true });
     }
   }
 
@@ -117,34 +141,53 @@ class NotificationService {
    * Play gentle notification audio chime using Web Audio API
    */
   playOrderChime(): void {
+    const nowMs = Date.now();
+    // Debounce chime calls within 1 second to avoid double chiming
+    if (nowMs - this.lastChimeTime < 1000) {
+      return;
+    }
+    this.lastChimeTime = nowMs;
+
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      if (ctx.state === 'suspended') {
-        ctx.resume();
+      if (!this.audioCtx) {
+        this.audioCtx = new AudioCtx();
       }
+      const ctx = this.audioCtx;
 
-      const playTone = (freq: number, startTime: number, duration: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, startTime);
-        
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.25, startTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start(startTime);
-        osc.stop(startTime + duration);
+      const triggerTones = () => {
+        try {
+          const playTone = (freq: number, startTime: number, duration: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+            
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+          };
+
+          const now = ctx.currentTime;
+          playTone(587.33, now, 0.2); // D5 note
+          playTone(880.00, now + 0.15, 0.35); // A5 note
+        } catch (toneErr) {
+          console.warn('Tone error:', toneErr);
+        }
       };
 
-      const now = ctx.currentTime;
-      playTone(587.33, now, 0.2); // D5 note
-      playTone(880.00, now + 0.15, 0.35); // A5 note
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(triggerTones).catch(() => {});
+      } else {
+        triggerTones();
+      }
     } catch (e) {
       console.warn('Audio chime could not be played:', e);
     }
@@ -159,9 +202,6 @@ class NotificationService {
       console.log('Skipping duplicate notification for order:', data.orderId);
       return;
     }
-
-    // Always play gentle audio chime for new order
-    this.playOrderChime();
 
     // Check browser support
     if (!this.isSupported) {

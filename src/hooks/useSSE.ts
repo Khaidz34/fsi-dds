@@ -208,9 +208,25 @@ export function useSSE(
       connect();
     }
 
+    const handleVisibilityOrOnline = () => {
+      if (document.visibilityState === 'visible' && userId && token) {
+        if (!eventSourceRef.current || eventSourceRef.current.readyState === EventSource.CLOSED) {
+          console.log('🔄 Auto-resuming SSE on tab focus / online');
+          reconnectAttemptsRef.current = 0;
+          isReconnectingRef.current = false;
+          connect();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrOnline);
+    window.addEventListener('online', handleVisibilityOrOnline);
+
     // Cleanup on unmount
     return () => {
       console.log('🔌 Cleaning up SSE connection');
+      document.removeEventListener('visibilitychange', handleVisibilityOrOnline);
+      window.removeEventListener('online', handleVisibilityOrOnline);
       
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -225,7 +241,7 @@ export function useSSE(
       setIsConnected(false);
       isReconnectingRef.current = false;
     };
-  }, [userId, token]); // Removed 'connect' from dependencies to prevent loop
+  }, [userId, token, connect]);
 
   return {
     isConnected,
