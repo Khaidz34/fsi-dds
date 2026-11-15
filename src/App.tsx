@@ -181,14 +181,14 @@ const getDishDisplayName = (dish: any, lang: Language): string => {
 export default function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, token } = useAuth();
 
-  const videoSettings = useVideoSettings();
-  const { isPassed: isOrderDeadlinePassed } = useOrderDeadline(currentLang);
-  const canPlaceOrder = user?.role === 'admin' || !isOrderDeadlinePassed;
-
   const [theme, setTheme] = useState<'fusion' | 'corporate'>('corporate'); // Default to corporate
   const [currentLang, setCurrentLang] = useState<Language>('vi');
   const [isLanguageChanging, setIsLanguageChanging] = useState(false);
   const [isThemeChanging, setIsThemeChanging] = useState(false);
+
+  const videoSettings = useVideoSettings();
+  const { isPassed: isOrderDeadlinePassed } = useOrderDeadline(currentLang);
+  const canPlaceOrder = user?.role === 'admin' || !isOrderDeadlinePassed;
   
   // Mobile navigation state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
