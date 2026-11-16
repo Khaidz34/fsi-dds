@@ -73,6 +73,31 @@ const sendSSENotification = (userId, notification) => {
   }
 };
 
+const broadcastSSEToRole = (roles, notification) => {
+  const roleList = Array.isArray(roles) ? roles : [roles];
+  const roleSet = new Set(roleList);
+  sseConnections.forEach((conns, uId) => {
+    const deadConns = [];
+    conns.forEach((conn) => {
+      if (conn.res && !conn.res.writableEnded) {
+        if (roleSet.has(conn.role)) {
+          try {
+            conn.res.write(`data: ${JSON.stringify(notification)}\n\n`);
+            console.log(`📤 SSE broadcast (${conn.role}) sent to user ${uId}:`, notification.type);
+          } catch (err) {
+            console.error(`❌ Error broadcasting SSE to user ${uId}:`, err.message);
+            deadConns.push(conn);
+          }
+        }
+      } else {
+        deadConns.push(conn);
+      }
+    });
+    deadConns.forEach(c => conns.delete(c));
+    if (conns.size === 0) sseConnections.delete(uId);
+  });
+};
+
 const sendSSEHeartbeat = (userId) => {
   const userConns = sseConnections.get(Number(userId));
   if (userConns && userConns.size > 0) {
@@ -2572,7 +2597,7 @@ const getAutoPaymentBankInfo = () => {
 
 const isMissingOptionalPaymentSchema = (error) => {
   const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
-  return message.includes('column') || message.includes('schema cache') || message.includes('relation') || message.includes('auto_payment_transactions');
+  return error?.code === '42501' || message.includes('column') || message.includes('schema cache') || message.includes('relation') || message.includes('auto_payment_transactions') || message.includes('row-level security');
 };
 
 const isAutoPaymentStatusConstraintError = (error) => {
@@ -2594,16 +2619,14 @@ const insertPaymentRecord = async ({ userId, amount, source, notes, payerName })
     ...(payerName ? { payer_name: payerName } : {})
   };
 
-  let insertResult = await supabase
-    .from('payments')
+  let insertResult = await dbForWrite('payments')
     .insert([paymentDataWithMetadata])
     .select()
     .single();
 
   if (insertResult.error && isMissingOptionalPaymentSchema(insertResult.error) && payerName) {
     const { payer_name, ...metadataWithoutPayerName } = paymentDataWithMetadata;
-    insertResult = await supabase
-      .from('payments')
+    insertResult = await dbForWrite('payments')
       .insert([metadataWithoutPayerName])
       .select()
       .single();
@@ -2611,8 +2634,7 @@ const insertPaymentRecord = async ({ userId, amount, source, notes, payerName })
 
   if (insertResult.error && isMissingOptionalPaymentSchema(insertResult.error)) {
     console.warn('Auto payment metadata columns are not available, inserting minimal payment row');
-    insertResult = await supabase
-      .from('payments')
+    insertResult = await dbForWrite('payments')
       .insert([basePaymentData])
       .select()
       .single();
@@ -2649,15 +2671,13 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
     ...(payerName ? { payer_name: payerName.slice(0, 120) } : {})
   };
 
-  let { data, error } = await supabase
-    .from('auto_payment_transactions')
+  let { data, error } = await dbForWrite('auto_payment_transactions')
     .insert([eventData])
     .select()
     .single();
 
   if (error && isMissingOptionalPaymentSchema(error) && payerName) {
-    const fallbackResult = await supabase
-      .from('auto_payment_transactions')
+    const fallbackResult = await dbForWrite('auto_payment_transactions')
       .insert([baseEventData])
       .select()
       .single();
@@ -2667,8 +2687,7 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
   }
 
   if (error && status === 'ignored' && isAutoPaymentStatusConstraintError(error)) {
-    const fallbackResult = await supabase
-      .from('auto_payment_transactions')
+    const fallbackResult = await dbForWrite('auto_payment_transactions')
       .insert([{
         ...eventData,
         status: 'failed',
@@ -2686,8 +2705,7 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
   }
 
   if (error.code === '23505') {
-    const { data: existingEvent } = await supabase
-      .from('auto_payment_transactions')
+    const { data: existingEvent } = await dbForWrite('auto_payment_transactions')
       .select('id, payment_id, status, created_at')
       .eq('provider', eventData.provider)
       .eq('transaction_id', eventData.transaction_id)
@@ -2719,7 +2737,7 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
   }
 
   if (isMissingOptionalPaymentSchema(error)) {
-    console.warn('auto_payment_transactions table is not available; webhook duplicate protection is limited');
+    console.warn('auto_payment_transactions table is not available or RLS denied; webhook duplicate protection is limited:', error.message);
     return { supported: false, duplicate: false, event: null };
   }
 
@@ -2729,8 +2747,7 @@ const reserveAutoPaymentEvent = async ({ source, transactionId, paymentCode, use
 const updateAutoPaymentEvent = async (eventId, values) => {
   if (!eventId) return;
 
-  let { error } = await supabase
-    .from('auto_payment_transactions')
+  let { error } = await dbForWrite('auto_payment_transactions')
     .update(values)
     .eq('id', eventId);
 
@@ -2740,8 +2757,7 @@ const updateAutoPaymentEvent = async (eventId, values) => {
       status: 'failed',
       error_message: values.error_message ? `ignored:${String(values.error_message).slice(0, 450)}` : 'ignored'
     };
-    const fallbackResult = await supabase
-      .from('auto_payment_transactions')
+    const fallbackResult = await dbForWrite('auto_payment_transactions')
       .update(fallbackValues)
       .eq('id', eventId);
     error = fallbackResult.error;
@@ -2760,13 +2776,12 @@ const markOrdersPaidForPayment = async ({ userId, month, amount }) => {
     return { markedCount: 0, markedTotal: 0, orderIds: [] };
   }
 
-  const { data: unpaidOrders, error } = await supabase
-    .from('orders')
+  // Fetch unpaid orders up to the end of the specified month, oldest first (handles accumulated debts)
+  const { data: unpaidOrders, error } = await dbForWrite('orders')
     .select('id, price, created_at, user_id, ordered_for')
     .or(`ordered_for.eq.${userId},user_id.eq.${userId}`)
     .eq('paid', false)
     .is('deleted_at', null)
-    .gte('created_at', `${startDate}T00:00:00Z`)
     .lt('created_at', `${nextMonthDate}T00:00:00Z`)
     .order('created_at', { ascending: true });
 
@@ -2802,8 +2817,7 @@ const markOrdersPaidForPayment = async ({ userId, month, amount }) => {
     return { markedCount: 0, markedTotal: 0, orderIds: [] };
   }
 
-  const { data: updatedOrders, error: updateError } = await supabase
-    .from('orders')
+  const { data: updatedOrders, error: updateError } = await dbForWrite('orders')
     .update({ paid: true })
     .in('id', orderIds)
     .select('id');
@@ -2866,9 +2880,8 @@ const recordCompletedPayment = async ({ userId, month, amount, source = 'manual'
     amount: numericAmount
   });
 
-  const notificationType = source === 'manual' ? 'payment_marked' : 'payment_auto_completed';
-  sendSSENotification(Number(userId), {
-    type: notificationType,
+  const notificationPayload = {
+    type: 'payment_marked',
     userId: Number(userId),
     data: {
       amount: numericAmount,
@@ -2877,20 +2890,19 @@ const recordCompletedPayment = async ({ userId, month, amount, source = 'manual'
       markedCount: paidOrders.markedCount,
       timestamp: Date.now()
     }
-  });
+  };
+
+  // Gửi real-time SSE cho người dùng thanh toán
+  sendSSENotification(Number(userId), notificationPayload);
+  sendSSENotification(Number(userId), { ...notificationPayload, type: 'payment_auto_completed' });
+
+  // Phát sóng real-time SSE cho toàn bộ Admin và Staff đang mở ứng dụng
+  broadcastSSEToRole(['admin', 'staff'], notificationPayload);
+  broadcastSSEToRole(['admin', 'staff'], { ...notificationPayload, type: 'payment_auto_completed' });
 
   if (actorUserId && Number(actorUserId) !== Number(userId)) {
-    sendSSENotification(Number(actorUserId), {
-      type: notificationType,
-      userId: Number(userId),
-      data: {
-        amount: numericAmount,
-        month: safeMonth,
-        paymentCode: code,
-        markedCount: paidOrders.markedCount,
-        timestamp: Date.now()
-      }
-    });
+    sendSSENotification(Number(actorUserId), notificationPayload);
+    sendSSENotification(Number(actorUserId), { ...notificationPayload, type: 'payment_auto_completed' });
   }
 
   invalidatePaymentCaches(Number(userId), safeMonth, source === 'manual' ? 'payment_marked' : 'payment_auto_completed');
@@ -3032,8 +3044,7 @@ const reprocessIgnoredAutoPayments = async () => {
     }
 
     // 2. Quét lại bảng auto_payment_transactions (nếu có các giao dịch khác bị ignored/failed)
-    const { data: ignoredTransactions, error } = await supabase
-      .from('auto_payment_transactions')
+    const { data: ignoredTransactions, error } = await dbForWrite('auto_payment_transactions')
       .select('*')
       .is('payment_id', null)
       .in('status', ['ignored', 'failed'])
@@ -3505,8 +3516,7 @@ app.get('/api/payments/auto-usage', authenticateToken, async (req, res) => {
       };
     };
 
-    const { data, error } = await supabase
-      .from('auto_payment_transactions')
+    const { data, error } = await dbForWrite('auto_payment_transactions')
       .select('status')
       .gte('created_at', `${startDate}T00:00:00Z`)
       .lt('created_at', `${nextMonthDate}T00:00:00Z`);
@@ -4016,8 +4026,8 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       }
     }
 
-    // Send SSE notification to the user whose payment was marked
-    sendSSENotification(userId, {
+    // Send SSE notification to the user whose payment was marked and broadcast to all admins
+    const paymentMarkedNotification = {
       type: 'payment_marked',
       userId,
       data: {
@@ -4025,7 +4035,9 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
         month,
         timestamp: Date.now()
       }
-    });
+    };
+    sendSSENotification(userId, paymentMarkedNotification);
+    broadcastSSEToRole(['admin', 'staff'], paymentMarkedNotification);
 
     res.json({ 
       success: true, 
@@ -4736,8 +4748,7 @@ app.get('/api/admin/auto-payments', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
 
-    const { data, error } = await supabase
-      .from('auto_payment_transactions')
+    const { data, error } = await dbForWrite('auto_payment_transactions')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(100);

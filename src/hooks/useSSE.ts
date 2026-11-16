@@ -9,7 +9,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { getApiBaseUrl } from '../services/api';
 
 export interface SSEOrderData {
-  type: 'order_created' | 'order_deleted' | 'payment_marked';
+  type: 'order_created' | 'order_deleted' | 'order_updated' | 'payment_marked' | 'payment_auto_completed' | 'deadline_override_changed';
   userId: number;
   data: {
     orderId: number;
@@ -128,6 +128,7 @@ export function useSSE(
               }
               break;
             case 'payment_marked':
+            case 'payment_auto_completed':
               if (optionsRef.current.onPaymentMarked) {
                 optionsRef.current.onPaymentMarked(data);
               }

@@ -247,14 +247,14 @@ export default function App() {
   const handleLiveOrderUpdate = useCallback(() => {
     console.log('🔄 Live order/payment update received via SSE, refreshing data...');
     refetchOrders();
+    liveRefreshUserPaymentRef.current?.();
     if (user?.role === 'admin') {
       refetchAdminPayments();
       refetchDashboardStats(true);
-    } else {
-      liveRefreshUserPaymentRef.current?.();
     }
     // Broadcast to any component listening for live order updates
     window.dispatchEvent(new CustomEvent('app:order-update'));
+    window.dispatchEvent(new CustomEvent('app:payment-update'));
   }, [refetchOrders, refetchAdminPayments, refetchDashboardStats, user?.role]);
   
   const { 

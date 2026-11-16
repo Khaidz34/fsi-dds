@@ -59,3 +59,6 @@ ON auto_payment_transactions(payment_code);
 
 CREATE INDEX IF NOT EXISTS idx_auto_payment_transactions_user_month
 ON auto_payment_transactions(user_id, month);
+
+-- Disable Row Level Security on auto_payment_transactions so that backend webhook can safely insert transactions
+ALTER TABLE auto_payment_transactions DISABLE ROW LEVEL SECURITY;

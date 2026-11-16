@@ -210,8 +210,23 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
         loadPaymentHistory(true);
       }
     };
+
+    const handleLivePaymentUpdate = () => {
+      refetch();
+      loadAutoPaymentInfo(true);
+      loadAutoPaymentUsage();
+      loadPaymentHistory(true);
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('app:order-update', handleLivePaymentUpdate);
+    window.addEventListener('app:payment-update', handleLivePaymentUpdate);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('app:order-update', handleLivePaymentUpdate);
+      window.removeEventListener('app:payment-update', handleLivePaymentUpdate);
+    };
   }, [currentMonth, user?.id, user?.role, paymentStats?.remainingTotal]);
 
   useEffect(() => {
