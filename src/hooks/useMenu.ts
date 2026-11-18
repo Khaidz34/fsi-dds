@@ -53,10 +53,34 @@ export const useMenu = (language?: Language) => {
     }
   };
 
+  const syncAutoDeadlineOverride = (serverOverride?: any) => {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      });
+      const parts = formatter.formatToParts(new Date());
+      const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+      const todayVN = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+      const overrideData = serverOverride || {
+        mode: 'auto',
+        date: todayVN,
+        extendedUntilTimestamp: null
+      };
+      localStorage.setItem('fsi_order_deadline_override', JSON.stringify(overrideData));
+      window.dispatchEvent(new CustomEvent('fsi_order_deadline_override_changed', { detail: overrideData }));
+    } catch (e) {
+      console.warn('Could not sync auto deadline override locally:', e);
+    }
+  };
+
   const createMenu = async (dishes: string[], imageUrl?: string) => {
     try {
       const newMenu = await menuAPI.create(dishes, imageUrl);
       cacheService.clear();
+      syncAutoDeadlineOverride(newMenu?.deadlineOverride);
       setMenu(newMenu);
       return newMenu;
     } catch (err) {
@@ -68,6 +92,7 @@ export const useMenu = (language?: Language) => {
     try {
       const newMenu = await menuAPI.createMultilingual(dishes, imageUrl);
       cacheService.clear();
+      syncAutoDeadlineOverride(newMenu?.deadlineOverride);
       await fetchMenu(language, true);
       return newMenu;
     } catch (err) {

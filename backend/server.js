@@ -781,7 +781,15 @@ app.post('/api/menu', authenticateToken, async (req, res) => {
     }
 
     console.log('✅ Menu created successfully:', menu);
-    res.json({ success: true, menu });
+
+    // Clear cache when menu is created
+    clearCache('menus');
+    clearCache('dishes');
+
+    // Tự động reset chế độ khóa đơn ("Khóa ngay" / "Mở thêm 15p") về "Tự động" khi up menu mới
+    const deadlineOverride = resetSystemDeadlineOverrideToAuto(req.user?.fullname || req.user?.username || 'admin');
+
+    res.json({ success: true, menu, deadlineOverride });
   } catch (error) {
     console.error('❌ Menu creation error:', error);
     res.status(500).json({ error: 'Lỗi server: ' + error.message });
@@ -854,8 +862,11 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
     // Clear cache when menu is created
     clearCache('menus');
     clearCache('dishes');
+
+    // Tự động reset chế độ khóa đơn ("Khóa ngay" / "Mở thêm 15p") về "Tự động" khi up menu mới
+    const deadlineOverride = resetSystemDeadlineOverrideToAuto(req.user?.fullname || req.user?.username || 'admin');
     
-    res.json({ success: true, menu });
+    res.json({ success: true, menu, deadlineOverride });
   } catch (error) {
     console.error('❌ Multilingual menu creation error:', error);
     res.status(500).json({ error: 'Lỗi server: ' + error.message });
@@ -996,41 +1007,21 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
 const DEADLINE_OVERRIDE_FILE = path.join(__dirname, 'deadline-override.json');
 
 const getVietnamDateStr = (date = new Date()) => {
-  const vnTimeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const d = new Date(vnTimeStr);
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
 };
 
 let systemDeadlineOverride = {
   mode: 'auto', // 'auto' | 'locked' | 'extended_15'
   date: getVietnamDateStr(),
   extendedUntilTimestamp: null
-};
-
-// Load saved override if active for today
-try {
-  if (fs.existsSync(DEADLINE_OVERRIDE_FILE)) {
-    const raw = fs.readFileSync(DEADLINE_OVERRIDE_FILE, 'utf8');
-    const saved = JSON.parse(raw);
-    if (saved && saved.date === getVietnamDateStr()) {
-      systemDeadlineOverride = saved;
-      console.log('📅 Loaded saved deadline override from file:', systemDeadlineOverride);
-    }
-  }
-} catch (e) {
-  console.warn('Could not read deadline-override.json:', e.message);
-}
-
-const getSystemDeadlineOverride = () => {
-  const today = getVietnamDateStr();
-  if (systemDeadlineOverride.date !== today) {
-    systemDeadlineOverride = {
-      mode: 'auto',
-      date: today,
-      extendedUntilTimestamp: null
-    };
-  }
-  return systemDeadlineOverride;
 };
 
 const saveSystemDeadlineOverride = (override) => {
@@ -1041,6 +1032,53 @@ const saveSystemDeadlineOverride = (override) => {
     console.warn('Could not save deadline-override.json:', e.message);
   }
 };
+
+// Load saved override if active for today
+try {
+  if (fs.existsSync(DEADLINE_OVERRIDE_FILE)) {
+    const raw = fs.readFileSync(DEADLINE_OVERRIDE_FILE, 'utf8');
+    const saved = JSON.parse(raw);
+    if (saved && saved.date === getVietnamDateStr()) {
+      systemDeadlineOverride = saved;
+      console.log('📅 Loaded saved deadline override from file:', systemDeadlineOverride);
+    } else {
+      // File cũ từ ngày hôm trước -> reset về auto cho ngày hôm nay
+      saveSystemDeadlineOverride(systemDeadlineOverride);
+    }
+  }
+} catch (e) {
+  console.warn('Could not read deadline-override.json:', e.message);
+}
+
+const getSystemDeadlineOverride = () => {
+  const today = getVietnamDateStr();
+  if (systemDeadlineOverride.date !== today) {
+    saveSystemDeadlineOverride({
+      mode: 'auto',
+      date: today,
+      extendedUntilTimestamp: null
+    });
+  }
+  return systemDeadlineOverride;
+};
+
+function resetSystemDeadlineOverrideToAuto(updatedBy = 'system') {
+  const todayVN = getVietnamDateStr();
+  const resetOverride = {
+    mode: 'auto',
+    date: todayVN,
+    extendedUntilTimestamp: null,
+    updatedAt: new Date().toISOString(),
+    updatedBy
+  };
+  saveSystemDeadlineOverride(resetOverride);
+  broadcastToAllUsers({
+    type: 'deadline_override_changed',
+    data: resetOverride
+  });
+  console.log(`🔄 Đã tự động reset chế độ khóa đơn về "auto" khi cập nhật thực đơn mới (bởi ${updatedBy})`, resetOverride);
+  return resetOverride;
+}
 
 const broadcastToAllUsers = (notification) => {
   let count = 0;

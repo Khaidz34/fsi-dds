@@ -510,12 +510,40 @@ export default function App() {
     return copies[currentLang];
   }, [currentLang]);
   const orderOptionItems = [
-    { key: 'extraRice', label: t.extraRice, compactLabel: currentLang === 'vi' ? 'Cơm' : currentLang === 'ja' ? 'ご飯' : 'Rice', checked: extraRice, onChange: setExtraRice },
-    { key: 'extraSoup', label: t.extraSoup, compactLabel: currentLang === 'vi' ? 'Canh' : currentLang === 'ja' ? 'スープ' : 'Soup', checked: extraSoup, onChange: setExtraSoup },
-    { key: 'chiliSauce', label: t.chiliSauce, compactLabel: currentLang === 'vi' ? 'Tương ớt' : currentLang === 'ja' ? 'チリ' : 'Chili', checked: chiliSauce, onChange: setChiliSauce },
-    { key: 'fishSauce', label: t.fishSauce, compactLabel: currentLang === 'vi' ? 'Mắm' : currentLang === 'ja' ? '魚醤' : 'Sauce', checked: fishSauce, onChange: setFishSauce },
-    { key: 'chopsticks', label: t.chopsticks, compactLabel: currentLang === 'vi' ? 'Đũa' : currentLang === 'ja' ? '箸' : 'Sticks', checked: chopsticks, onChange: setChopsticks },
-    { key: 'lessRice', label: t.lessRice, compactLabel: currentLang === 'vi' ? 'Ít cơm' : currentLang === 'ja' ? '少なめ' : 'Less', checked: lessRice, onChange: setLessRice }
+    {
+      key: 'extraRice',
+      label: t.extraRice,
+      compactLabel: currentLang === 'vi' ? 'Thêm cơm' : currentLang === 'ja' ? 'ご飯追加' : 'Extra Rice',
+      checked: extraRice,
+      onChange: (checked: boolean) => {
+        setExtraRice(checked);
+        if (checked) setLessRice(false);
+      }
+    },
+    {
+      key: 'chiliSauce',
+      label: t.chiliSauce,
+      compactLabel: currentLang === 'vi' ? 'Thêm tương ớt' : currentLang === 'ja' ? 'チリ' : 'Chili',
+      checked: chiliSauce,
+      onChange: setChiliSauce
+    },
+    {
+      key: 'lessRice',
+      label: t.lessRice,
+      compactLabel: currentLang === 'vi' ? 'Ít cơm' : currentLang === 'ja' ? 'ご飯少なめ' : 'Less Rice',
+      checked: lessRice,
+      onChange: (checked: boolean) => {
+        setLessRice(checked);
+        if (checked) setExtraRice(false);
+      }
+    },
+    {
+      key: 'chopsticks',
+      label: t.chopsticks,
+      compactLabel: currentLang === 'vi' ? 'Thêm đũa' : currentLang === 'ja' ? '箸' : 'Chopsticks',
+      checked: chopsticks,
+      onChange: setChopsticks
+    }
   ];
   const activePageLabel = useMemo(() => {
     const labels: Record<string, string> = {
@@ -2487,7 +2515,7 @@ export default function App() {
 
                 {/* Menu List */}
                 <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-4 xl:gap-5 ${
-                  selectedDishes.length > 0 ? 'pb-36 sm:pb-36 lg:pb-32' : 'pb-28'
+                  selectedDishes.length > 0 ? 'pb-48 sm:pb-48 lg:pb-44' : 'pb-28'
                 }`}>
                   {/* Floating micro-toast when selecting dishes */}
                   <AnimatePresence>
@@ -2654,33 +2682,64 @@ export default function App() {
                   <>
                     {/* Mobile: Floating Bottom Bar when collapsed */}
                     {!isMobileOrderSheetExpanded && (
-                      <div className="lg:hidden fixed bottom-16 left-3 right-3 z-40 bg-white/95 backdrop-blur-md border border-app-accent/25 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 animate-slide-up">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-app-accent text-white flex items-center justify-center font-black text-sm shrink-0 shadow-md shadow-app-accent/20">
-                            {selectedDishes.length}/{maxSelectableDishes}
+                      <div className={`lg:hidden fixed bottom-16 left-3 right-3 z-40 rounded-2xl p-3 text-white border border-white/20 backdrop-blur-md flex flex-col gap-2.5 animate-slide-up ${
+                        theme === 'corporate'
+                          ? 'bg-gradient-to-r from-[#008C7A] via-[#00A693] to-[#009684] shadow-[0_12px_32px_rgba(0,140,122,0.42)]'
+                          : 'bg-gradient-to-r from-[#B81D16] via-[#DA251D] to-[#C82018] shadow-[0_12px_32px_rgba(184,29,22,0.42)]'
+                      }`}>
+                        <div className="flex items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${
+                              selectedDishes.length >= maxSelectableDishes
+                                ? `bg-white ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
+                                : 'bg-white/20 text-white border border-white/30'
+                            }`}>
+                              {selectedDishes.length}/{maxSelectableDishes}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-white truncate">
+                                {selectedDishDetails.map(d => getDishDisplayName(d, currentLang)).join(' + ')}
+                              </p>
+                              <p className="text-[11px] font-bold text-white/85 mt-0.5">{mealPriceText}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-black text-slate-900 truncate">
-                              {selectedDishDetails.map(d => getDishDisplayName(d, currentLang)).join(' + ')}
-                            </p>
-                            <p className="text-[11px] font-bold text-app-accent mt-0.5">{mealPriceText}</p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => setSelectedDishes([])}
+                              className="w-8 h-8 rounded-full bg-white/15 text-white/85 hover:text-white hover:bg-black/25 flex items-center justify-center transition-colors border border-white/20"
+                              title={mobileOrderCopy.clear}
+                            >
+                              <X size={15} />
+                            </button>
+                            <button
+                              onClick={() => setIsMobileOrderSheetExpanded(true)}
+                              className={`px-3.5 py-2 rounded-xl bg-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all ${
+                                theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'
+                              }`}
+                            >
+                              <span>{currentLang === 'ja' ? '確認＆注文' : currentLang === 'en' ? 'Review & Order' : 'Xem & Đặt'}</span>
+                              <ChevronUp size={15} />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => setSelectedDishes([])}
-                            className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
-                            title={mobileOrderCopy.clear}
-                          >
-                            <X size={15} />
-                          </button>
-                          <button
-                            onClick={() => setIsMobileOrderSheetExpanded(true)}
-                            className="px-3.5 py-2 rounded-xl bg-app-accent text-white text-xs font-black shadow-lg shadow-app-accent/25 flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all"
-                          >
-                            <span>{currentLang === 'ja' ? '確認＆注文' : currentLang === 'en' ? 'Review & Order' : 'Xem & Đặt'}</span>
-                            <ChevronUp size={15} />
-                          </button>
+
+                        {/* Mobile Quick Options Row */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-white/20">
+                          {orderOptionItems.map(option => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => option.onChange(!option.checked)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0 transition-all ${
+                                option.checked
+                                  ? `bg-white border-white shadow-sm ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
+                                  : 'bg-white/15 border-white/25 text-white/95'
+                              }`}
+                            >
+                              <span>{option.checked ? '✓' : '+'}</span>
+                              <span>{option.compactLabel}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -2839,134 +2898,178 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Desktop: Compact Floating Bottom Dock when collapsed */}
+                    {/* Desktop: Themed Compact Floating Bottom Dock with Quick Options */}
                     {!isDesktopOrderExpanded && (
-                      <div className="hidden lg:flex fixed bottom-5 left-80 right-8 z-40 max-w-5xl mx-auto items-center justify-between gap-4 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-app-accent/25 shadow-2xl shadow-slate-900/10 transition-all duration-200">
-                        {/* Left: Dish count badge & selected dishes chips */}
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div 
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm transition-colors ${
-                              selectedDishes.length >= maxSelectableDishes
-                                ? 'bg-app-accent text-white shadow-app-accent/25'
-                                : 'bg-app-accent/15 text-app-accent border border-app-accent/30'
-                            }`}
-                            title={`${selectedDishes.length}/${maxSelectableDishes} ${t.selectedDishes}`}
-                          >
-                            {selectedDishes.length}/{maxSelectableDishes}
-                          </div>
+                      <div className={`hidden lg:flex flex-col gap-3 fixed bottom-5 left-80 right-8 z-40 max-w-5xl mx-auto px-5 py-3.5 rounded-2xl text-white border border-white/25 backdrop-blur-md transition-all duration-200 ${
+                        theme === 'corporate'
+                          ? 'bg-gradient-to-r from-[#008574] via-[#00A693] to-[#009482] shadow-[0_16px_42px_rgba(0,133,116,0.42)]'
+                          : 'bg-gradient-to-r from-[#B51C15] via-[#DA251D] to-[#C41F17] shadow-[0_16px_42px_rgba(181,28,21,0.42)]'
+                      }`}>
+                        {/* Row 1: Dish count + Selected dishes + Price + Clear + Deep Options Drawer + Place Order */}
+                        <div className="flex items-center justify-between gap-4">
+                          {/* Left: Dish count badge & selected dishes chips */}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div 
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 shadow-sm transition-colors ${
+                                selectedDishes.length >= maxSelectableDishes
+                                  ? `bg-white ${theme === 'corporate' ? 'text-[#008574]' : 'text-[#B51C15]'}`
+                                  : 'bg-white/20 text-white border border-white/35'
+                              }`}
+                              title={`${selectedDishes.length}/${maxSelectableDishes} ${t.selectedDishes}`}
+                            >
+                              {selectedDishes.length}/{maxSelectableDishes}
+                            </div>
 
-                          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-                            {selectedDishDetails.map((dish, index) => (
-                              <div 
-                                key={dish.id} 
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-accent/10 border border-app-accent/20 text-slate-900 font-bold text-xs shrink-0 hover:bg-app-accent/15 transition-colors"
-                              >
-                                <span className="w-4 h-4 rounded-full bg-app-accent text-white text-[10px] flex items-center justify-center font-black shrink-0">
-                                  {index + 1}
-                                </span>
-                                <span className="truncate max-w-[150px] xl:max-w-[190px]" title={getDishDisplayName(dish, currentLang)}>
-                                  {getDishDisplayName(dish, currentLang)}
-                                </span>
-                                <button
-                                  onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
-                                  className="p-0.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                                  title={mobileOrderCopy.clear}
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                              {selectedDishDetails.map((dish, index) => (
+                                <div 
+                                  key={dish.id} 
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/15 border border-white/25 text-white font-bold text-xs shrink-0 hover:bg-white/25 transition-colors"
                                 >
-                                  <X size={13} />
-                                </button>
-                              </div>
-                            ))}
+                                  <span className={`w-4 h-4 rounded-full bg-white text-[10px] flex items-center justify-center font-black shrink-0 ${
+                                    theme === 'corporate' ? 'text-[#008574]' : 'text-[#B51C15]'
+                                  }`}>
+                                    {index + 1}
+                                  </span>
+                                  <span className="truncate max-w-[170px] xl:max-w-[220px]" title={getDishDisplayName(dish, currentLang)}>
+                                    {getDishDisplayName(dish, currentLang)}
+                                  </span>
+                                  <button
+                                    onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
+                                    className="p-0.5 rounded-full text-white/80 hover:text-white hover:bg-black/25 transition-colors shrink-0"
+                                    title={mobileOrderCopy.removeDish}
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                </div>
+                              ))}
 
-                            {selectedDishes.length < maxSelectableDishes && (
-                              <span className="text-xs font-semibold text-slate-400 italic shrink-0 hidden xl:inline">
-                                👉 {currentLang === 'ja' ? 'もう1品選択してください...' : currentLang === 'en' ? 'Pick 1 more dish...' : 'Chọn thêm 1 món nữa...'}
-                              </span>
-                            )}
+                              {selectedDishes.length < maxSelectableDishes && (
+                                <span className="text-xs font-semibold text-white/85 italic shrink-0 hidden xl:inline">
+                                  👉 {currentLang === 'ja' ? 'もう1品選択してください...' : currentLang === 'en' ? 'Pick 1 more dish...' : 'Chọn thêm 1 món nữa...'}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Active customization indicator badge */}
-                          {(orderOptionItems.some(o => o.checked) || (orderForUserId && orderForUserId !== user?.id) || orderNotes.trim()) && (
-                            <span className="hidden 2xl:inline-flex items-center gap-1 text-[11px] font-bold text-app-accent bg-app-accent/10 px-2.5 py-1 rounded-lg shrink-0 border border-app-accent/20">
-                              <SlidersHorizontal size={12} />
-                              {orderForUserId && orderForUserId !== user?.id ? (
-                                <span className="max-w-[100px] truncate">
-                                  {allUsers.find(u => u.id === orderForUserId)?.fullname || 'Đồng nghiệp'}
-                                </span>
-                              ) : null}
-                              {orderOptionItems.filter(o => o.checked).length > 0 && (
-                                <span>+{orderOptionItems.filter(o => o.checked).length} tùy chọn</span>
+                          {/* Right: Total price, Clear button, Deep Options Drawer trigger, Place order CTA */}
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <div className="text-right pr-2.5 border-r border-white/25">
+                              <p className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{mobileOrderCopy.perMeal}</p>
+                              <p className="text-base font-black text-white leading-none">{mealPriceText}</p>
+                            </div>
+
+                            <button
+                              onClick={() => setSelectedDishes([])}
+                              className="w-9 h-9 rounded-xl bg-white/15 text-white/85 hover:text-white hover:bg-black/25 border border-white/20 flex items-center justify-center transition-colors"
+                              title={mobileOrderCopy.clear}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+
+                            <button
+                              onClick={() => setIsDesktopOrderExpanded(true)}
+                              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 transition-all ${
+                                (orderForUserId && orderForUserId !== user?.id) || orderNotes.trim()
+                                  ? 'bg-amber-300 border-amber-200 text-slate-950 hover:bg-amber-200 shadow-sm'
+                                  : 'bg-white/15 hover:bg-white/25 border-white/30 text-white'
+                              }`}
+                              title={t.orderOptions}
+                            >
+                              <SlidersHorizontal size={14} />
+                              <span>{currentLang === 'ja' ? '代理注文・メモ' : currentLang === 'en' ? 'Order For & Notes' : 'Đặt hộ & Ghi chú'}</span>
+                              {((orderForUserId && orderForUserId !== user?.id) || orderNotes.trim()) ? (
+                                <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
+                              ) : (
+                                <ChevronUp size={14} className="text-white/85" />
                               )}
-                              {orderNotes.trim() && <span>+ ghi chú</span>}
-                            </span>
-                          )}
+                            </button>
+
+                            <button
+                              onClick={handlePlaceOrder}
+                              disabled={!canPlaceOrder || selectedDishes.length === 0}
+                              className={`px-5 py-2.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center gap-2 ${
+                                !canPlaceOrder || selectedDishes.length === 0
+                                  ? 'bg-white/30 text-white/75 cursor-not-allowed shadow-none'
+                                  : theme === 'corporate'
+                                    ? 'bg-white text-[#008574] hover:bg-emerald-50 hover:scale-[1.02] active:scale-95 shadow-black/20'
+                                    : 'bg-white text-[#B51C15] hover:bg-red-50 hover:scale-[1.02] active:scale-95 shadow-black/20'
+                              }`}
+                            >
+                              {!canPlaceOrder ? (
+                                <>
+                                  <Lock size={15} />
+                                  <span>{(t.deadline?.btnExpired || 'Hết giờ').replace('{deadline}', deadlineString || '11:00')}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 size={17} />
+                                  <span>
+                                    {orderForUserId && orderForUserId !== user?.id
+                                      ? (currentLang === 'ja'
+                                          ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文`
+                                          : currentLang === 'en'
+                                          ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'}`
+                                          : `Đặt cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`)
+                                      : user?.role === 'admin' && isOrderDeadlinePassed
+                                      ? (t.deadline?.orderAsAdmin || 'Đặt cơm (Admin)')
+                                      : t.orderNow}
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Right: Total price, Clear button, Options expander, Place order button */}
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="text-right pl-2 border-l border-slate-200">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{mobileOrderCopy.perMeal}</p>
-                            <p className="text-base font-black text-slate-900 leading-none">{mealPriceText}</p>
+                        {/* Row 2: Quick Options exposed directly on dock (Thêm cơm, Thêm tương ớt, Ít cơm, Thêm đũa) */}
+                        <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-white/20">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-white/85 mr-1 flex items-center gap-1.5">
+                              <Zap size={13} className="text-amber-300" />
+                              {mobileOrderCopy.quickOptions}:
+                            </span>
+                            {orderOptionItems.map(option => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                onClick={() => option.onChange(!option.checked)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                                  option.checked
+                                    ? `bg-white border-white shadow-sm ${theme === 'corporate' ? 'text-[#008574]' : 'text-[#B51C15]'}`
+                                    : 'bg-white/15 hover:bg-white/25 border-white/25 text-white'
+                                }`}
+                              >
+                                <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] font-black border ${
+                                  option.checked
+                                    ? theme === 'corporate'
+                                      ? 'bg-[#00A693] border-[#00A693] text-white'
+                                      : 'bg-[#DA251D] border-[#DA251D] text-white'
+                                    : 'border-white/55 text-transparent'
+                                }`}>
+                                  ✓
+                                </span>
+                                <span>{option.label}</span>
+                              </button>
+                            ))}
                           </div>
 
-                          <button
-                            onClick={() => setSelectedDishes([])}
-                            className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
-                            title={mobileOrderCopy.clear}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-
-                          <button
-                            onClick={() => setIsDesktopOrderExpanded(true)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold border flex items-center gap-2 transition-all ${
-                              orderOptionItems.some(o => o.checked) || (orderForUserId && orderForUserId !== user?.id) || orderNotes.trim()
-                                ? 'bg-app-accent/10 border-app-accent/40 text-app-accent hover:bg-app-accent/15'
-                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                            }`}
-                            title={t.orderOptions}
-                          >
-                            <SlidersHorizontal size={14} />
-                            <span>{currentLang === 'ja' ? 'オプション・メモ' : currentLang === 'en' ? 'Options & Notes' : 'Tùy chọn & Ghi chú'}</span>
-                            {(orderOptionItems.some(o => o.checked) || (orderForUserId && orderForUserId !== user?.id) || orderNotes.trim()) ? (
-                              <span className="w-2 h-2 rounded-full bg-app-accent animate-pulse" />
-                            ) : (
-                              <ChevronUp size={14} className="text-slate-400" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={handlePlaceOrder}
-                            disabled={!canPlaceOrder || selectedDishes.length === 0}
-                            className={`px-5 py-2.5 rounded-xl text-white font-black text-xs transition-all shadow-md flex items-center gap-2 ${
-                              !canPlaceOrder || selectedDishes.length === 0
-                                ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
-                                : theme === 'corporate'
-                                  ? 'bg-[#00A693] hover:bg-[#00A693]/90 hover:scale-[1.02] active:scale-95 shadow-[#00A693]/20'
-                                  : 'bg-[#DA251D] hover:bg-[#DA251D]/90 hover:scale-[1.02] active:scale-95 shadow-[#DA251D]/20'
-                            }`}
-                          >
-                            {!canPlaceOrder ? (
-                              <>
-                                <Lock size={15} />
-                                <span>{(t.deadline?.btnExpired || 'Hết giờ').replace('{deadline}', deadlineString || '11:00')}</span>
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 size={16} />
-                                <span>
-                                  {orderForUserId && orderForUserId !== user?.id
-                                    ? (currentLang === 'ja'
-                                        ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文`
-                                        : currentLang === 'en'
-                                        ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'}`
-                                        : `Đặt cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`)
-                                    : user?.role === 'admin' && isOrderDeadlinePassed
-                                    ? (t.deadline?.orderAsAdmin || 'Đặt cơm (Admin)')
-                                    : t.orderNow}
+                          {/* Active deep options summary (Đặt hộ / Ghi chú) */}
+                          {((orderForUserId && orderForUserId !== user?.id) || orderNotes.trim()) && (
+                            <button
+                              type="button"
+                              onClick={() => setIsDesktopOrderExpanded(true)}
+                              className="inline-flex items-center gap-2 text-[11px] font-bold bg-black/20 hover:bg-black/30 text-amber-200 px-3 py-1 rounded-lg border border-white/20 shrink-0 transition-colors"
+                            >
+                              {orderForUserId && orderForUserId !== user?.id && (
+                                <span className="max-w-[140px] truncate">
+                                  👤 {allUsers.find(u => u.id === orderForUserId)?.fullname || 'Đồng nghiệp'}
                                 </span>
-                              </>
-                            )}
-                          </button>
+                              )}
+                              {orderNotes.trim() && (
+                                <span className="max-w-[180px] truncate">📝 "{orderNotes.trim()}"</span>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -2999,7 +3102,7 @@ export default function App() {
                                     </span>
                                   </div>
                                   <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                                    {currentLang === 'ja' ? '同僚の代理注文、おかわりや配慮メモを設定' : currentLang === 'en' ? 'Order for colleagues, add extra soup/rice, or leave notes' : 'Đặt cơm hộ đồng nghiệp, thêm cơm canh hoặc ghi chú riêng cho nhà bếp'}
+                                    {currentLang === 'ja' ? '同僚の代理注文、ご飯の量や配慮メモを設定' : currentLang === 'en' ? 'Order for colleagues, customize portions, or leave notes for the kitchen' : 'Đặt cơm hộ đồng nghiệp, tùy chỉnh khẩu phần hoặc ghi chú riêng cho nhà bếp'}
                                   </p>
                                 </div>
                               </div>
