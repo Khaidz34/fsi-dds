@@ -35,8 +35,14 @@ export const useOrders = (language?: string) => {
         setIsUpdating(true);
       }
       setError(null);
-      // Backend /api/orders/all automatically filters: admin gets all orders, normal user gets only their orders + orders placed for them
-      const data = await ordersAPI.getAll(language);
+      // Scope orders list to current Vietnam month (YYYY-MM) to avoid pulling 1,000+ historical rows on every refresh
+      // (Cumulative payment debt is ALWAYS calculated server-side via /api/payments, never from this array)
+      const vnMonth = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit'
+      }).format(new Date()).slice(0, 7);
+      const data = await ordersAPI.getAll(language, vnMonth);
       setOrders(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải đơn hàng');

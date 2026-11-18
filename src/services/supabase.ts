@@ -1,13 +1,12 @@
 /**
- * SUPABASE REALTIME CLIENT
+ * SUPABASE REALTIME CLIENT (Lazy-loaded)
  * 
  * KIẾN TRÚC DATA ACCESS:
  * - Frontend KHÔNG thực hiện trực tiếp các truy vấn CRUD (SELECT/INSERT/UPDATE/DELETE) qua Supabase client này.
  * - Mọi thao tác nghiệp vụ, xác thực JWT, tạo/xoá đơn, thanh toán đều tập trung đi qua Backend Express API (src/services/api.ts).
  * - File này CHỈ phục vụ duy nhất mục đích: lắng nghe sự kiện thay đổi dữ liệu qua WebSocket Realtime (subscribeToTable).
+ * - SDK @supabase/supabase-js (~169KB) được dynamic import theo nhu cầu để KHÔNG làm chậm trang Đăng nhập.
  */
-
-import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
@@ -16,47 +15,80 @@ if (!supabaseUrl || !supabaseKey) {
   console.warn('Supabase credentials not found in environment variables');
 }
 
-export const supabase = supabaseUrl && supabaseKey 
-  ? createClient(supabaseUrl, supabaseKey, {
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    })
-  : null;
+export let supabase: any = null;
+let supabaseClientPromise: Promise<any> | null = null;
+
+async function getSupabaseClient(): Promise<any> {
+  if (supabase) return supabase;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  if (!supabaseClientPromise) {
+    supabaseClientPromise = import('@supabase/supabase-js')
+      .then(({ createClient }) => {
+        supabase = createClient(supabaseUrl, supabaseKey, {
+          realtime: {
+            params: {
+              eventsPerSecond: 10,
+            },
+          },
+        });
+        return supabase;
+      })
+      .catch((err) => {
+        console.error('Failed to lazy-load Supabase Realtime client:', err);
+        supabaseClientPromise = null;
+        return null;
+      });
+  }
+
+  return supabaseClientPromise;
+}
 
 export const subscribeToTable = (
   tableName: string,
   callback: () => void,
   channelName?: string
 ) => {
-  if (!supabase) {
-    console.warn('Supabase client not initialized, skipping realtime subscription');
+  if (!supabaseUrl || !supabaseKey) {
     return { unsubscribe: () => {} };
   }
 
   let isSubscribed = false;
   let isUnsubscribed = false;
-  let reconnectTimeout: any = null;
+  let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
   let retryCount = 0;
   const uniqueChannelName = channelName || `${tableName}_changes_${Math.random().toString(36).slice(2, 7)}`;
   let currentChannel: any = null;
+  let clientRef: any = null;
 
-  const setupChannel = () => {
-    if (isUnsubscribed || !supabase) return;
+  const triggerCallbackDebounced = () => {
+    if (isUnsubscribed) return;
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+      if (!isUnsubscribed) {
+        callback();
+      }
+    }, 300);
+  };
+
+  const setupChannel = async () => {
+    if (isUnsubscribed) return;
+    const client = await getSupabaseClient();
+    if (!client || isUnsubscribed) return;
+    clientRef = client;
 
     if (currentChannel) {
       try {
-        supabase.removeChannel(currentChannel);
-      } catch (e) {
+        client.removeChannel(currentChannel);
+      } catch {
         // ignore
       }
       currentChannel = null;
     }
 
     try {
-      currentChannel = supabase
+      currentChannel = client
         .channel(uniqueChannelName)
         .on(
           'postgres_changes',
@@ -67,7 +99,7 @@ export const subscribeToTable = (
           },
           () => {
             console.log(`Realtime update received for ${tableName}`);
-            callback();
+            triggerCallbackDebounced();
           }
         )
         .subscribe((status: string) => {
@@ -83,7 +115,6 @@ export const subscribeToTable = (
               const delay = Math.min(2000 * Math.pow(1.5, retryCount), 15000);
               retryCount++;
               reconnectTimeout = setTimeout(() => {
-                console.log(`🔄 Auto-reconnecting Realtime for ${tableName} (attempt ${retryCount})...`);
                 setupChannel();
               }, delay);
             }
@@ -96,15 +127,12 @@ export const subscribeToTable = (
 
   setupChannel();
 
-  // Khi chuyển tab quay lại (visibility change), kiểm tra và reconnect nếu cần, đồng thời trigger callback để cập nhật dữ liệu mới nhất
+  // Khi quay lại tab: CHỈ reconnect và refresh nếu kết nối Realtime thực sự đã bị đứt
   const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible' && !isUnsubscribed) {
-      if (!isSubscribed) {
-        console.log(`👁️ Tab became visible and Realtime for ${tableName} was disconnected, reconnecting...`);
-        setupChannel();
-      }
-      // Luôn trigger callback khi quay lại tab để không bị lỡ dữ liệu phát sinh khi tab đang inactive
-      callback();
+    if (document.visibilityState === 'visible' && !isUnsubscribed && !isSubscribed) {
+      console.log(`👁️ Tab visible & Realtime for ${tableName} was disconnected, reconnecting...`);
+      setupChannel();
+      triggerCallbackDebounced();
     }
   };
 
@@ -117,11 +145,15 @@ export const subscribeToTable = (
         clearTimeout(reconnectTimeout);
         reconnectTimeout = null;
       }
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = null;
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (currentChannel && supabase) {
+      if (currentChannel && clientRef) {
         try {
-          supabase.removeChannel(currentChannel);
-        } catch (e) {
+          clientRef.removeChannel(currentChannel);
+        } catch {
           // ignore
         }
         currentChannel = null;

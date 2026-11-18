@@ -24,11 +24,27 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-charts': ['recharts'],
-          'vendor-icons': ['lucide-react'],
-          'vendor-supabase': ['@supabase/supabase-js']
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (
+            id.includes('/react/') ||
+            id.includes('\\react\\') ||
+            id.includes('/react-dom/') ||
+            id.includes('\\react-dom\\') ||
+            id.includes('/scheduler/') ||
+            id.includes('\\scheduler\\')
+          ) {
+            return 'vendor-react';
+          }
+          if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('lucide-react')) {
+            return 'vendor-icons';
+          }
+          if (id.includes('@supabase/')) {
+            return 'vendor-supabase';
+          }
         }
       }
     }

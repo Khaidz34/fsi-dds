@@ -180,7 +180,13 @@ export const ordersAPI = {
   
   getMy: (month?: string) => apiCall<any[]>(`/orders/my${month ? `?month=${month}` : ''}`),
 
-  getAll: (lang?: string) => apiCall<any[]>(`/orders/all${lang ? `?lang=${lang}` : ''}`),
+  getAll: (lang?: string, month?: string) => {
+    const params = new URLSearchParams();
+    if (lang) params.set('lang', lang);
+    if (month) params.set('month', month);
+    const qs = params.toString();
+    return apiCall<any[]>(`/orders/all${qs ? `?${qs}` : ''}`);
+  },
 
   getWeeklyStats: () => apiCall<Array<{ name: string; orders: number; date: string }>>('/orders/weekly-stats'),
 

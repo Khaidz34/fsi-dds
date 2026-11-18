@@ -39,21 +39,20 @@ export const useDashboardStats = () => {
     if (user?.role === 'admin') {
       fetchStats(false);
       
-      // Listen to app-wide order update events (SSE & local changes)
-      const handleAppOrderUpdate = () => {
-        console.log('📊 Live order update event received in useDashboardStats, refreshing silently...');
-        fetchStats(true);
+      let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+      const scheduleSilentRefresh = () => {
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+          fetchStats(true);
+        }, 300);
       };
-      window.addEventListener('app:order-update', handleAppOrderUpdate);
 
-      // Setup Supabase Realtime subscription for stats (silent update, no flicker)
-      const channel = subscribeToTable('orders', () => {
-        console.log('📊 Stats update detected via Realtime');
-        fetchStats(true);
-      }, 'stats_changes');
+      window.addEventListener('app:order-update', scheduleSilentRefresh);
+      const channel = subscribeToTable('orders', scheduleSilentRefresh, 'stats_changes');
 
       return () => {
-        window.removeEventListener('app:order-update', handleAppOrderUpdate);
+        if (refreshTimer) clearTimeout(refreshTimer);
+        window.removeEventListener('app:order-update', scheduleSilentRefresh);
         unsubscribeFromTable(channel);
       };
     }

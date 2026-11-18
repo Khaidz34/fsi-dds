@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
-import { realtimeManager } from '../services/realtime';
 
 export interface UserPaymentInfo {
   userId: number;
@@ -109,13 +108,13 @@ const normalizeUserPayment = (payment: any): UserPaymentInfo | null => {
   };
 };
 
-export const useAdminPayments = (month?: string) => {
+export const useAdminPayments = (month?: string, enabled: boolean = true) => {
   const { user } = useAuth();
   const [userPayments, setUserPayments] = useState<UserPaymentInfo[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [autoPaymentUsage, setAutoPaymentUsage] = useState<AutoPaymentUsage | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -244,42 +243,46 @@ export const useAdminPayments = (month?: string) => {
   };
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (enabled && user?.role === 'admin') {
       fetchUserPayments(false, true, 1);
       fetchPaymentHistory();
       fetchAutoPaymentUsage();
       
-      const handleAppOrderUpdate = () => {
-        fetchUserPayments(false, true, 1);
-      };
-      const handleAppPaymentUpdate = () => {
-        fetchUserPayments(false, true, 1);
-        fetchPaymentHistory();
-        fetchAutoPaymentUsage();
-      };
-      window.addEventListener('app:order-update', handleAppOrderUpdate);
-      window.addEventListener('app:payment-update', handleAppPaymentUpdate);
+      let orderTimer: ReturnType<typeof setTimeout> | null = null;
+      let paymentTimer: ReturnType<typeof setTimeout> | null = null;
 
-      const ordersChannel = subscribeToTable('orders', () => {
-        console.log('Order update detected, refreshing admin payments...');
-        fetchUserPayments(false, true, 1);
-      }, 'admin_payments_orders_changes');
+      const scheduleOrderRefresh = () => {
+        if (orderTimer) clearTimeout(orderTimer);
+        orderTimer = setTimeout(() => {
+          fetchUserPayments(false, true, 1);
+        }, 300);
+      };
 
-      const paymentsChannel = subscribeToTable('payments', () => {
-        console.log('Payment update detected, refreshing admin payments & history...');
-        fetchUserPayments(false, true, 1);
-        fetchPaymentHistory();
-        fetchAutoPaymentUsage();
-      }, 'admin_payments_payments_changes');
+      const schedulePaymentRefresh = () => {
+        if (paymentTimer) clearTimeout(paymentTimer);
+        paymentTimer = setTimeout(() => {
+          fetchUserPayments(false, true, 1);
+          fetchPaymentHistory();
+          fetchAutoPaymentUsage();
+        }, 300);
+      };
+
+      window.addEventListener('app:order-update', scheduleOrderRefresh);
+      window.addEventListener('app:payment-update', schedulePaymentRefresh);
+
+      const ordersChannel = subscribeToTable('orders', scheduleOrderRefresh, 'admin_payments_orders_changes');
+      const paymentsChannel = subscribeToTable('payments', schedulePaymentRefresh, 'admin_payments_payments_changes');
 
       return () => {
-        window.removeEventListener('app:order-update', handleAppOrderUpdate);
-        window.removeEventListener('app:payment-update', handleAppPaymentUpdate);
+        if (orderTimer) clearTimeout(orderTimer);
+        if (paymentTimer) clearTimeout(paymentTimer);
+        window.removeEventListener('app:order-update', scheduleOrderRefresh);
+        window.removeEventListener('app:payment-update', schedulePaymentRefresh);
         unsubscribeFromTable(ordersChannel);
         unsubscribeFromTable(paymentsChannel);
       };
     }
-  }, [user?.role, currentMonth]);
+  }, [enabled, user?.role, currentMonth]);
 
   return {
     userPayments,

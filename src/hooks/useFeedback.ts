@@ -13,10 +13,10 @@ export interface Feedback {
   username: string;
 }
 
-export const useFeedback = () => {
+export const useFeedback = (enabled: boolean = true) => {
   const { user } = useAuth();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchFeedbacks = async () => {
@@ -60,7 +60,7 @@ export const useFeedback = () => {
   };
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (enabled && user?.role === 'admin') {
       fetchFeedbacks();
       
       // Setup Supabase Realtime subscription for feedback
@@ -73,7 +73,7 @@ export const useFeedback = () => {
         unsubscribeFromTable(channel);
       };
     }
-  }, [user?.role]);
+  }, [enabled, user?.role]);
 
   return {
     feedbacks,

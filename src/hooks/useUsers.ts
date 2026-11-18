@@ -11,10 +11,10 @@ export interface User {
   created_at?: string;
 }
 
-export const useUsers = () => {
+export const useUsers = (enabled: boolean = true) => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = async () => {
@@ -60,8 +60,8 @@ export const useUsers = () => {
   };
 
   useEffect(() => {
-    // Only admin users need the full users list & realtime sync
-    if (currentUser?.role === 'admin') {
+    // Only admin users need the full users list & realtime sync, and only once enabled (lazy per tab)
+    if (enabled && currentUser?.role === 'admin') {
       fetchUsers();
       
       // Setup Supabase Realtime subscription for users
@@ -76,7 +76,7 @@ export const useUsers = () => {
     } else if (currentUser) {
       setIsLoading(false);
     }
-  }, [currentUser?.role, currentUser?.id]);
+  }, [enabled, currentUser?.role, currentUser?.id]);
 
   return {
     users,

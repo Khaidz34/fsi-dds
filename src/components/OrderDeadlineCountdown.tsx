@@ -249,60 +249,177 @@ export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadline
   const [state, setState] = useState<OrderDeadlineState>(calculateState);
 
   useEffect(() => {
-    // Đồng bộ trạng thái hạn chốt từ Server (đáp ứng khi Admin mở thêm giờ hoặc khóa sổ)
-    let isMounted = true;
-    const syncFromServer = async () => {
-      try {
-        const res: any = await deadlineAPI.getOverride();
-        updateServerClockOffset(res?.serverNow);
-        if (res?.override && isMounted) {
-          const normalized = { ...res.override, date: normalizeDateStr(res.override.date) };
-          const current = getDeadlineOverride();
-          if (
-            current.mode !== normalized.mode ||
-            current.date !== normalized.date ||
-            current.extendedUntilTimestamp !== normalized.extendedUntilTimestamp
-          ) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-            window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: normalized }));
-          }
-        }
-      } catch {
-        // im lặng nếu mạng bận
-      }
-    };
-
-    syncFromServer();
-    const interval = setInterval(syncFromServer, 10000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+    return registerDeadlineServerSync();
   }, []);
 
   useEffect(() => {
-    setState(calculateState());
-
-    const timer = setInterval(() => {
-      setState(calculateState());
-    }, 1000);
-
-    const handleOverrideChange = () => {
-      setState(calculateState());
+    const updateIfChanged = () => {
+      const next = calculateState();
+      setState(prev => {
+        if (
+          prev.isPassed === next.isPassed &&
+          prev.isUrgent === next.isUrgent &&
+          prev.isCritical === next.isCritical &&
+          prev.formattedTime === next.formattedTime &&
+          prev.deadlineString === next.deadlineString &&
+          prev.overrideMode === next.overrideMode
+        ) {
+          return prev;
+        }
+        return next;
+      });
     };
 
-    window.addEventListener(EVENT_NAME, handleOverrideChange);
-    window.addEventListener('storage', handleOverrideChange);
+    updateIfChanged();
+
+    // Chỉ chạy timer 1 giây khi chưa hết giờ; nếu đã hết giờ chỉ kiểm tra nhẹ mỗi 30 giây (đề phòng qua ngày mới)
+    const timer = setInterval(updateIfChanged, state.isPassed ? 30000 : 1000);
+
+    window.addEventListener(EVENT_NAME, updateIfChanged);
+    window.addEventListener('storage', updateIfChanged);
+    document.addEventListener('visibilitychange', updateIfChanged);
 
     return () => {
       clearInterval(timer);
-      window.removeEventListener(EVENT_NAME, handleOverrideChange);
-      window.removeEventListener('storage', handleOverrideChange);
+      window.removeEventListener(EVENT_NAME, updateIfChanged);
+      window.removeEventListener('storage', updateIfChanged);
+      document.removeEventListener('visibilitychange', updateIfChanged);
     };
-  }, [calculateState]);
+  }, [calculateState, state.isPassed]);
 
   return state;
+}
+
+// =====================================================
+// Singleton Server Sync (chỉ 1 vòng đồng bộ duy nhất cho toàn app)
+// =====================================================
+let activeDeadlineSyncSubscribers = 0;
+let deadlineSyncInterval: ReturnType<typeof setInterval> | null = null;
+let lastDeadlineSyncTime = 0;
+let deadlineSyncInFlight = false;
+
+async function syncDeadlineFromServerOnce(force = false) {
+  const now = Date.now();
+  if (deadlineSyncInFlight) return;
+  if (!force && now - lastDeadlineSyncTime < 15000) return;
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible' && !force) return;
+
+  deadlineSyncInFlight = true;
+  try {
+    const res: any = await deadlineAPI.getOverride();
+    lastDeadlineSyncTime = Date.now();
+    updateServerClockOffset(res?.serverNow);
+    if (res?.override) {
+      const normalized = { ...res.override, date: normalizeDateStr(res.override.date) };
+      const current = getDeadlineOverride();
+      if (
+        current.mode !== normalized.mode ||
+        current.date !== normalized.date ||
+        current.extendedUntilTimestamp !== normalized.extendedUntilTimestamp
+      ) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: normalized }));
+      }
+    }
+  } catch {
+    // im lặng nếu mạng bận
+  } finally {
+    deadlineSyncInFlight = false;
+  }
+}
+
+function handleDeadlineVisibilitySync() {
+  if (document.visibilityState === 'visible') {
+    syncDeadlineFromServerOnce(false);
+  }
+}
+
+function registerDeadlineServerSync(): () => void {
+  activeDeadlineSyncSubscribers += 1;
+  if (activeDeadlineSyncSubscribers === 1) {
+    syncDeadlineFromServerOnce(true);
+    // SSE đã đẩy realtime `deadline_override_changed`, chỉ fallback poll 60s khi tab hiển thị
+    deadlineSyncInterval = setInterval(() => syncDeadlineFromServerOnce(false), 60000);
+    document.addEventListener('visibilitychange', handleDeadlineVisibilitySync);
+  }
+
+  return () => {
+    activeDeadlineSyncSubscribers = Math.max(0, activeDeadlineSyncSubscribers - 1);
+    if (activeDeadlineSyncSubscribers === 0) {
+      if (deadlineSyncInterval) {
+        clearInterval(deadlineSyncInterval);
+        deadlineSyncInterval = null;
+      }
+      document.removeEventListener('visibilitychange', handleDeadlineVisibilitySync);
+    }
+  };
+}
+
+/**
+ * Hook siêu nhẹ dành cho App.tsx: CHỈ trigger re-render khi isPassed hoặc deadlineString thực sự thay đổi
+ * (1–2 lần/ngày thay vì 86.400 lần/ngày).
+ */
+export function useOrderDeadlineStatus(): { isPassed: boolean; deadlineString: string; overrideMode: AdminDeadlineMode } {
+  const computeStatus = useCallback(() => {
+    const nowMs = getSyncedNowMs();
+    const override = getDeadlineOverride();
+    if (override.mode === 'locked') {
+      return { isPassed: true, deadlineString: '11:00', overrideMode: 'locked' as AdminDeadlineMode };
+    }
+    if (override.mode === 'extended_15' && override.extendedUntilTimestamp) {
+      const deadlineString = new Date(override.extendedUntilTimestamp).toLocaleTimeString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      return {
+        isPassed: nowMs >= override.extendedUntilTimestamp,
+        deadlineString,
+        overrideMode: 'extended_15' as AdminDeadlineMode
+      };
+    }
+    return {
+      isPassed: nowMs >= getVietnam1100Timestamp(),
+      deadlineString: '11:00',
+      overrideMode: override.mode
+    };
+  }, []);
+
+  const [status, setStatus] = useState(computeStatus);
+
+  useEffect(() => {
+    return registerDeadlineServerSync();
+  }, []);
+
+  useEffect(() => {
+    const checkStatus = () => {
+      const next = computeStatus();
+      setStatus(prev =>
+        prev.isPassed === next.isPassed &&
+        prev.deadlineString === next.deadlineString &&
+        prev.overrideMode === next.overrideMode
+          ? prev
+          : next
+      );
+    };
+
+    checkStatus();
+    // Kiểm tra trạng thái chốt mỗi 5 giây khi chưa chốt (và 30s khi đã chốt) — chỉ setState khi thực sự chuyển trạng thái!
+    const interval = setInterval(checkStatus, status.isPassed ? 30000 : 5000);
+    window.addEventListener(EVENT_NAME, checkStatus);
+    window.addEventListener('storage', checkStatus);
+    document.addEventListener('visibilitychange', checkStatus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(EVENT_NAME, checkStatus);
+      window.removeEventListener('storage', checkStatus);
+      document.removeEventListener('visibilitychange', checkStatus);
+    };
+  }, [computeStatus, status.isPassed]);
+
+  return status;
 }
 
 interface OrderDeadlineCountdownProps {

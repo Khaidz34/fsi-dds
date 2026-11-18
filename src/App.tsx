@@ -58,8 +58,6 @@ import { useAdminPayments } from './hooks/useAdminPayments';
 import { useFeedback } from './hooks/useFeedback';
 import { useNotifications } from './hooks/useNotifications';
 import { useBannerSettings } from './hooks/useBannerSettings';
-import { Login } from './components/Login';
-import { BannerDisplay } from './components/BannerDisplay';
 
 // Helper tự động xử lý khi server deploy bản mới làm lệch mã hash module động (Failed to fetch dynamically imported module)
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -91,6 +89,8 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
 }
 
 // Lazy-loaded heavy components for faster initial load & lower memory on low-spec server/clients
+const Login = lazyWithRetry(() => import('./components/Login').then(m => ({ default: m.Login })));
+const BannerDisplay = lazyWithRetry(() => import('./components/BannerDisplay').then(m => ({ default: m.BannerDisplay })));
 const DailyQuote = lazyWithRetry(() => import('./components/DailyQuote'));
 const PaymentDashboard = lazyWithRetry(() => import('./components/PaymentDashboard'));
 const AdminStatsView = lazyWithRetry(() => import('./components/AdminStatsView').then(m => ({ default: m.AdminStatsView })));
@@ -100,7 +100,7 @@ const AdminVideoControl = lazyWithRetry(() => import('./components/AdminVideoCon
 const VideoOverlay = lazyWithRetry(() => import('./components/VideoOverlay').then(m => ({ default: m.VideoOverlay })));
 const FeedbackView = lazyWithRetry(() => import('./components/FeedbackView').then(m => ({ default: m.FeedbackView })));
 const AccountsManagementView = lazyWithRetry(() => import('./components/AccountsManagementView').then(m => ({ default: m.AccountsManagementView })));
-import { OrderDeadlineCountdown, useOrderDeadline } from './components/OrderDeadlineCountdown';
+import { OrderDeadlineCountdown, useOrderDeadlineStatus } from './components/OrderDeadlineCountdown';
 
 const TabLoadingSkeleton = () => (
   <div className="p-8 space-y-4 animate-pulse">
@@ -179,16 +179,78 @@ const getDishDisplayName = (dish: any, lang: Language): string => {
   return getDishName(dish, lang).replace(/^\s*\d+[.)]\s*/, '').trim();
 };
 
+const AppLoadingSplash: React.FC<{ theme: 'fusion' | 'corporate' }> = ({ theme }) => (
+  <div className={`min-h-screen flex items-center justify-center lotus-pattern ${theme === 'corporate' ? 'corporate-theme bg-[#F0FDFA]' : 'bg-app-bg'}`}>
+    <div className="flex flex-col items-center gap-6">
+      <div className={`w-16 h-16 border-4 rounded-full animate-spin shadow-xl ${theme === 'corporate' ? 'border-[#00A693]/10 border-t-[#00A693] shadow-[#00A693]/5' : 'border-app-accent/10 border-t-app-accent shadow-app-accent/5'}`} />
+      <div className="flex flex-col items-center">
+        <p className={`text-sm font-display font-bold tracking-tight mb-1 ${theme === 'corporate' ? 'text-[#004D40]' : 'text-app-ink'}`}>FSI DDS</p>
+        <p className={`text-[10px] font-bold tracking-[0.3em] uppercase ${theme === 'corporate' ? 'text-[#00A693]/60' : 'text-app-accent/60'}`}>Đang chuẩn bị không gian...</p>
+      </div>
+    </div>
+  </div>
+);
+
 export default function App() {
   const { user, isAuthenticated, isLoading: authLoading, logout, token } = useAuth();
-
   const [theme, setTheme] = useState<'fusion' | 'corporate'>('corporate'); // Default to corporate
   const [currentLang, setCurrentLang] = useState<Language>('vi');
+
+  // Show loading screen (ZERO data hooks/API calls/SSE/timers run before auth!)
+  if (authLoading) {
+    return <AppLoadingSplash theme={theme} />;
+  }
+
+  // Show login if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <Suspense fallback={<AppLoadingSplash theme={theme} />}>
+        <Login
+          theme={theme}
+          currentLang={currentLang}
+          setTheme={setTheme}
+          setCurrentLang={setCurrentLang}
+        />
+      </Suspense>
+    );
+  }
+
+  return (
+    <AuthenticatedApp
+      user={user}
+      logout={logout}
+      token={token}
+      theme={theme}
+      setTheme={setTheme}
+      currentLang={currentLang}
+      setCurrentLang={setCurrentLang}
+    />
+  );
+}
+
+interface AuthenticatedAppProps {
+  user: NonNullable<ReturnType<typeof useAuth>['user']>;
+  logout: () => void;
+  token: string | null;
+  theme: 'fusion' | 'corporate';
+  setTheme: React.Dispatch<React.SetStateAction<'fusion' | 'corporate'>>;
+  currentLang: Language;
+  setCurrentLang: React.Dispatch<React.SetStateAction<Language>>;
+}
+
+function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, setCurrentLang }: AuthenticatedAppProps) {
   const [isLanguageChanging, setIsLanguageChanging] = useState(false);
   const [isThemeChanging, setIsThemeChanging] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [visitedTabs, setVisitedTabs] = useState<Record<string, boolean>>({ dashboard: true });
+
+  useEffect(() => {
+    setVisitedTabs(prev => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
+  }, [activeTab]);
 
   const videoSettings = useVideoSettings();
-  const { isPassed: isOrderDeadlinePassed, deadlineString } = useOrderDeadline(currentLang);
+  // Lightweight deadline status hook: ONLY re-renders when isPassed/deadlineString actually changes (not every 1s!)
+  const { isPassed: isOrderDeadlinePassed, deadlineString } = useOrderDeadlineStatus();
   const canPlaceOrder = user?.role === 'admin' || !isOrderDeadlinePassed;
   
   // Mobile navigation state
@@ -213,9 +275,14 @@ export default function App() {
     }
   };
   
+  const isAdmin = user?.role === 'admin';
+  const needUsersData = isAdmin && Boolean(visitedTabs.accounts || visitedTabs.orders);
+  const needAdminPaymentsData = isAdmin && Boolean(visitedTabs.payments);
+  const needFeedbackData = isAdmin && Boolean(visitedTabs.feedback);
+
   const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
-  const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers();
+  const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers(needUsersData);
 
   // Lọc chính xác các đơn đặt HÔM NAY theo giờ Việt Nam từ mảng orders thời gian thực
   const liveAdminTodayOrders = useMemo(() => {
@@ -262,9 +329,9 @@ export default function App() {
       .sort((a, b) => b.orderCount - a.orderCount || a.name.localeCompare(b.name, 'vi'))
       .slice(0, 5);
   }, [liveAdminTodayOrders, currentLang]);
-  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments();
+  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments(undefined, needAdminPaymentsData);
   const { stats: dashboardStats, isLoading: dashboardStatsLoading, refetch: refetchDashboardStats } = useDashboardStats();
-  const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
+  const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback(needFeedbackData);
   
   // Notifications - navigate to orders when notification clicked
   const handleNotificationClick = useCallback(() => {
@@ -273,23 +340,19 @@ export default function App() {
 
   const liveRefreshUserPaymentRef = useRef<() => void>();
 
+  // Broadcast live SSE events ONCE (all hooks listen & debounce cleanly — prevents 3x duplicate fetches!)
   const handleLiveOrderUpdate = useCallback(() => {
-    console.log('🔄 Live order/payment update received via SSE, refreshing data...');
-    refetchOrders();
+    console.log('🔄 Live order/payment update received via SSE, notifying hooks...');
     liveRefreshUserPaymentRef.current?.();
-    if (user?.role === 'admin') {
-      refetchAdminPayments();
-      refetchDashboardStats(true);
-    }
-    // Broadcast to any component listening for live order updates
-    window.dispatchEvent(new CustomEvent('app:order-update'));
-    window.dispatchEvent(new CustomEvent('app:payment-update'));
-  }, [refetchOrders, refetchAdminPayments, refetchDashboardStats, user?.role]);
+    window.dispatchEvent(new CustomEvent('app:order-update', { detail: { source: 'sse' } }));
+    window.dispatchEvent(new CustomEvent('app:payment-update', { detail: { source: 'sse' } }));
+  }, []);
   
   const { 
     permissionStatus, 
     requestPermission: requestNotificationPermission, 
     isSupported: notificationsSupported,
+    isConnected: isSseConnected,
     latestNotification,
     clearLatestNotification
   } = useNotifications(
@@ -302,8 +365,6 @@ export default function App() {
 
   // Banner settings
   const { bannerType } = useBannerSettings();
-  
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Lọc các suất cơm theo user (trang admin)
   const [orderFilterUserId, setOrderFilterUserId] = useState<number | 'all'>('all');
@@ -916,54 +977,59 @@ export default function App() {
       loadDashboardAutoPaymentInfo();
       loadDashboardAutoPaymentUsage();
 
-      const handleVisibilityOrFocus = () => {
+      let lastVisibleSync = Date.now();
+      const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          if (now - lastVisibleSync < 10000) return; // Throttle 10s when switching tabs rapidly
+          lastVisibleSync = now;
           loadDashboardAutoPaymentInfo(true);
           loadDashboardAutoPaymentUsage();
         }
       };
 
-      document.addEventListener('visibilitychange', handleVisibilityOrFocus);
-      window.addEventListener('focus', handleVisibilityOrFocus);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      // Định kỳ 30 giây đồng bộ lại trạng thái nợ / QR trên Dashboard (chạy ngầm)
+      // Khi SSE đang kết nối chỉ sync dự phòng mỗi 60s (SSE đã báo tức thì khi chuyển khoản xong); nếu SSE mất kết nối sync 30s
+      const pollMs = isSseConnected ? 60000 : 30000;
       const intervalId = setInterval(() => {
         if (document.visibilityState === 'visible') {
           loadDashboardAutoPaymentInfo(true);
           loadDashboardAutoPaymentUsage();
         }
-      }, 30000);
+      }, pollMs);
 
       return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
-        window.removeEventListener('focus', handleVisibilityOrFocus);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         clearInterval(intervalId);
       };
     }
-  }, [activeTab, user?.id, user?.role, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
+  }, [activeTab, user?.id, user?.role, isSseConnected, loadDashboardAutoPaymentInfo, loadDashboardAutoPaymentUsage]);
 
-  // Tự động đồng bộ số đơn hôm nay và thống kê Admin thời gian thực (chạy ngầm mỗi 15s hoặc khi quay lại tab)
+  // Đồng bộ thống kê Admin: khi SSE kết nối đã nhận đơn realtime tức thì; chỉ bật polling 30s làm dự phòng khi SSE ngắt + throttle 10s khi quay lại tab
   useEffect(() => {
     if (user?.role === 'admin') {
+      let lastSync = Date.now();
       const handleAdminSync = () => {
         if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          if (now - lastSync < 10000) return;
+          lastSync = now;
           refetchOrders();
           refetchDashboardStats(true);
         }
       };
 
       document.addEventListener('visibilitychange', handleAdminSync);
-      window.addEventListener('focus', handleAdminSync);
 
-      const intervalId = setInterval(handleAdminSync, 15000);
+      const intervalId = !isSseConnected ? setInterval(handleAdminSync, 30000) : null;
 
       return () => {
         document.removeEventListener('visibilitychange', handleAdminSync);
-        window.removeEventListener('focus', handleAdminSync);
-        clearInterval(intervalId);
+        if (intervalId) clearInterval(intervalId);
       };
     }
-  }, [user?.role, refetchOrders, refetchDashboardStats]);
+  }, [user?.role, isSseConnected, refetchOrders, refetchDashboardStats]);
 
   const fetchAllUsers = async () => {
     try {
@@ -1344,33 +1410,6 @@ export default function App() {
       alert('Lỗi khi copy. Vui lòng copy thủ công bằng cách chọn text và Ctrl+C.');
     }
   };
-
-  // Show loading screen
-  if (authLoading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center lotus-pattern ${theme === 'corporate' ? 'corporate-theme bg-[#F0FDFA]' : 'bg-app-bg'}`}>
-        <div className="flex flex-col items-center gap-6">
-          <div className={`w-16 h-16 border-4 rounded-full animate-spin shadow-xl ${theme === 'corporate' ? 'border-[#00A693]/10 border-t-[#00A693] shadow-[#00A693]/5' : 'border-app-accent/10 border-t-app-accent shadow-app-accent/5'}`} />
-          <div className="flex flex-col items-center">
-            <p className={`text-sm font-display font-bold tracking-tight mb-1 ${theme === 'corporate' ? 'text-[#004D40]' : 'text-app-ink'}`}>FSI DDS</p>
-            <p className={`text-[10px] font-bold tracking-[0.3em] uppercase ${theme === 'corporate' ? 'text-[#00A693]/60' : 'text-app-accent/60'}`}>Đang chuẩn bị không gian...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <Login 
-        theme={theme}
-        currentLang={currentLang}
-        setTheme={setTheme}
-        setCurrentLang={setCurrentLang}
-      />
-    );
-  }
 
   return (
     <div className={`app-shell desktop-app-shell flex flex-col lg:flex-row min-h-screen text-app-ink font-sans ${theme === 'corporate' ? 'corporate-theme' : ''} bg-app-bg`}>
@@ -2059,7 +2098,9 @@ export default function App() {
                 {/* Banner Display */}
                 {showBanner && (
                   <div className="w-full">
-                    <BannerDisplay onClose={() => setShowBanner(false)} />
+                    <Suspense fallback={null}>
+                      <BannerDisplay onClose={() => setShowBanner(false)} />
+                    </Suspense>
                   </div>
                 )}
 
