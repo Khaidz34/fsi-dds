@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 import { useVideoSettings } from './hooks/useVideoSettings';
 
