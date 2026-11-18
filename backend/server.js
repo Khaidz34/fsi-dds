@@ -4295,66 +4295,68 @@ app.get('/api/admin/dashboard-stats', authenticateToken, async (req, res) => {
     }
 
     // Calculate today's exact boundaries in Vietnam timezone (UTC+7) converted to UTC ISO
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
-    });
-    const parts = formatter.formatToParts(new Date());
-    const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
-    const y = getPart('year');
-    const m = getPart('month');
-    const d = getPart('day');
-    // Vietnam 00:00:00 (UTC+7) = previous day 17:00:00 UTC
-    const vnTodayStartUtc = new Date(Date.UTC(y, m - 1, d, -7, 0, 0, 0)).toISOString();
-    // Vietnam 23:59:59.999 (UTC+7) = today 16:59:59.999 UTC
-    const vnTodayEndUtc = new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999)).toISOString();
-    
-    // Get today's orders (live count, always fresh)
-    const { count: ordersToday, error: ordersTodayError } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .is('deleted_at', null)
-      .gte('created_at', vnTodayStartUtc)
-      .lte('created_at', vnTodayEndUtc);
+    const { startUtc: vnTodayStartUtc, endUtc: vnTodayEndUtc } = getVietnamTodayUtcRange();
 
-    // Get total users
-    const { count: totalUsers, error: usersError } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+    // Get ALL non-deleted orders placed TODAY (with both dish1 & dish2) + total users in parallel
+    const [todayOrdersRes, usersRes] = await Promise.all([
+      supabase
+        .from('orders')
+        .select(`
+          id,
+          dish1_id,
+          dish2_id,
+          dish1:dish1_id (id, name, name_vi, name_en, name_ja),
+          dish2:dish2_id (id, name, name_vi, name_en, name_ja)
+        `)
+        .is('deleted_at', null)
+        .gte('created_at', vnTodayStartUtc)
+        .lte('created_at', vnTodayEndUtc),
+      supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+    ]);
 
-    // Get popular dishes (simplified)
-    const { data: popularDishes, error: dishesError } = await supabase
-      .from('orders')
-      .select(`
-        dish1_id,
-        dish1:dish1_id (name)
-      `)
-      .is('deleted_at', null)
-      .not('dish1_id', 'is', null)
-      .limit(5);
+    const { data: todayOrders, error: ordersTodayError } = todayOrdersRes;
+    const { count: totalUsers, error: usersError } = usersRes;
 
-    if (ordersTodayError || usersError || dishesError) {
-      console.error('Admin dashboard stats query error:', { ordersTodayError, usersError, dishesError });
+    if (ordersTodayError || usersError) {
+      console.error('Admin dashboard stats query error:', { ordersTodayError, usersError });
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
-    // Count popular dishes
-    const dishCounts = {};
-    popularDishes?.forEach(order => {
-      if (order.dish1?.name) {
-        dishCounts[order.dish1.name] = (dishCounts[order.dish1.name] || 0) + 1;
+    // Count most-ordered dishes TODAY (counting both dish1 and dish2)
+    const dishCountsMap = new Map();
+    const recordDish = (dish) => {
+      if (!dish) return;
+      const displayName = (dish.name_vi || dish.name || '').trim();
+      if (!displayName) return;
+      const key = dish.id ? `id:${dish.id}` : `name:${displayName.toLowerCase()}`;
+      const existing = dishCountsMap.get(key);
+      if (existing) {
+        existing.orderCount += 1;
+      } else {
+        dishCountsMap.set(key, {
+          id: dish.id || null,
+          name: displayName,
+          name_vi: dish.name_vi || dish.name || displayName,
+          name_en: dish.name_en || dish.name || displayName,
+          name_ja: dish.name_ja || dish.name || displayName,
+          orderCount: 1
+        });
       }
+    };
+
+    (todayOrders || []).forEach(order => {
+      recordDish(order.dish1);
+      recordDish(order.dish2);
     });
 
-    const popularDishesArray = Object.entries(dishCounts)
-      .map(([name, orderCount]) => ({ name, orderCount }))
-      .sort((a, b) => b.orderCount - a.orderCount)
+    const popularDishesArray = Array.from(dishCountsMap.values())
+      .sort((a, b) => b.orderCount - a.orderCount || a.name.localeCompare(b.name, 'vi'))
       .slice(0, 5);
 
     const stats = {
-      ordersToday: ordersToday || 0,
+      ordersToday: (todayOrders || []).length,
       totalUsers: totalUsers || 0,
       popularDishesCount: popularDishesArray.length,
       popularDishes: popularDishesArray

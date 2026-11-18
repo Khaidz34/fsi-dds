@@ -1674,7 +1674,7 @@
 
 @media (min-width: 1024px) {
   .desktop-menu-hero {
-    min-height: 162px;
+    min-height: 0;
   }
 
   .desktop-menu-metrics {
@@ -1682,7 +1682,7 @@
   }
 
   .desktop-menu-metric {
-    min-height: 82px;
+    min-height: 50px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1691,7 +1691,7 @@
   }
 
   .menu-dish-card {
-    min-height: 154px;
+    min-height: 158px;
   }
 
   .menu-dish-card .mobile-dish-title {

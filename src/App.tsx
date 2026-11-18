@@ -217,8 +217,8 @@ export default function App() {
   const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers();
 
-  // Tính chính xác số đơn hôm nay theo giờ Việt Nam từ mảng orders thời gian thực
-  const liveAdminTodayOrdersCount = useMemo(() => {
+  // Lọc chính xác các đơn đặt HÔM NAY theo giờ Việt Nam từ mảng orders thời gian thực
+  const liveAdminTodayOrders = useMemo(() => {
     const formatter = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
@@ -232,8 +232,36 @@ export default function App() {
       const orderDate = new Date(order.created_at);
       const orderDateVnStr = formatter.format(orderDate);
       return orderDateVnStr === todayVnStr;
-    }).length;
+    });
   }, [orders]);
+
+  const liveAdminTodayOrdersCount = liveAdminTodayOrders.length;
+
+  // Thống kê top món được chọn nhiều nhất HÔM NAY (đếm cả món 1 và món 2, tự cập nhật realtime)
+  const liveAdminTodayPopularDishes = useMemo(() => {
+    const countsMap = new Map<string, { name: string; orderCount: number }>();
+    const addDish = (dish: any) => {
+      if (!dish) return;
+      const displayName = getDishName(dish, currentLang).trim();
+      if (!displayName) return;
+      const key = dish.id ? `id:${dish.id}` : `name:${displayName.toLowerCase()}`;
+      const existing = countsMap.get(key);
+      if (existing) {
+        existing.orderCount += 1;
+      } else {
+        countsMap.set(key, { name: displayName, orderCount: 1 });
+      }
+    };
+
+    liveAdminTodayOrders.forEach(order => {
+      addDish(order.dish1);
+      addDish(order.dish2);
+    });
+
+    return Array.from(countsMap.values())
+      .sort((a, b) => b.orderCount - a.orderCount || a.name.localeCompare(b.name, 'vi'))
+      .slice(0, 5);
+  }, [liveAdminTodayOrders, currentLang]);
   const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments();
   const { stats: dashboardStats, isLoading: dashboardStatsLoading, refetch: refetchDashboardStats } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback();
@@ -2332,7 +2360,7 @@ export default function App() {
                   <StatCard 
                     icon={<Flame className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} />} 
                     label={t.admin.popularDishes} 
-                    value={dashboardStatsLoading ? "..." : (dashboardStats?.popularDishesCount || 0).toString()} 
+                    value={ordersLoading && orders.length === 0 ? (dashboardStatsLoading ? "..." : (dashboardStats?.popularDishesCount || 0).toString()) : liveAdminTodayPopularDishes.length.toString()} 
                     unit={t.units.dishes} 
                   />
                 </div>
@@ -2405,33 +2433,62 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Favorite Dishes List */}
+                  {/* Favorite Dishes List (Today's most-ordered dishes) */}
                   <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-8 shadow-sm">
-                    <div className="flex items-center gap-3 mb-8">
-                      <Flame className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} size={24} />
-                      <h3 className="text-xl font-display font-bold tracking-tight">{t.admin.favoriteDishes}</h3>
+                    <div className="flex items-center justify-between gap-3 mb-8">
+                      <div className="flex items-center gap-3">
+                        <Flame className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} size={24} />
+                        <h3 className="text-xl font-display font-bold tracking-tight">{t.admin.favoriteDishes}</h3>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-app-accent/10 text-app-accent">
+                        {currentLang === 'ja' ? '本日' : currentLang === 'en' ? 'Today' : 'Hôm nay'}
+                      </span>
                     </div>
-                    <div className="space-y-6">
-                      {dashboardStatsLoading ? (
-                        <div className="text-center py-4 text-gray-500">Đang tải...</div>
-                      ) : dashboardStats?.popularDishes && dashboardStats.popularDishes.length > 0 ? (
-                        dashboardStats.popularDishes.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-[#DA251D] text-white' : 'bg-[#FDF4E3] text-[#2D241E]/40'}`}>
-                                {idx + 1}
+                    <div className="space-y-5">
+                      {(() => {
+                        const displayPopularDishes =
+                          ordersLoading && orders.length === 0
+                            ? (dashboardStats?.popularDishes || []).map((item: any) => ({
+                                name: getDishName(item, currentLang) || item.name,
+                                orderCount: item.orderCount
+                              }))
+                            : liveAdminTodayPopularDishes;
+
+                        if (ordersLoading && orders.length === 0 && dashboardStatsLoading) {
+                          return <div className="text-center py-4 text-gray-500">Đang tải...</div>;
+                        }
+
+                        if (displayPopularDishes.length > 0) {
+                          return displayPopularDishes.map((item, idx) => (
+                            <div key={`${item.name}-${idx}`} className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${idx === 0 ? 'bg-[#DA251D] text-white' : 'bg-[#FDF4E3] text-[#2D241E]/50'}`}>
+                                  {idx + 1}
+                                </div>
+                                <p className="font-bold text-sm truncate">{item.name}</p>
                               </div>
-                              <p className="font-bold text-sm">{item.name}</p>
+                              <span className="text-sm font-black shrink-0 tabular-nums">
+                                {item.orderCount}
+                                <span className="ml-1 text-[11px] font-semibold text-app-ink/45">
+                                  {currentLang === 'ja' ? '回' : currentLang === 'en' ? 'x' : 'lượt'}
+                                </span>
+                              </span>
                             </div>
-                            <span className="text-sm font-black">{item.orderCount}</span>
+                          ));
+                        }
+
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="font-medium">
+                              {currentLang === 'ja'
+                                ? '本日の注文はまだありません'
+                                : currentLang === 'en'
+                                  ? 'No orders placed today yet'
+                                  : 'Chưa có món nào được đặt hôm nay'}
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>{t.noData.popularDishes}</p>
-                          <p className="text-sm">{t.noData.createMenuFirst}</p>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2444,95 +2501,66 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="desktop-menu-section menu-luxury-stage space-y-4 sm:space-y-6 lg:space-y-7"
+                className="desktop-menu-section menu-luxury-stage space-y-2.5 sm:space-y-3"
               >
-                {/* Order Deadline Countdown Banner */}
-                <OrderDeadlineCountdown isAdmin={user?.role === 'admin'} className="mb-4" currentLang={currentLang} translations={t} />
-                <div className="desktop-menu-hero hidden lg:grid grid-cols-[minmax(0,1fr)_minmax(300px,330px)] items-center gap-5 lacquer-card p-5 xl:p-6 overflow-hidden relative">
+                {/* Compact Order Deadline Countdown Banner */}
+                <OrderDeadlineCountdown isAdmin={user?.role === 'admin'} className="mb-0" currentLang={currentLang} translations={t} />
+                <div className="desktop-menu-hero hidden lg:flex items-center justify-between gap-4 lacquer-card px-4 py-2.5 xl:px-5 xl:py-3 overflow-hidden relative">
                   <div className="absolute inset-0 menu-heritage-surface" />
                   <div className="absolute inset-y-0 left-0 w-1/3 lotus-pattern opacity-[0.045]" />
-                  <div className="absolute inset-y-0 right-0 w-1/3 seigaiha-pattern opacity-[0.16]" />
-                  <div className="relative z-10 flex items-start gap-4">
-                    <div className="w-[52px] h-[52px] rounded-2xl bg-app-accent text-white flex items-center justify-center shadow-lg shadow-app-accent/20 shrink-0">
-                      <Utensils size={26} />
+                  <div className="absolute inset-y-0 right-0 w-1/3 seigaiha-pattern opacity-[0.14]" />
+                  <div className="relative z-10 flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-app-accent text-white flex items-center justify-center shadow-md shadow-app-accent/20 shrink-0">
+                      <Utensils size={20} />
                     </div>
-                    <div>
-                      <div className="desktop-menu-kicker-row flex flex-wrap items-center gap-2 mb-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-app-accent/65">{t.todayMenu}</p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-xl xl:text-2xl font-display font-bold tracking-tight text-app-ink leading-tight">{mobileOrderCopy.title}</h3>
                         <span className="menu-culture-chip">{t.ui?.vietCuisineChip || 'Cơm Việt'}</span>
                         <span className="menu-culture-chip">{t.ui?.japanCuisineChip || '和の味'}</span>
                       </div>
-                      <h3 className="text-[2rem] font-display font-bold tracking-tight text-app-ink leading-tight">{mobileOrderCopy.title}</h3>
-                      <p className="mt-1.5 max-w-2xl text-[13px] font-semibold leading-relaxed text-app-ink/50">
+                      <p className="mt-0.5 text-xs font-semibold text-app-ink/60">
                         {mobileOrderCopy.helper}
                       </p>
-                      <div className="personal-menu-mission">
-                        <span className="menu-mission-icon" aria-hidden="true">
-                          <Sparkles size={15} />
-                        </span>
-                        <span className="menu-mission-copy">{t.ui?.menuMission || 'Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.'}</span>
-                      </div>
                     </div>
-                  </div>
-                  <div className="personal-menu-postcard" aria-hidden="true">
-                    <span className="personal-postcard-label">seal</span>
-                    <span className="personal-menu-handnote">FSI DDS</span>
                   </div>
 
-                  <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2.5">
-                    <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-app-accent/5 px-3.5 py-3">
-                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">{t.ui?.todayDishes || 'Món hôm nay'}</p>
-                      <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-ink leading-none">{menu?.dishes?.length || 0}</p>
+                  <div className="desktop-menu-metrics relative z-10 grid grid-cols-3 gap-2 shrink-0 w-[280px] xl:w-[300px]">
+                    <div className="desktop-menu-metric rounded-xl border border-app-accent/15 bg-app-accent/5 px-2.5 py-1.5">
+                      <p className="desktop-menu-metric-label text-[9px] font-black uppercase tracking-[0.14em] text-app-ink/40">{t.ui?.todayDishes || 'Món hôm nay'}</p>
+                      <p className="desktop-menu-metric-value mt-0.5 text-base font-black text-app-ink leading-none">{menu?.dishes?.length || 0}</p>
                     </div>
-                    <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
-                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">{mobileOrderCopy.selected}</p>
-                      <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-accent leading-none">{selectedDishes.length}/{maxSelectableDishes}</p>
+                    <div className="desktop-menu-metric rounded-xl border border-app-accent/15 bg-white px-2.5 py-1.5">
+                      <p className="desktop-menu-metric-label text-[9px] font-black uppercase tracking-[0.14em] text-app-ink/40">{mobileOrderCopy.selected}</p>
+                      <p className="desktop-menu-metric-value mt-0.5 text-base font-black text-app-accent leading-none">{selectedDishes.length}/{maxSelectableDishes}</p>
                     </div>
-                    <div className="desktop-menu-metric rounded-2xl border border-app-accent/15 bg-white px-3.5 py-3">
-                      <p className="desktop-menu-metric-label text-[10px] font-black uppercase tracking-[0.16em] text-app-ink/35">{mobileOrderCopy.perMeal}</p>
-                      <p className="desktop-menu-metric-value mt-1.5 text-[1.35rem] font-black text-app-ink leading-none">{mealPriceText}</p>
+                    <div className="desktop-menu-metric rounded-xl border border-app-accent/15 bg-white px-2.5 py-1.5">
+                      <p className="desktop-menu-metric-label text-[9px] font-black uppercase tracking-[0.14em] text-app-ink/40">{mobileOrderCopy.perMeal}</p>
+                      <p className="desktop-menu-metric-value mt-0.5 text-base font-black text-app-ink leading-none">{mealPriceText}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="mobile-menu-hero-card menu-heritage-surface lg:hidden bg-white border border-app-accent/15 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-                  <div className="mobile-menu-postcard" aria-hidden="true">
-                    <span className="personal-postcard-label">seal</span>
-                    <span className="personal-menu-handnote">FSI DDS</span>
-                  </div>
-
-                  <div className="flex items-start justify-between gap-3 relative z-10">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="w-11 h-11 rounded-2xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
-                        <Utensils size={22} />
+                <div className="mobile-menu-hero-card menu-heritage-surface lg:hidden bg-white border border-app-accent/15 rounded-xl px-3.5 py-2.5 shadow-xs relative overflow-hidden">
+                  <div className="flex items-center justify-between gap-2.5 relative z-10">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-app-accent/10 text-app-accent flex items-center justify-center shrink-0">
+                        <Utensils size={18} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-app-accent/70">{t.todayMenu}</p>
-                        <h3 className="text-xl font-black text-slate-950 leading-tight">{mobileOrderCopy.title}</h3>
-                        <p className="text-sm text-slate-500 mt-1 leading-snug">{mobileOrderCopy.helper}</p>
+                        <h3 className="text-base font-black text-slate-950 leading-tight truncate">{mobileOrderCopy.title}</h3>
+                        <p className="text-xs text-slate-500 mt-0.5 leading-snug">{mobileOrderCopy.helper}</p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.selected}</p>
-                      <p className="text-lg font-black text-app-accent">{selectedDishes.length}/{maxSelectableDishes}</p>
-                    </div>
-                  </div>
-
-                  <div className="mobile-menu-mission relative z-10">
-                    <span className="menu-mission-icon" aria-hidden="true">
-                      <Sparkles size={14} />
-                    </span>
-                    <span className="menu-mission-copy">{t.ui?.menuMission || 'Giúp bạn chọn bữa trưa dễ dàng, nhanh gọn và luôn ngon miệng.'}</span>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2 relative z-10">
-                    <div className="rounded-xl border border-app-accent/15 bg-app-accent/5 px-3 py-2">
-                      <p className="text-[11px] font-bold text-slate-400">{mobileOrderCopy.perMeal}</p>
-                      <p className="text-base font-black text-slate-950">{mealPriceText}</p>
-                    </div>
-                    <div className="rounded-xl border border-app-accent/15 bg-app-accent/5 px-3 py-2">
-                      <p className="text-[11px] font-bold text-slate-400">{t.selectedDishes}</p>
-                      <p className="text-base font-black text-slate-950">{mobileOrderCopy.limit}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="rounded-lg border border-app-accent/15 bg-app-accent/5 px-2 py-1 text-center">
+                        <p className="text-[9px] font-bold text-slate-400 leading-none">{mobileOrderCopy.selected}</p>
+                        <p className="text-sm font-black text-app-accent leading-tight mt-0.5">{selectedDishes.length}/{maxSelectableDishes}</p>
+                      </div>
+                      <div className="rounded-lg border border-app-accent/15 bg-white px-2 py-1 text-center">
+                        <p className="text-[9px] font-bold text-slate-400 leading-none">{mobileOrderCopy.perMeal}</p>
+                        <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">{mealPriceText}</p>
+                      </div>
                     </div>
                   </div>
                 </div>

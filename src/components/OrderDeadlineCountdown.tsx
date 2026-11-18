@@ -381,20 +381,20 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
     );
   }
 
-  // Admin Switcher Control Component
+  // Compact Inline Admin Switcher Control Component
   const adminSwitcher = isAdmin && (
-    <div className="mt-3.5 pt-3 border-t border-black/10 flex flex-wrap items-center justify-between gap-2.5">
-      <div className="flex items-center gap-1.5 text-xs font-black text-slate-700">
-        <ShieldCheck size={15} className="text-amber-600" />
-        <span>{d?.adminOverrideLabel || 'Chế độ khóa sổ (Admin):'}</span>
-      </div>
-      <div className="inline-flex rounded-xl bg-slate-200/90 p-1 text-xs font-bold gap-1 shadow-inner">
+    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+      <span className="hidden xl:inline-flex items-center gap-1 text-[11px] font-bold text-slate-600">
+        <ShieldCheck size={13} className="text-amber-600" />
+        <span>{d?.adminOverrideLabel || 'Khóa sổ:'}</span>
+      </span>
+      <div className="inline-flex rounded-lg bg-slate-200/90 p-0.5 text-[11px] font-bold gap-0.5 shadow-inner">
         <button
           type="button"
           onClick={() => setDeadlineOverride('auto')}
-          className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+          className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 whitespace-nowrap ${
             overrideMode === 'auto'
-              ? 'bg-white text-slate-900 shadow-sm font-black'
+              ? 'bg-white text-slate-900 shadow-xs font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -404,9 +404,9 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
         <button
           type="button"
           onClick={() => setDeadlineOverride('locked')}
-          className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+          className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 whitespace-nowrap ${
             overrideMode === 'locked'
-              ? 'bg-red-600 text-white shadow-sm font-black'
+              ? 'bg-red-600 text-white shadow-xs font-black'
               : 'text-slate-600 hover:text-red-700'
           }`}
         >
@@ -416,9 +416,9 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
         <button
           type="button"
           onClick={() => setDeadlineOverride('extended_15')}
-          className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+          className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 whitespace-nowrap ${
             overrideMode === 'extended_15'
-              ? 'bg-amber-500 text-white shadow-sm font-black'
+              ? 'bg-amber-500 text-white shadow-xs font-black'
               : 'text-slate-600 hover:text-amber-700'
           }`}
         >
@@ -429,7 +429,7 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
     </div>
   );
 
-  // Render dạng Banner nổi bật trên đầu Menu
+  // Render dạng Banner nhỏ gọn trên đầu Menu
   if (isPassed) {
     const isManuallyLocked = overrideMode === 'locked';
     const mainTitle = isManuallyLocked
@@ -438,52 +438,52 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
     const titleText = (d?.passedCutoff || 'Hạn chót: {deadline}').replace('{deadline}', deadlineString);
 
     return (
-      <div className={`rounded-2xl border p-4 sm:p-4.5 transition-all ${
+      <div className={`rounded-xl border px-3.5 py-2 sm:py-2.5 transition-all ${
         isManuallyLocked 
           ? 'bg-red-50 border-red-200 text-red-950'
           : isAdmin 
-            ? 'bg-amber-50/70 border-amber-200 text-amber-900' 
+            ? 'bg-amber-50/75 border-amber-200 text-amber-900' 
             : 'bg-slate-100 border-slate-200 text-slate-800'
       } ${className}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
               isManuallyLocked 
                 ? 'bg-red-100 text-red-700'
                 : isAdmin 
                   ? 'bg-amber-100 text-amber-700' 
                   : 'bg-slate-200 text-slate-600'
             }`}>
-              <Lock size={20} />
+              <Lock size={16} />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-bold text-sm sm:text-base">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h4 className="font-bold text-xs sm:text-sm leading-tight">
                   {mainTitle} {!isManuallyLocked && `(${titleText})`}
                 </h4>
                 {isAdmin && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/80 text-amber-900">
-                    <ShieldCheck size={12} />
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-200/80 text-amber-900">
+                    <ShieldCheck size={11} />
                     {d?.adminBypass || 'Admin Bypass'}
                   </span>
                 )}
                 {isManuallyLocked && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-200 text-red-900">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-200 text-red-900">
                     {d?.pillAdminLocked || 'Khóa sớm bởi Admin'}
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm opacity-80 mt-0.5">
+              <p className="text-[11px] sm:text-xs opacity-75 truncate">
                 {isManuallyLocked
                   ? (d?.adminLockedDesc || 'Quản trị viên đã bấm khóa nhận đơn sớm để chốt số lượng cho bếp.')
                   : isAdmin
-                    ? (d?.passedDescAdmin || 'Bếp đã chốt số lượng suất ăn. Bạn đang đăng nhập quyền Quản trị viên nên vẫn có thể tạo hoặc đổi món nếu cần hỗ trợ nhân viên.')
-                    : (d?.passedDescUser || 'Hệ thống đã khóa tính năng đặt và sửa món sau {deadline} để bếp nấu. Vui lòng liên hệ Admin nếu bạn cần hỗ trợ gấp.').replace('{deadline}', deadlineString)}
+                    ? (d?.passedDescAdmin || 'Bếp đã chốt suất ăn. Quyền Quản trị viên vẫn có thể đặt/đổi món hỗ trợ nhân viên.')
+                    : (d?.passedDescUser || 'Hệ thống đã khóa đặt và sửa món sau {deadline}. Liên hệ Admin nếu cần hỗ trợ gấp.').replace('{deadline}', deadlineString)}
               </p>
             </div>
           </div>
+          {adminSwitcher}
         </div>
-        {adminSwitcher}
       </div>
     );
   }
@@ -503,15 +503,15 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
     : (d?.todayCutoff || 'Hạn chót: {deadline} trưa nay').replace('{deadline}', deadlineString);
 
   const messageText = isExtended
-    ? (d?.adminExtendedDesc || 'Bếp đã gia hạn mở thêm 15 phút đặt cơm ({deadline}). Hãy nhanh chóng chọn món trước giờ khóa sổ.').replace('{deadline}', deadlineString)
+    ? (d?.adminExtendedDesc || 'Bếp đã gia hạn mở thêm 15 phút đặt cơm ({deadline}).').replace('{deadline}', deadlineString)
     : isCritical
-      ? (d?.msgCritical || 'Khẩn cấp: Hãy hoàn tất đặt món hoặc chỉnh sửa ngay trước khi hệ thống khóa sổ!')
+      ? (d?.msgCritical || 'Khẩn cấp: Hoàn tất đặt món trước khi hệ thống khóa sổ!')
       : isUrgent
-        ? (d?.msgUrgent || 'Vui lòng chốt món sớm để quán cơm chuẩn bị nguyên liệu kịp thời.')
+        ? (d?.msgUrgent || 'Vui lòng chốt món sớm để quán cơm chuẩn bị kịp thời.')
         : (d?.msgNormal || 'Bạn có thể chọn món, đổi món hoặc thêm ghi chú trước giờ chốt.');
 
   return (
-    <div className={`rounded-2xl border p-4 sm:p-4.5 transition-all shadow-sm ${
+    <div className={`rounded-xl border px-3.5 py-2 sm:py-2.5 transition-all shadow-xs ${
       isExtended
         ? 'bg-amber-50 border-amber-300 text-amber-950'
         : isCritical 
@@ -520,9 +520,9 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-950' 
             : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-950'
     } ${className}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
             isExtended 
               ? 'bg-amber-500 text-white'
               : isCritical 
@@ -531,11 +531,11 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
                   ? 'bg-amber-500 text-white' 
                   : 'bg-emerald-600 text-white'
           }`}>
-            {isCritical ? <AlertTriangle size={20} /> : <Clock size={20} />}
+            {isCritical ? <AlertTriangle size={16} /> : <Clock size={16} />}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
                 isExtended
                   ? 'bg-amber-200 text-amber-950'
                   : isCritical 
@@ -546,25 +546,27 @@ export const OrderDeadlineCountdown: React.FC<OrderDeadlineCountdownProps> = ({
               }`}>
                 {tagText}
               </span>
-              <span className="text-xs opacity-75 font-medium">{todayCutoffText}</span>
+              <span className="text-[11px] opacity-75 font-semibold">{todayCutoffText}</span>
             </div>
-            <p className="text-xs sm:text-sm font-semibold mt-0.5 truncate">
+            <p className="text-xs font-medium mt-0.5 truncate opacity-85">
               {messageText}
             </p>
           </div>
         </div>
 
-        {/* Khung đồng hồ đếm ngược */}
-        <div className="shrink-0 flex items-center gap-2 self-end sm:self-auto bg-white/80 backdrop-blur-sm px-3.5 py-2 rounded-xl border border-black/5 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">{d?.timeLeft || 'Còn lại:'}</span>
-          <span className={`font-mono text-base sm:text-lg font-black tracking-tight ${
-            isCritical ? 'text-red-600' : isUrgent || isExtended ? 'text-amber-600' : 'text-emerald-700'
-          }`}>
-            {formattedTime}
-          </span>
+        <div className="flex items-center justify-between lg:justify-end gap-2 shrink-0 flex-wrap">
+          {/* Khung đồng hồ đếm ngược nhỏ gọn */}
+          <div className="shrink-0 flex items-center gap-1.5 bg-white/85 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-black/5 shadow-xs">
+            <span className="text-[11px] font-medium text-slate-500">{d?.timeLeft || 'Còn lại:'}</span>
+            <span className={`font-mono text-sm font-black tracking-tight ${
+              isCritical ? 'text-red-600' : isUrgent || isExtended ? 'text-amber-600' : 'text-emerald-700'
+            }`}>
+              {formattedTime}
+            </span>
+          </div>
+          {adminSwitcher}
         </div>
       </div>
-      {adminSwitcher}
     </div>
   );
 };
