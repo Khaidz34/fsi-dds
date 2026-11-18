@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { paymentsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribeToTable, unsubscribeFromTable } from '../services/supabase';
@@ -119,7 +119,9 @@ export const useAdminPayments = (month?: string) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+  const lastUpdateTimeRef = useRef<number>(0);
+  const userPaymentsRef = useRef<UserPaymentInfo[]>([]);
+  userPaymentsRef.current = userPayments;
   const [paymentPage, setPaymentPage] = useState(1);
 
   const currentMonth = month || new Date().toISOString().slice(0, 7);
@@ -129,15 +131,15 @@ export const useAdminPayments = (month?: string) => {
     try {
       // Debounce: don't fetch more than once per 1 second (unless skipDebounce is true)
       const now = Date.now();
-      if (!skipDebounce && now - lastUpdateTime < 1000) {
+      if (!skipDebounce && now - lastUpdateTimeRef.current < 1000) {
         console.log('⏱️  Debouncing payment fetch (too soon)');
         return;
       }
-      setLastUpdateTime(now);
+      lastUpdateTimeRef.current = now;
 
       if (loadMore) {
         setIsLoadingMore(true);
-      } else if (userPayments.length === 0) {
+      } else if (userPaymentsRef.current.length === 0) {
         setIsLoading(true);
       } else {
         setIsUpdating(true);
@@ -159,6 +161,7 @@ export const useAdminPayments = (month?: string) => {
         
         console.log('📊 Received', data.length, 'users with debt from API');
         
+        userPaymentsRef.current = data;
         setUserPayments(data);
         
         if (paginationInfo) {
@@ -217,7 +220,7 @@ export const useAdminPayments = (month?: string) => {
         fetchPaymentHistory(),
         fetchAutoPaymentUsage()
       ]);
-      console.log('✅ Data refreshed, new userPayments count:', userPayments.length);
+      console.log('✅ Data refreshed, new userPayments count:', userPaymentsRef.current.length);
       return true;
     } catch (err) {
       console.error('❌ Mark as paid error:', err);

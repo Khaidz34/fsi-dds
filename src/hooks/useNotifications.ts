@@ -5,7 +5,7 @@
  * for new orders. Handles role-based filtering and permission management.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSSE, SSEOrderData } from './useSSE';
 import { notificationService, Language, OrderNotificationData } from '../services/notificationService';
 
@@ -35,9 +35,24 @@ export function useNotifications(
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const [latestNotification, setLatestNotification] = useState<OrderNotificationData | null>(null);
   const isSupported = notificationService.isBrowserSupported();
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onNavigateRef = useRef(onNavigateToOrders);
+  const onOrderUpdateRef = useRef(onOrderUpdate);
+  onNavigateRef.current = onNavigateToOrders;
+  onOrderUpdateRef.current = onOrderUpdate;
 
   const clearLatestNotification = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
     setLatestNotification(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
   }, []);
 
   // Check if user should receive notifications (admin or staff only)
@@ -117,41 +132,43 @@ export function useNotifications(
         // Always play gentle audio chime for new orders
         notificationService.playOrderChime();
 
-        // Update in-app floating banner state
+        // Update in-app floating banner state (reset timer so rapid notifications never cancel early)
+        if (dismissTimerRef.current) {
+          clearTimeout(dismissTimerRef.current);
+        }
         setLatestNotification(notificationData);
-        setTimeout(() => {
+        dismissTimerRef.current = setTimeout(() => {
           setLatestNotification(prev => prev?.orderId === notificationData.orderId ? null : prev);
+          dismissTimerRef.current = null;
         }, 8000);
 
         // Display desktop notification if permission granted
         const currentPerm = notificationService.getPermissionStatus();
         if (currentPerm === 'granted') {
-          notificationService.showOrderNotification(notificationData, onNavigateToOrders);
+          notificationService.showOrderNotification(notificationData, () => onNavigateRef.current?.());
         }
 
         // Trigger live refresh in app
-        if (onOrderUpdate) {
-          onOrderUpdate();
-        }
+        onOrderUpdateRef.current?.();
       } catch (error) {
         console.error('Error processing order notification:', error);
         // Continue operation despite error
       }
     },
-    [shouldReceiveNotifications, permissionStatus, language, onNavigateToOrders, onOrderUpdate]
+    [shouldReceiveNotifications, language]
   );
 
   // Establish SSE connection
   const { isConnected } = useSSE(user?.id || null, token, {
     onOrderCreated: handleOrderCreated,
     onOrderUpdated: () => {
-      if (onOrderUpdate) onOrderUpdate();
+      onOrderUpdateRef.current?.();
     },
     onOrderDeleted: () => {
-      if (onOrderUpdate) onOrderUpdate();
+      onOrderUpdateRef.current?.();
     },
     onPaymentMarked: () => {
-      if (onOrderUpdate) onOrderUpdate();
+      onOrderUpdateRef.current?.();
     },
     onError: (error) => {
       console.error('SSE error in useNotifications:', error);

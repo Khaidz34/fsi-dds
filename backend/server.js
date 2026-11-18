@@ -1,5 +1,7 @@
 require('dotenv').config();
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,6 +11,40 @@ const { createClient } = require('@supabase/supabase-js');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cache = require('./cache');
+
+// =====================================================
+// Vietnam Timezone (UTC+7) Date Helpers
+// =====================================================
+const getVietnamDateParts = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  const year = getPart('year');
+  const month = getPart('month');
+  const day = getPart('day');
+  return {
+    year,
+    month,
+    day,
+    dateStr: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+    monthStr: `${year}-${String(month).padStart(2, '0')}`
+  };
+};
+
+const getVietnamDateStr = (date = new Date()) => getVietnamDateParts(date).dateStr;
+
+const getVietnamTodayUtcRange = (date = new Date()) => {
+  const { year, month, day, dateStr } = getVietnamDateParts(date);
+  // 00:00:00.000 VN (UTC+7) = -7 hours UTC; 23:59:59.999 VN = +16:59:59.999 UTC
+  const startUtc = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - 7 * 60 * 60 * 1000).toISOString();
+  const endUtc = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - 7 * 60 * 60 * 1000).toISOString();
+  return { dateStr, startUtc, endUtc };
+};
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -143,7 +179,7 @@ const broadcastToAdmins = (notification, excludeUserIds = []) => {
 };
 
 // Send heartbeat to all connected users every 30 seconds
-setInterval(() => {
+const sseHeartbeatInterval = setInterval(() => {
   sseConnections.forEach((_, userId) => {
     sendSSEHeartbeat(userId);
   });
@@ -202,34 +238,34 @@ if (!supabaseUrl || !supabaseKey) {
 const dbForWrite = (table) => (supabaseAdmin || supabase).from(table);
 
 
+// Shared CORS origin validator (used by Express CORS middleware and SSE endpoint)
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:3001',
+    'http://127.0.0.1:5500',
+    'https://fsi-dds-fontend.onrender.com',
+    'https://fsi-dds.onrender.com',
+    'https://fsi-dds-order.onrender.com',
+    'https://khaidz34.github.io',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/127\.0\.0\.1:\d+$/,
+    /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
+    /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/
+  ];
+  return allowedOrigins.some(pattern =>
+    typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+  );
+};
+
 // Middleware
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-      'http://localhost:3001',
-      'http://127.0.0.1:5500',
-      'https://fsi-dds-fontend.onrender.com',
-      'https://fsi-dds.onrender.com',
-      'https://fsi-dds-order.onrender.com',
-      'https://khaidz34.github.io',
-      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-      /^http:\/\/localhost:\\d+$/,
-      /^http:\/\/127\.0\.0\.1:\\d+$/,
-      /^http:\/\/192\.168\.\\d+\.\\d+:\\d+$/,
-      /^http:\/\/10\.\\d+\.\\d+\.\\d+:\\d+$/
-    ];
-    
-    const isAllowed = allowedOrigins.some(pattern => {
-      if (typeof pattern === 'string') return pattern === origin;
-      return pattern.test(origin);
-    });
-    
-    callback(null, isAllowed);
+    callback(null, isOriginAllowed(origin));
   },
   credentials: true
 }));
@@ -247,7 +283,7 @@ app.use(compression({
   threshold: 1024, // Only compress responses > 1KB
   filter: (req, res) => {
     // Don't compress SSE streams
-    if (req.path.includes('/sse/')) {
+    if (req.path.includes('/sse')) {
       return false;
     }
     return compression.filter(req, res);
@@ -257,7 +293,6 @@ app.use(compression({
 app.use(express.json());
 
 // Serve static files from public directory (frontend build)
-const path = require('path');
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '1y',
   immutable: true,
@@ -644,7 +679,7 @@ app.get('/api/menu/today', async (req, res) => {
       return res.json({ 
         message: 'Database not configured. Please set SUPABASE_ANON_KEY on Render Dashboard.',
         dishes: [],
-        date: new Date().toISOString().split('T')[0]
+        date: getVietnamDateStr()
       });
     }
 
@@ -655,7 +690,7 @@ app.get('/api/menu/today', async (req, res) => {
       return res.json(cachedMenu);
     }
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getVietnamDateStr();
     
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
@@ -735,7 +770,7 @@ app.post('/api/menu', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Danh sách món ăn là bắt buộc' });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getVietnamDateStr();
 
     // Delete existing menu for today
     const { error: deleteError } = await supabase
@@ -812,7 +847,7 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Danh sách món ăn là bắt buộc' });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getVietnamDateStr();
 
     // Delete existing menu for today
     const { error: deleteError } = await supabase
@@ -875,9 +910,9 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
 
 app.get('/api/orders/today', authenticateToken, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const { startUtc, endUtc } = getVietnamTodayUtcRange();
     
-    const { data: orders, error } = await supabase
+    let query = supabase
       .from('orders')
       .select(`
         *,
@@ -886,10 +921,17 @@ app.get('/api/orders/today', authenticateToken, async (req, res) => {
         orderer:ordered_by (id, fullname),
         receiver:ordered_for (id, fullname)
       `)
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59')
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
+
+    // Only admin/staff see all orders; regular users see their own + orders placed for them
+    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+      query = query.or(`user_id.eq.${req.user.id},ordered_for.eq.${req.user.id},ordered_by.eq.${req.user.id}`);
+    }
+
+    const { data: orders, error } = await query;
     if (error) {
       console.error('Orders query error:', error);
       return res.status(500).json({ error: 'Lỗi database' });
@@ -919,7 +961,7 @@ app.get('/api/orders/today', authenticateToken, async (req, res) => {
 // Get user's own orders
 app.get('/api/orders/my', authenticateToken, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const { startUtc, endUtc } = getVietnamTodayUtcRange();
     
     const { data: orders, error } = await supabase
       .from('orders')
@@ -931,8 +973,8 @@ app.get('/api/orders/my', authenticateToken, async (req, res) => {
         receiver:ordered_for (id, fullname)
       `)
       .or(`user_id.eq.${req.user.id},ordered_for.eq.${req.user.id}`)
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59')
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
@@ -1005,18 +1047,6 @@ app.get('/api/orders/all', authenticateToken, async (req, res) => {
 // System Order Deadline Override (Synced across all clients)
 // =====================================================
 const DEADLINE_OVERRIDE_FILE = path.join(__dirname, 'deadline-override.json');
-
-const getVietnamDateStr = (date = new Date()) => {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric'
-  });
-  const parts = formatter.formatToParts(date);
-  const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
-  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
-};
 
 let systemDeadlineOverride = {
   mode: 'auto', // 'auto' | 'locked' | 'extended_15'
@@ -1098,18 +1128,9 @@ const broadcastToAllUsers = (notification) => {
 };
 
 /**
- * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay hay chưa.
- * Có tính toán đến thiết lập ghi đè (override) của Admin:
- * - 'auto': Hạn chót mặc định 11h00 VN
- * - 'locked': Khóa ngay lập tức
- * - 'extended_15': Mở thêm 15 phút đến mốc extendedUntilTimestamp
- * Admin luôn được miễn trừ kiểm tra này để linh hoạt hỗ trợ người dùng.
+ * Kiểm tra hạn chốt thực tế (chưa miễn trừ admin) để phục vụ audit log
  */
-const isOrderDeadlinePassed = (user) => {
-  if (user && user.role === 'admin') {
-    return false;
-  }
-
+const isDeadlineCurrentlyClosed = () => {
   const today = getVietnamDateStr();
   const override = getSystemDeadlineOverride();
   if (override && override.date === today) {
@@ -1129,12 +1150,28 @@ const isOrderDeadlinePassed = (user) => {
   return totalMinutes > deadlineMinutes;
 };
 
+/**
+ * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay hay chưa.
+ * Có tính toán đến thiết lập ghi đè (override) của Admin:
+ * - 'auto': Hạn chót mặc định 11h00 VN
+ * - 'locked': Khóa ngay lập tức
+ * - 'extended_15': Mở thêm 15 phút đến mốc extendedUntilTimestamp
+ * Admin luôn được miễn trừ kiểm tra này để linh hoạt hỗ trợ người dùng.
+ */
+const isOrderDeadlinePassed = (user) => {
+  if (user && user.role === 'admin') {
+    return false;
+  }
+  return isDeadlineCurrentlyClosed();
+};
+
 // GET /api/deadline-override: Lấy trạng thái hạn chốt cơm hiện tại của toàn hệ thống
 app.get('/api/deadline-override', (req, res) => {
   const override = getSystemDeadlineOverride();
   res.json({
     success: true,
     override,
+    serverNow: Date.now(),
     serverTimeVN: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
   });
 });
@@ -1153,17 +1190,7 @@ app.post('/api/deadline-override', authenticateToken, async (req, res) => {
   const today = getVietnamDateStr();
   let extendedUntilTimestamp = null;
   if (mode === 'extended_15') {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric'
-    });
-    const parts = formatter.formatToParts(new Date());
-    const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
-    const y = getPart('year');
-    const m = getPart('month');
-    const d = getPart('day');
+    const { year: y, month: m, day: d } = getVietnamDateParts();
     // 11:15 AM VN (UTC+7) = 04:15 AM UTC
     const base1115Utc = Date.UTC(y, m - 1, d, 4, 15, 0);
     // Nếu trước 11:15 thì mở đến 11:15; nếu đã quá 11:15 thì mở thêm đúng 15 phút từ thời điểm hiện tại:
@@ -1190,11 +1217,17 @@ app.post('/api/deadline-override', authenticateToken, async (req, res) => {
 
   res.json({
     success: true,
-    override: updatedOverride
+    override: updatedOverride,
+    serverNow: Date.now()
   });
 });
 
+// In-memory deduplication guard against rapid double-click / retry duplicate orders (6s window)
+const recentOrderRequests = new Map(); // key -> { timestamp, inFlight, order }
+const ORDER_DEDUP_WINDOW_MS = 6000;
+
 app.post('/api/orders', authenticateToken, async (req, res) => {
+  let dedupKey = null;
   try {
     if (isOrderDeadlinePassed(req.user)) {
       return res.status(400).json({ 
@@ -1208,14 +1241,53 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Món chính và người nhận là bắt buộc' });
     }
 
+    const numericDish1Id = Number(dish1Id);
+    const numericDish2Id = dish2Id ? Number(dish2Id) : null;
+
+    if (!Number.isInteger(numericDish1Id) || numericDish1Id <= 0) {
+      return res.status(400).json({ error: 'Món chính không hợp lệ' });
+    }
+    if (numericDish2Id !== null && (!Number.isInteger(numericDish2Id) || numericDish2Id <= 0)) {
+      return res.status(400).json({ error: 'Món thứ 2 không hợp lệ' });
+    }
+    if (numericDish2Id !== null && numericDish1Id === numericDish2Id) {
+      return res.status(400).json({ error: 'Không thể chọn trùng cùng một món 2 lần' });
+    }
+
     const targetOrderedFor = Number(orderedFor) || req.user.id;
+
+    // Deduplication check for accidental double-clicks or network retries
+    const nowMs = Date.now();
+    // Periodic cleanup of expired dedup keys
+    if (recentOrderRequests.size > 200) {
+      for (const [k, v] of recentOrderRequests.entries()) {
+        if (nowMs - v.timestamp > ORDER_DEDUP_WINDOW_MS) recentOrderRequests.delete(k);
+      }
+    }
+    dedupKey = `${req.user.id}:${targetOrderedFor}:${numericDish1Id}:${numericDish2Id || ''}:${String(notes || '').trim()}`;
+    const existingReq = recentOrderRequests.get(dedupKey);
+    if (existingReq && nowMs - existingReq.timestamp < ORDER_DEDUP_WINDOW_MS) {
+      if (existingReq.inFlight) {
+        return res.status(409).json({ error: 'Đơn hàng đang được xử lý, vui lòng không bấm lặp lại.' });
+      }
+      if (existingReq.order) {
+        console.log(`🛡️ Deduped duplicate order request for key ${dedupKey}, returning existing order #${existingReq.order.id}`);
+        return res.json({ success: true, order: existingReq.order, deduplicated: true });
+      }
+    }
+    recentOrderRequests.set(dedupKey, { timestamp: nowMs, inFlight: true, order: null });
+
+    // Audit log if Admin places an order after the public deadline has closed
+    if (req.user.role === 'admin' && isDeadlineCurrentlyClosed()) {
+      console.log(`📝 [AUDIT] Admin #${req.user.id} (${req.user.username}) tạo đơn SAU GIỜ CHỐT cho user #${targetOrderedFor} lúc ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
+    }
 
     const orderData = {
       user_id: req.user.id,
       ordered_by: req.user.id,
       ordered_for: targetOrderedFor,
-      dish1_id: Number(dish1Id),
-      dish2_id: dish2Id ? Number(dish2Id) : null,
+      dish1_id: numericDish1Id,
+      dish2_id: numericDish2Id,
       notes: notes || null,
       rating: rating || null,
       price: 40000,
@@ -1229,9 +1301,12 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       .single();
 
     if (error) {
+      recentOrderRequests.delete(dedupKey);
       console.error('Order creation error:', error);
       return res.status(500).json({ error: 'Lỗi tạo đơn hàng' });
     }
+
+    recentOrderRequests.set(dedupKey, { timestamp: Date.now(), inFlight: false, order });
 
     // Invalidate caches immediately (in-memory, instant)
     cache.invalidate('payments:admin:*', `order_created:user_${targetOrderedFor}`);
@@ -1309,6 +1384,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
+    if (dedupKey) recentOrderRequests.delete(dedupKey);
     console.error('Order creation error:', error);
     res.status(500).json({ error: 'Lỗi server' });
   }
@@ -1321,6 +1397,10 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     
     if (!dish1Id) {
       return res.status(400).json({ error: 'Món chính là bắt buộc' });
+    }
+
+    if (dish2Id && Number(dish1Id) === Number(dish2Id)) {
+      return res.status(400).json({ error: 'Không thể chọn trùng cùng một món 2 lần' });
     }
 
     // Check if user owns this order
@@ -1336,6 +1416,10 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
 
     if (req.user.role !== 'admin' && order.user_id !== req.user.id && order.ordered_by !== req.user.id) {
       return res.status(403).json({ error: 'Không có quyền chỉnh sửa đơn hàng này' });
+    }
+
+    if (req.user.role === 'admin' && isDeadlineCurrentlyClosed()) {
+      console.log(`📝 [AUDIT] Admin #${req.user.id} (${req.user.username}) sửa đơn #${orderId} SAU GIỜ CHỐT lúc ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
     }
 
     if (isOrderDeadlinePassed(req.user)) {
@@ -1578,6 +1662,24 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    // Protect minimum 1 admin rule when demoting an admin
+    if (updateData.role && updateData.role !== 'admin') {
+      const { data: currentTarget } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+      if (currentTarget?.role === 'admin') {
+        const { count: adminCount } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'admin');
+        if ((adminCount || 0) <= 1) {
+          return res.status(400).json({ error: 'Không thể hạ quyền quản trị viên duy nhất của hệ thống' });
+        }
+      }
+    }
+
     const { data: updatedUser, error } = await supabase
         .from('users')
         .update(updateData)
@@ -1589,6 +1691,10 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
       console.error('Update user error:', error);
       return res.status(500).json({ error: 'Lỗi database: ' + error.message });
     }
+
+    // Immediately invalidate auth token cache so role/profile changes take effect instantly
+    tokenCache.delete(`user_${userId}`);
+    clearCache('users');
 
     res.json({ success: true, user: updatedUser });
   } catch (error) {
@@ -1607,8 +1713,26 @@ app.patch('/api/users/:id/role', authenticateToken, async (req, res) => {
     const userId = parseInt(req.params.id);
     const { role } = req.body;
 
-    if (!['user', 'admin'].includes(role)) {
+    if (!['user', 'admin', 'staff'].includes(role)) {
       return res.status(400).json({ error: 'Vai trò không hợp lệ' });
+    }
+
+    // Protect minimum 1 admin rule when demoting an admin
+    if (role !== 'admin') {
+      const { data: currentTarget } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+      if (currentTarget?.role === 'admin') {
+        const { count: adminCount } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'admin');
+        if ((adminCount || 0) <= 1) {
+          return res.status(400).json({ error: 'Không thể hạ quyền quản trị viên duy nhất của hệ thống' });
+        }
+      }
     }
 
     const { data: updatedUser, error } = await supabase
@@ -1622,6 +1746,9 @@ app.patch('/api/users/:id/role', authenticateToken, async (req, res) => {
       console.error('Update user role error:', error);
       return res.status(500).json({ error: 'Lỗi database: ' + error.message });
     }
+
+    tokenCache.delete(`user_${userId}`);
+    clearCache('users');
 
     res.json(updatedUser);
   } catch (error) {
@@ -1642,6 +1769,22 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Không thể tự xóa tài khoản của chính mình' });
     }
 
+    // Protect minimum 1 admin rule
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (targetUser?.role === 'admin') {
+      const { count: adminCount } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'admin');
+      if ((adminCount || 0) <= 1) {
+        return res.status(400).json({ error: 'Không thể xóa quản trị viên duy nhất của hệ thống' });
+      }
+    }
+
     const { error } = await supabase
         .from('users')
         .delete()
@@ -1651,6 +1794,9 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
       console.error('Delete user error:', error);
       return res.status(500).json({ error: 'Lỗi database: ' + error.message });
     }
+
+    tokenCache.delete(`user_${userId}`);
+    clearCache('users');
 
     res.json({ success: true, message: 'Đã xóa người dùng thành công' });
   } catch (error) {
@@ -1901,13 +2047,28 @@ const buildPaymentStatsQueryDirect = async (supabase, month, limit = 20, offset 
 
   const usersWithDebt = Array.from(statsByUserId.values())
     .map(stat => {
-      const effectivePaidTotal = Math.max(stat.paidTotal, stat.paidOrderTotal);
+      const rawPaidTotal = Math.max(stat.paidTotal, stat.paidOrderTotal);
+      const paidTotal = Math.min(stat.ordersTotal, rawPaidTotal);
+      const remainingTotal = Math.max(0, stat.ordersTotal - paidTotal);
+      const overpaidTotal = Math.max(0, rawPaidTotal - stat.ordersTotal);
+
+      let paidCount = stat.paidCount;
+      if (remainingTotal === 0 && stat.ordersCount > 0) {
+        paidCount = stat.ordersCount;
+      } else if (paidTotal > 0 && stat.ordersCount > 0) {
+        const mealPrice = PAYMENT_MEAL_PRICE || 40000;
+        const mealsCovered = Math.floor(paidTotal / mealPrice);
+        paidCount = Math.max(stat.paidCount, Math.min(stat.ordersCount, mealsCovered));
+      }
+      const remainingCount = Math.max(0, stat.ordersCount - paidCount);
 
       return {
         ...stat,
-        paidTotal: effectivePaidTotal,
-        remainingTotal: Math.max(0, stat.ordersTotal - effectivePaidTotal),
-        overpaidTotal: effectivePaidTotal > stat.ordersTotal ? effectivePaidTotal - stat.ordersTotal : 0
+        paidCount,
+        paidTotal,
+        remainingCount,
+        remainingTotal,
+        overpaidTotal
       };
     })
     .filter(user => user.remainingTotal > 0)
@@ -2272,20 +2433,27 @@ const parseAutoPaymentCode = (content = '') => {
   const raw = String(content);
 
   // 1. Khớp mã đầy đủ: FSI[userId]M[YYYYMM] hoặc có dấu gạch/dấu cách/dấu chấm (ví dụ: FSI-150-M202611, FSI 150 M 202611)
-  const fullMatch = raw.match(/(?:FSI|DDS|FSIDDS)[-_.\s]*(\d+)[-_.\s]*(?:M|T|THANG)?[-_.\s]*(\d{6}|\d{4}|\d{2})/i);
+  const fullMatch = raw.match(/(?:FSI|DDS|FSIDDS)[-_.\s]*(\d+)[-_.\s]*(?:M|T|THANG)[-_.\s]*(\d{6}|\d{4}|\d{2})/i);
   if (fullMatch) {
     const userId = Number(fullMatch[1]);
-    let monthDigits = fullMatch[2];
+    const monthDigits = fullMatch[2];
+    const currentYear = getVietnamDateParts().year;
     let month = null;
 
     if (monthDigits.length === 6) {
-      month = `${monthDigits.slice(0, 4)}-${monthDigits.slice(4, 6)}`;
+      // Support YYYYMM (e.g., 202611) and fallback MMYYYY (e.g., 112026)
+      const yyyymm = `${monthDigits.slice(0, 4)}-${monthDigits.slice(4, 6)}`;
+      const mmyyyy = `${monthDigits.slice(2, 6)}-${monthDigits.slice(0, 2)}`;
+      month = isValidPaymentMonth(yyyymm) ? yyyymm : (isValidPaymentMonth(mmyyyy) ? mmyyyy : null);
     } else if (monthDigits.length === 2) {
-      const year = new Date().getFullYear();
-      month = `${year}-${monthDigits.padStart(2, '0')}`;
+      const candidate = `${currentYear}-${monthDigits.padStart(2, '0')}`;
+      month = isValidPaymentMonth(candidate) ? candidate : null;
     } else if (monthDigits.length === 4) {
-      const year = new Date().getFullYear();
-      month = `${year.toString().slice(0, 2)}${monthDigits.slice(0, 2)}-${monthDigits.slice(2, 4)}`;
+      // Support YYMM (e.g., 2611) and fallback MMYY (e.g., 1126)
+      const century = currentYear.toString().slice(0, 2);
+      const yymm = `${century}${monthDigits.slice(0, 2)}-${monthDigits.slice(2, 4)}`;
+      const mmyy = `${century}${monthDigits.slice(2, 4)}-${monthDigits.slice(0, 2)}`;
+      month = isValidPaymentMonth(yymm) ? yymm : (isValidPaymentMonth(mmyy) ? mmyy : null);
     }
 
     if (Number.isInteger(userId) && userId > 0 && month && isValidPaymentMonth(month)) {
@@ -3008,25 +3176,26 @@ const hasValidAutoPaymentSecret = (req) => {
     }
   }
 
-  // 2. FAILSAFE BẢO VỆ: Nếu webhook gửi từ SePay/ngân hàng chuyển đúng vào số tài khoản TPBank của hệ thống (00972905328)
-  // và chứa mã đơn hợp lệ FSI... hoặc khớp tên user, hệ thống KHÔNG ĐƯỢC CHẶN thanh toán thật của người dùng!
-  const body = req.body || {};
-  const targetAcc = String(body.accountNumber || body.account_number || body.subAccount || '').replace(/\s+/g, '');
-  const ourAcc = String(process.env.AUTO_PAYMENT_ACCOUNT_NO || '00972905328').replace(/\s+/g, '');
-  const transferType = String(body.transferType || body.type || body.transfer_type || '').toLowerCase();
-  
-  if (targetAcc && (targetAcc === ourAcc || targetAcc.includes(ourAcc) || ourAcc.includes(targetAcc))) {
-    if (transferType === 'in' || !transferType || transferType.includes('in')) {
-      console.log(`🛡️ [Auto-Payment Webhook] Xác thực thành công qua khớp số tài khoản nhận (${targetAcc})`);
-      return true;
-    }
+  // Nếu server đã cấu hình secret và request có gửi secret/header nhưng KHÔNG KHỚP -> từ chối ngay
+  if (configuredSecrets.length > 0 && cleanIncoming.length > 0) {
+    console.warn('🚫 [Auto-Payment Webhook] Từ chối request: secret/API key gửi lên không khớp cấu hình.');
+    return false;
   }
 
-  // Khớp mã FSI trong nội dung
-  const allText = JSON.stringify(body);
-  if (parseAutoPaymentCode(allText)) {
-    console.log(`🛡️ [Auto-Payment Webhook] Xác thực thành công qua khớp mã thanh toán FSI trong nội dung chuyển khoản`);
-    return true;
+  // 2. Fallback kiểm tra theo tài khoản nhận chỉ bật khi CHƯA cấu hình secret hoặc chủ động bật ALLOW_WEBHOOK_ACCOUNT_FALLBACK=true
+  const allowAccountFallback = configuredSecrets.length === 0 || process.env.ALLOW_WEBHOOK_ACCOUNT_FALLBACK === 'true';
+  if (allowAccountFallback) {
+    const body = req.body || {};
+    const targetAcc = String(body.accountNumber || body.account_number || body.subAccount || '').replace(/\s+/g, '');
+    const ourAcc = String(process.env.AUTO_PAYMENT_ACCOUNT_NO || '00972905328').replace(/\s+/g, '');
+    const transferType = String(body.transferType || body.type || body.transfer_type || '').toLowerCase();
+    const numericAmount = Number(body.transferAmount ?? body.amount ?? 0);
+    const hasTxId = Boolean(body.id || body.transactionId || body.referenceCode || body.reference_code);
+
+    if (targetAcc && targetAcc === ourAcc && transferType === 'in' && Number.isFinite(numericAmount) && numericAmount > 0 && hasTxId) {
+      console.warn(`⚠️ [Auto-Payment Webhook] Xác thực qua fallback số tài khoản (${targetAcc}). Hãy cấu hình SEPAY_WEBHOOK_SECRET để bảo mật tối đa.`);
+      return true;
+    }
   }
 
   return false;
@@ -3036,69 +3205,28 @@ const hasValidAutoPaymentSecret = (req) => {
 const reprocessIgnoredAutoPayments = async () => {
   try {
     const recovered = [];
+    const startedAt = Date.now();
+    const MAX_RECOVERY_DURATION_MS = 15000;
 
-    // 1. Kiểm tra trực tiếp các giao dịch đã chuyển tiền thành công nhưng hệ thống chưa ghi nhận hôm nay (Lê Duyên & Trần Linh Chi)
-    const directPending = [
-      { userId: 172, month: '2026-11', amount: 40000, payerName: 'LE DUYEN', memo: 'FSI172M202611 LE DUYEN' },
-      { userId: 171, month: '2026-11', amount: 40000, payerName: 'TRAN LINH CHI', memo: 'FSI171M202611 TRAN LINH CHI' }
-    ];
-
-    for (const rec of directPending) {
-      try {
-        // Kiểm tra xem user này hôm nay còn đơn chưa thanh toán không
-        const { data: unpaidOrders } = await supabase
-          .from('orders')
-          .select('id, paid')
-          .or(`ordered_for.eq.${rec.userId},user_id.eq.${rec.userId}`)
-          .eq('paid', false)
-          .is('deleted_at', null)
-          .gte('created_at', '2026-11-01T00:00:00Z')
-          .limit(5);
-
-        if (unpaidOrders && unpaidOrders.length > 0) {
-          console.log(`🎯 [Direct Recovery] Ghi nhận thanh toán cho user #${rec.userId} (${rec.payerName}), số tiền: ${rec.amount}đ`);
-          const result = await recordCompletedPayment({
-            userId: rec.userId,
-            month: rec.month,
-            amount: rec.amount,
-            source: 'bank-auto-recovery',
-            paymentCode: buildAutoPaymentCode(rec.userId, rec.month),
-            transactionId: `recovery-${rec.userId}-20261112`,
-            description: rec.memo,
-            payerName: rec.payerName
-          });
-
-          recovered.push({
-            transactionId: `recovery-${rec.userId}`,
-            userName: rec.payerName,
-            userId: rec.userId,
-            amount: rec.amount,
-            paymentId: result.payment?.id
-          });
-        }
-      } catch (err) {
-        console.error(`Lỗi khi phục hồi cho user #${rec.userId}:`, err);
-      }
-    }
-
-    // 2. Quét lại bảng auto_payment_transactions (nếu có các giao dịch khác bị ignored/failed)
+    // Quét lại bảng auto_payment_transactions (tối đa 25 giao dịch gần nhất mỗi lượt để tránh nghẽn)
     const { data: ignoredTransactions, error } = await dbForWrite('auto_payment_transactions')
       .select('*')
       .is('payment_id', null)
       .in('status', ['ignored', 'failed'])
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(25);
 
     if (error || !ignoredTransactions || ignoredTransactions.length === 0) {
-      if (recovered.length > 0) {
-        console.log(`[Auto-Payment Recovery] Successfully recovered ${recovered.length} direct payments!`);
-      }
-      return { reprocessed: recovered.length, recovered };
+      return { reprocessed: 0, recovered };
     }
 
     console.log(`[Auto-Payment Recovery] Checking ${ignoredTransactions.length} unresolved transactions...`);
 
     for (const item of ignoredTransactions) {
+      if (Date.now() - startedAt > MAX_RECOVERY_DURATION_MS) {
+        console.warn('[Auto-Payment Recovery] Reached 15s time budget, deferring remaining items');
+        break;
+      }
       const amount = Number(item.amount);
       if (!Number.isFinite(amount) || amount <= 0) continue;
 
@@ -3277,7 +3405,7 @@ app.get('/api/debug/payments', authenticateToken, async (req, res) => {
 // Payments Routes
 app.get('/api/payments/today', authenticateToken, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const { startUtc, endUtc } = getVietnamTodayUtcRange();
     
     const { data: payments, error } = await supabase
       .from('payments')
@@ -3285,8 +3413,8 @@ app.get('/api/payments/today', authenticateToken, async (req, res) => {
         *,
         user:user_id (id, fullname)
       `)
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59')
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -3313,9 +3441,9 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
       const validOffset = Math.max(parseInt(offset) || 0, 0);
       
-      // Check cache first (5-minute TTL for admin payments)
+      // Check cache first (2-minute TTL for admin payments; invalidated immediately on mutations)
       const cacheKey = `payments:admin:${currentMonth}`;
-      const cachedResult = null;
+      const cachedResult = cache.get(cacheKey);
       
       if (cachedResult) {
         // Apply pagination to cached data
@@ -3328,6 +3456,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
         
         return res.json({
           data: paginatedData,
+          summary: { month: currentMonth, ...(cachedResult.summary || {}) },
           pagination: {
             total: cachedResult.total,
             page: currentPage,
@@ -3348,12 +3477,6 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
           .map(normalizePaymentStatsRow)
           .filter((row) => row.userId);
         
-        // Cache the full result (without pagination applied)
-        cache.set(cacheKey, {
-          data: normalizedAllData,
-          total: normalizedAllData.length
-        }, 10 * 60 * 1000); // 10-minute TTL (increased from 5 for better performance)
-        
         // Calculate pagination metadata
         const total = normalizedAllData.length || result.total;
         const totalPages = Math.ceil(total / validLimit);
@@ -3373,6 +3496,13 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
           ordersCount: 0, ordersTotal: 0, paidCount: 0, paidTotal: 0,
           remainingCount: 0, remainingTotal: 0, overpaidTotal: 0
         });
+
+        // Cache the full result + summary (without pagination applied)
+        cache.set(cacheKey, {
+          data: normalizedAllData,
+          total: normalizedAllData.length,
+          summary
+        }, 2 * 60 * 1000); // 2-minute TTL (invalidated on every order/payment mutation)
 
         res.json({
           data: normalizedData,
@@ -3419,14 +3549,24 @@ app.get('/api/payments/history', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
     
-    // Always return ALL payments, ignore month parameter to avoid date parsing issues
-    const { data: payments, error } = await supabase
+    const validLimit = Math.min(Math.max(parseInt(req.query.limit) || 500, 1), 1000);
+    const validOffset = Math.max(parseInt(req.query.offset) || 0, 0);
+
+    let query = supabase
       .from('payments')
       .select(`
         *,
         user:user_id (id, fullname)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(validOffset, validOffset + validLimit - 1);
+
+    if (req.query.month && req.query.filterByMonth === 'true' && /^\d{4}-\d{2}$/.test(req.query.month)) {
+      const { startDate, nextMonthDate } = getPaymentMonthBounds(req.query.month);
+      query = query.gte('created_at', `${startDate}T00:00:00Z`).lt('created_at', `${nextMonthDate}T00:00:00Z`);
+    }
+
+    const { data: payments, error } = await query;
 
     if (error) {
       console.error('Payment history query error:', error);
@@ -3858,11 +3998,22 @@ app.get(['/api/sse', '/api/sse/payments'], (req, res) => {
 
     console.log(`🔌 SSE connection established for user ${userId} (${userRole})`);
     
+    // Validate Origin against CORS whitelist
+    const reqOrigin = req.headers.origin;
+    if (reqOrigin && !isOriginAllowed(reqOrigin)) {
+      console.warn(`🚫 SSE: Blocked disallowed origin: ${reqOrigin}`);
+      return res.status(403).json({ error: 'Origin not allowed' });
+    }
+
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (reqOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+    }
     res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for real-time
     
     // Store connection in Set (supports multiple tabs / devices per user)
@@ -3999,8 +4150,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
 
     console.log('Payment data to insert (server-verified):', paymentData);
 
-    const { data: payment, error } = await supabase
-      .from('payments')
+    const { data: payment, error } = await dbForWrite('payments')
       .insert([paymentData])
       .select()
       .single();
@@ -4022,8 +4172,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     const mealsCount = Math.floor(effectiveAmount / 40000);
     console.log(`💰 Payment amount: ${effectiveAmount}đ = ${mealsCount} meals`);
     
-    // Get unpaid orders for this user in this month (ordered by created_at)
-    const startDate = `${month}-01`;
+    // Get unpaid orders for this user up to selected month (cumulative, oldest first, including ordered_for IS NULL)
     const [year, monthNum] = month.split('-');
     const monthIndex = parseInt(monthNum) - 1;
     const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
@@ -4032,10 +4181,9 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     const { data: unpaidOrders, error: fetchError } = await supabase
       .from('orders')
       .select('id, created_at')
-      .eq('ordered_for', userId)
+      .or(`ordered_for.eq.${userId},and(ordered_for.is.null,user_id.eq.${userId})`)
       .eq('paid', false)
       .is('deleted_at', null)
-      .gte('created_at', `${startDate}T00:00:00Z`)
       .lt('created_at', `${nextMonth}T00:00:00Z`)
       .order('created_at', { ascending: true });
     
@@ -4048,8 +4196,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       const orderIds = ordersToMarkPaid.map(o => o.id);
       
       if (orderIds.length > 0) {
-        const { data: updatedOrders, error: updateError } = await supabase
-          .from('orders')
+        const { data: updatedOrders, error: updateError } = await dbForWrite('orders')
           .update({ paid: true })
           .in('id', orderIds)
           .select();
@@ -4096,30 +4243,30 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const { startUtc, endUtc } = getVietnamTodayUtcRange();
     
     // Get today's orders count
     const { count: ordersCount, error: ordersError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .is('deleted_at', null)
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59');
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc);
 
     // Get today's revenue
     const { data: orders, error: revenueError } = await supabase
       .from('orders')
       .select('price')
       .is('deleted_at', null)
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59');
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc);
 
     // Get today's payments
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
       .select('amount')
-      .gte('created_at', today)
-      .lt('created_at', today + 'T23:59:59');
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc);
 
     if (ordersError || revenueError || paymentsError) {
       return res.status(500).json({ error: 'Lỗi database' });
@@ -4618,31 +4765,37 @@ app.post('/api/admin/cleanup-markdown', authenticateToken, async (req, res) => {
 
     let updatedCount = 0;
 
-    // Clean up each dish
+    // Collect dishes needing update, then batch in chunks of 20 instead of sequential N+1 queries
+    const updates = [];
     for (const dish of dishes || []) {
       const cleanName = dish.name?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
       const cleanNameVi = dish.name_vi?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
       const cleanNameEn = dish.name_en?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
       const cleanNameJa = dish.name_ja?.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
 
-      // Only update if there were changes
       if (cleanName !== dish.name || cleanNameVi !== dish.name_vi || 
           cleanNameEn !== dish.name_en || cleanNameJa !== dish.name_ja) {
-        
-        const { error: updateError } = await supabase
-          .from('dishes')
-          .update({
+        updates.push({
+          id: dish.id,
+          payload: {
             name: cleanName || dish.name,
             name_vi: cleanNameVi || dish.name_vi,
             name_en: cleanNameEn || dish.name_en,
             name_ja: cleanNameJa || dish.name_ja
-          })
-          .eq('id', dish.id);
-
-        if (!updateError) {
-          updatedCount++;
-        }
+          }
+        });
       }
+    }
+
+    const CHUNK_SIZE = 20;
+    for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+      const chunk = updates.slice(i, i + CHUNK_SIZE);
+      const results = await Promise.all(
+        chunk.map(({ id, payload }) =>
+          dbForWrite('dishes').update(payload).eq('id', id)
+        )
+      );
+      updatedCount += results.filter(r => !r.error).length;
     }
 
     res.json({
@@ -4656,39 +4809,41 @@ app.post('/api/admin/cleanup-markdown', authenticateToken, async (req, res) => {
   }
 });
 
-// Orders weekly stats
+// Orders weekly stats (Vietnam UTC+7 timezone boundaries)
 app.get('/api/orders/weekly-stats', authenticateToken, async (req, res) => {
   try {
-    // Get last 7 days of orders
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 6);
+    const now = new Date();
+    const startRef = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const { startUtc } = getVietnamTodayUtcRange(startRef);
+    const { endUtc } = getVietnamTodayUtcRange(now);
 
     const { data: orders, error } = await supabase
       .from('orders')
       .select('created_at')
       .is('deleted_at', null)
-      .gte('created_at', startDate.toISOString().split('T')[0])
-      .lte('created_at', endDate.toISOString().split('T')[0]);
+      .gte('created_at', startUtc)
+      .lte('created_at', endUtc);
 
     if (error) {
       return res.status(500).json({ error: 'Lỗi database' });
     }
 
-    // Group by date
+    // Group orders by Vietnam date string (YYYY-MM-DD)
+    const countByVnDate = new Map();
+    (orders || []).forEach(order => {
+      if (!order.created_at) return;
+      const vnDateStr = getVietnamDateStr(new Date(order.created_at));
+      countByVnDate.set(vnDateStr, (countByVnDate.get(vnDateStr) || 0) + 1);
+    });
+
     const stats = [];
     for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(endDate.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const dayOrders = orders?.filter(order => 
-        order.created_at.startsWith(dateStr)
-      ).length || 0;
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = getVietnamDateStr(date);
 
       stats.push({
-        name: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
-        orders: dayOrders,
+        name: date.toLocaleDateString('vi-VN', { weekday: 'short', timeZone: 'Asia/Ho_Chi_Minh' }),
+        orders: countByVnDate.get(dateStr) || 0,
         date: dateStr
       });
     }
@@ -4817,6 +4972,9 @@ app.post('/api/admin/auto-payments/reprocess', authenticateToken, async (req, re
   }
 });
 
+// In-memory idempotency set for reconciled bank statement lines
+const reconciledTxIds = new Set();
+
 // Admin đối soát sao kê/thông báo ngân hàng dạng văn bản (copy & paste từ app ngân hàng)
 app.post('/api/admin/auto-payments/reconcile-text', authenticateToken, async (req, res) => {
   try {
@@ -4871,13 +5029,49 @@ app.post('/api/admin/auto-payments/reconcile-text', authenticateToken, async (re
           amount = PAYMENT_MEAL_PRICE || 40000;
         }
 
+        const effectiveMonth = paymentCode.month || currentMonth;
+        const lineHash = crypto
+          .createHash('sha256')
+          .update(`${targetUser.id}|${effectiveMonth}|${amount}|${line.trim().toLowerCase()}`)
+          .digest('hex')
+          .slice(0, 16);
+        const deterministicTxId = `reconcile-${targetUser.id}-${lineHash}`;
+
+        // Idempotency check: skip if this exact bank statement line was already reconciled
+        let alreadyProcessed = reconciledTxIds.has(deterministicTxId);
+        if (!alreadyProcessed) {
+          const { data: existingPayments } = await supabase
+            .from('payments')
+            .select('id')
+            .eq('user_id', targetUser.id)
+            .ilike('notes', `%transaction:${deterministicTxId}%`)
+            .limit(1);
+          if (existingPayments && existingPayments.length > 0) {
+            alreadyProcessed = true;
+            reconciledTxIds.add(deterministicTxId);
+          }
+        }
+
+        if (alreadyProcessed) {
+          results.push({
+            line,
+            userId: targetUser.id,
+            fullname: targetUser.fullname,
+            amount,
+            skippedDuplicate: true,
+            markedOrders: 0
+          });
+          continue;
+        }
+
+        reconciledTxIds.add(deterministicTxId);
         const payment = await recordCompletedPayment({
           userId: targetUser.id,
-          month: paymentCode.month || currentMonth,
+          month: effectiveMonth,
           amount,
           source: 'admin-text-reconcile',
           paymentCode: paymentCode.code,
-          transactionId: `manual-${targetUser.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          transactionId: deterministicTxId,
           description: line,
           payerName: targetUser.fullname
         });
@@ -4893,9 +5087,11 @@ app.post('/api/admin/auto-payments/reconcile-text', authenticateToken, async (re
       }
     }
 
+    const newlyProcessedCount = results.filter(r => !r.skippedDuplicate).length;
     res.json({
       success: true,
-      processedCount: results.length,
+      processedCount: newlyProcessedCount,
+      skippedDuplicatesCount: results.length - newlyProcessedCount,
       results
     });
   } catch (err) {
@@ -4915,7 +5111,7 @@ app.get('*', (req, res) => {
   console.log('Serving index.html from:', indexPath);
   
   // Check if file exists before sending
-  if (!require('fs').existsSync(indexPath)) {
+  if (!fs.existsSync(indexPath)) {
     console.error('index.html not found at:', indexPath);
     return res.status(404).json({ error: 'Frontend not found' });
   }
@@ -4928,6 +5124,19 @@ let server;
 
 function cleanup() {
   console.log('Cleaning up...');
+  if (sseHeartbeatInterval) {
+    clearInterval(sseHeartbeatInterval);
+  }
+  // Close all open SSE streams so HTTP server can drain cleanly
+  sseConnections.forEach((conns) => {
+    conns.forEach((conn) => {
+      try {
+        if (conn.res && !conn.res.writableEnded) conn.res.end();
+      } catch {}
+    });
+  });
+  sseConnections.clear();
+
   if (server) {
     server.close(() => {
       console.log('Server closed');
@@ -4937,7 +5146,7 @@ function cleanup() {
     setTimeout(() => {
       console.log('Force exit after timeout');
       process.exit(1);
-    }, 5000);
+    }, 5000).unref();
   } else {
     process.exit(0);
   }

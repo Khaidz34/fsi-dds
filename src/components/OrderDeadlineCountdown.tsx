@@ -25,10 +25,30 @@ interface DeadlineOverrideData {
 const STORAGE_KEY = 'fsi_order_deadline_override';
 const EVENT_NAME = 'fsi_order_deadline_override_changed';
 
+// Clock offset between server and client (serverNow - Date.now()) so countdown & deadline always match server
+let serverClockOffsetMs = 0;
+
+export function getSyncedNowMs(): number {
+  return Date.now() + serverClockOffsetMs;
+}
+
+function updateServerClockOffset(serverNow?: number) {
+  if (typeof serverNow === 'number' && Number.isFinite(serverNow) && serverNow > 0) {
+    serverClockOffsetMs = serverNow - Date.now();
+  }
+}
+
+function normalizeDateStr(rawDate?: string): string {
+  if (!rawDate) return '';
+  const match = String(rawDate).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) return rawDate;
+  return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+}
+
 /**
  * Lấy ngày tháng năm theo múi giờ Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
  */
-export function getVietnamDateParts(date = new Date()) {
+export function getVietnamDateParts(date = new Date(getSyncedNowMs())) {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
@@ -37,18 +57,21 @@ export function getVietnamDateParts(date = new Date()) {
   });
   const parts = formatter.formatToParts(date);
   const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  const year = getPart('year');
+  const month = getPart('month');
+  const day = getPart('day');
   return {
-    year: getPart('year'),
-    month: getPart('month'),
-    day: getPart('day'),
-    dateString: `${getPart('year')}-${getPart('month')}-${getPart('day')}`
+    year,
+    month,
+    day,
+    dateString: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   };
 }
 
 /**
  * Lấy mốc 11:00 AM VN (UTC+7 = 04:00 AM UTC) dưới dạng epoch timestamp chuẩn xác
  */
-export function getVietnam1100Timestamp(date = new Date()): number {
+export function getVietnam1100Timestamp(date = new Date(getSyncedNowMs())): number {
   const { year, month, day } = getVietnamDateParts(date);
   return Date.UTC(year, month - 1, day, 4, 0, 0);
 }
@@ -56,7 +79,7 @@ export function getVietnam1100Timestamp(date = new Date()): number {
 /**
  * Lấy mốc 11:15 AM VN (UTC+7 = 04:15 AM UTC) dưới dạng epoch timestamp chuẩn xác
  */
-export function getVietnam1115Timestamp(date = new Date()): number {
+export function getVietnam1115Timestamp(date = new Date(getSyncedNowMs())): number {
   const { year, month, day } = getVietnamDateParts(date);
   return Date.UTC(year, month - 1, day, 4, 15, 0);
 }
@@ -70,11 +93,11 @@ export function getDeadlineOverride(): DeadlineOverrideData {
     if (!raw) return { mode: 'auto', date: '' };
     const parsed: DeadlineOverrideData = JSON.parse(raw);
     const { dateString } = getVietnamDateParts();
-    if (parsed.date !== dateString) {
+    if (normalizeDateStr(parsed.date) !== dateString) {
       // Sang ngày mới tự động hoàn về chế độ Auto
       return { mode: 'auto', date: dateString };
     }
-    return parsed;
+    return { ...parsed, date: dateString };
   } catch {
     return { mode: 'auto', date: '' };
   }
@@ -91,7 +114,7 @@ export async function setDeadlineOverride(mode: AdminDeadlineMode): Promise<void
   if (mode === 'extended_15') {
     // Gia hạn đến 11:15 hoặc +15 phút từ thời điểm hiện tại nếu đã quá 11:15
     const base1115Utc = getVietnam1115Timestamp();
-    extendedUntilTimestamp = Math.max(base1115Utc, Date.now() + 15 * 60 * 1000);
+    extendedUntilTimestamp = Math.max(base1115Utc, getSyncedNowMs() + 15 * 60 * 1000);
   }
 
   const data: DeadlineOverrideData = {
@@ -110,10 +133,12 @@ export async function setDeadlineOverride(mode: AdminDeadlineMode): Promise<void
 
   // 2. Đồng bộ lên Backend Server để toàn bộ nhân viên và backend logic cùng mở
   try {
-    const res = await deadlineAPI.setOverride(mode);
+    const res: any = await deadlineAPI.setOverride(mode);
+    updateServerClockOffset(res?.serverNow);
     if (res?.override) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.override));
-      window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: res.override }));
+      const normalized = { ...res.override, date: normalizeDateStr(res.override.date) };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: normalized }));
     }
   } catch (err: any) {
     console.error('Failed to sync deadline override to server:', err.message || err);
@@ -124,15 +149,16 @@ export async function setDeadlineOverride(mode: AdminDeadlineMode): Promise<void
  * Kiểm tra xem đã quá hạn chốt đặt cơm hôm nay hay chưa (có tính toán override của Admin)
  */
 export function isOrderDeadlinePassed(): boolean {
+  const nowMs = getSyncedNowMs();
   const override = getDeadlineOverride();
   if (override.mode === 'locked') {
     return true;
   }
   if (override.mode === 'extended_15' && override.extendedUntilTimestamp) {
-    return Date.now() >= override.extendedUntilTimestamp;
+    return nowMs >= override.extendedUntilTimestamp;
   }
   const deadline1100Utc = getVietnam1100Timestamp();
-  return Date.now() >= deadline1100Utc;
+  return nowMs >= deadline1100Utc;
 }
 
 /**
@@ -140,7 +166,7 @@ export function isOrderDeadlinePassed(): boolean {
  */
 export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadlineState {
   const calculateState = useCallback((): OrderDeadlineState => {
-    const nowMs = Date.now();
+    const nowMs = getSyncedNowMs();
     const override = getDeadlineOverride();
 
     // 1. Chế độ Khóa đơn ngay lập tức bởi Admin
@@ -227,16 +253,18 @@ export function useOrderDeadline(lang: 'vi' | 'en' | 'ja' = 'vi'): OrderDeadline
     let isMounted = true;
     const syncFromServer = async () => {
       try {
-        const res = await deadlineAPI.getOverride();
+        const res: any = await deadlineAPI.getOverride();
+        updateServerClockOffset(res?.serverNow);
         if (res?.override && isMounted) {
+          const normalized = { ...res.override, date: normalizeDateStr(res.override.date) };
           const current = getDeadlineOverride();
           if (
-            current.mode !== res.override.mode ||
-            current.date !== res.override.date ||
-            current.extendedUntilTimestamp !== res.override.extendedUntilTimestamp
+            current.mode !== normalized.mode ||
+            current.date !== normalized.date ||
+            current.extendedUntilTimestamp !== normalized.extendedUntilTimestamp
           ) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(res.override));
-            window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: res.override }));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+            window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: normalized }));
           }
         }
       } catch {

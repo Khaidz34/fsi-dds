@@ -59,7 +59,7 @@ export const useOrders = (language?: string) => {
       const response = await ordersAPI.create(orderData);
       // Fetch fresh orders silently in background without blocking UI
       await fetchOrders(true);
-      window.dispatchEvent(new CustomEvent('app:order-update'));
+      window.dispatchEvent(new CustomEvent('app:order-update', { detail: { source: 'useOrders' } }));
       return response;
     } catch (err) {
       throw err;
@@ -79,7 +79,7 @@ export const useOrders = (language?: string) => {
           ? { ...order, ...response.order }
           : order
       ));
-      window.dispatchEvent(new CustomEvent('app:order-update'));
+      window.dispatchEvent(new CustomEvent('app:order-update', { detail: { source: 'useOrders' } }));
       return response;
     } catch (err) {
       throw err;
@@ -90,7 +90,7 @@ export const useOrders = (language?: string) => {
     try {
       await ordersAPI.delete(id);
       setOrders(prev => prev.filter(order => order.id !== id));
-      window.dispatchEvent(new CustomEvent('app:order-update'));
+      window.dispatchEvent(new CustomEvent('app:order-update', { detail: { source: 'useOrders' } }));
     } catch (err) {
       throw err;
     }
@@ -100,9 +100,16 @@ export const useOrders = (language?: string) => {
     if (user?.id) {
       fetchOrders();
       
-      const handleAppOrderUpdate = () => {
-        console.log('📦 Live order update event received in useOrders, refreshing silently...');
-        fetchOrders(true);
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+      const handleAppOrderUpdate = (event: Event) => {
+        const customEvent = event as CustomEvent<{ source?: string }>;
+        // Skip self-dispatched events since createOrder/updateOrder/deleteOrder already updated state
+        if (customEvent.detail?.source === 'useOrders') return;
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          console.log('📦 Live order update event received in useOrders, refreshing silently...');
+          fetchOrders(true);
+        }, 250);
       };
       window.addEventListener('app:order-update', handleAppOrderUpdate);
 
@@ -113,6 +120,7 @@ export const useOrders = (language?: string) => {
       }, `orders_realtime_${user.role}_${user.id}`);
 
       return () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
         window.removeEventListener('app:order-update', handleAppOrderUpdate);
         unsubscribeFromTable(channel);
       };

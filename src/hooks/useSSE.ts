@@ -166,6 +166,11 @@ export function useSSE(
         eventSource.close();
         eventSourceRef.current = null;
 
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
+
         // Attempt reconnection with exponential backoff
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           isReconnectingRef.current = true;
@@ -177,11 +182,18 @@ export function useSSE(
           
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current++;
+            isReconnectingRef.current = false;
             connect();
           }, delay);
         } else {
-          console.error('❌ Max reconnection attempts reached');
+          console.warn('⚠️ Max fast SSE reconnection attempts reached; will retry in 60s');
           isReconnectingRef.current = false;
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (document.visibilityState === 'visible' && navigator.onLine !== false) {
+              reconnectAttemptsRef.current = 0;
+              connect();
+            }
+          }, 60000);
         }
       };
     } catch (err) {
@@ -198,6 +210,10 @@ export function useSSE(
 
   const reconnect = useCallback(() => {
     console.log('🔄 Manual reconnection requested');
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
     reconnectAttemptsRef.current = 0; // Reset attempts for manual reconnect
     isReconnectingRef.current = false;
     connect();
@@ -205,6 +221,18 @@ export function useSSE(
 
   // Establish connection on mount and when dependencies change
   useEffect(() => {
+    // Always reset flags and close any prior stream before establishing a new one (e.g. token refresh)
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    reconnectAttemptsRef.current = 0;
+    isReconnectingRef.current = false;
+
     if (userId && token) {
       connect();
     }
@@ -213,6 +241,10 @@ export function useSSE(
       if (document.visibilityState === 'visible' && userId && token) {
         if (!eventSourceRef.current || eventSourceRef.current.readyState === EventSource.CLOSED) {
           console.log('🔄 Auto-resuming SSE on tab focus / online');
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
           reconnectAttemptsRef.current = 0;
           isReconnectingRef.current = false;
           connect();

@@ -646,7 +646,32 @@ export default function App() {
     ).trim();
   }, [getPaymentUserId]);
 
-  const dashboardPaymentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const getVietnamCurrentMonth = useCallback(() => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit'
+    });
+    const parts = formatter.formatToParts(new Date());
+    const y = parts.find(p => p.type === 'year')?.value || String(new Date().getFullYear());
+    const m = parts.find(p => p.type === 'month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }, []);
+
+  const [dashboardPaymentMonth, setDashboardPaymentMonth] = useState<string>(() => getVietnamCurrentMonth());
+
+  useEffect(() => {
+    const checkMonthRollover = () => {
+      const latestMonth = getVietnamCurrentMonth();
+      setDashboardPaymentMonth(prev => (prev === latestMonth ? prev : latestMonth));
+    };
+    const interval = setInterval(checkMonthRollover, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', checkMonthRollover);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkMonthRollover);
+    };
+  }, [getVietnamCurrentMonth]);
 
   const getBankDisplayName = (bankId?: string) => {
     if (!bankId) return 'TPBank';
@@ -976,7 +1001,7 @@ export default function App() {
   };
 
   const handleConfirmOrder = async () => {
-    if (!user || selectedDishes.length === 0) return;
+    if (!user || selectedDishes.length === 0 || isPlacingOrder) return;
     
     if (!canPlaceOrder) {
       alert((t.deadline?.alertExpiredOrder || 'Đã hết giờ đặt cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', deadlineString || '11:00'));
@@ -1020,11 +1045,10 @@ export default function App() {
       setLessRice(false);
       setOrderForUserId(null);
 
-      // Instantly refresh admin stats and notify listening components
+      // Instantly refresh admin stats (createOrder already dispatches app:order-update)
       if (user?.role === 'admin') {
         refetchDashboardStats(true);
       }
-      window.dispatchEvent(new CustomEvent('app:order-update'));
       
       setTimeout(() => setShowOrderSuccess(false), 3000);
     } catch (error) {

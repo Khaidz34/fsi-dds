@@ -5,7 +5,7 @@ interface User {
   id: number;
   username: string;
   fullname: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'staff';
 }
 
 // Cache user data in localStorage để giữ phiên đăng nhập mượt mà khi mạng/server bị lỗi tạm thời
