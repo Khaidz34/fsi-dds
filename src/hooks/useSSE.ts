@@ -118,8 +118,6 @@ export function useSSE(
             case 'order_updated':
               if (optionsRef.current.onOrderUpdated) {
                 optionsRef.current.onOrderUpdated(data);
-              } else if (optionsRef.current.onOrderDeleted) {
-                optionsRef.current.onOrderDeleted(data);
               }
               break;
             case 'order_deleted':

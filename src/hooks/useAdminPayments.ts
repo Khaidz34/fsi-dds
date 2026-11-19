@@ -108,6 +108,18 @@ const normalizeUserPayment = (payment: any): UserPaymentInfo | null => {
   };
 };
 
+const getVietnamMonthStr = () => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit'
+  });
+  const parts = formatter.formatToParts(new Date());
+  const y = parts.find(p => p.type === 'year')?.value || String(new Date().getFullYear());
+  const m = parts.find(p => p.type === 'month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+};
+
 export const useAdminPayments = (month?: string, enabled: boolean = true) => {
   const { user } = useAuth();
   const [userPayments, setUserPayments] = useState<UserPaymentInfo[]>([]);
@@ -123,7 +135,7 @@ export const useAdminPayments = (month?: string, enabled: boolean = true) => {
   userPaymentsRef.current = userPayments;
   const [paymentPage, setPaymentPage] = useState(1);
 
-  const currentMonth = month || new Date().toISOString().slice(0, 7);
+  const currentMonth = month || getVietnamMonthStr();
   const paymentPageSize = 20;
 
   const fetchUserPayments = async (loadMore: boolean = false, skipDebounce: boolean = false, pageOverride?: number) => {
@@ -237,8 +249,8 @@ export const useAdminPayments = (month?: string, enabled: boolean = true) => {
 
   const loadPrevious = () => {
     const currentPage = pagination?.page || paymentPage;
-    if (currentPage > 1 && !isLoadingMore) {
-      fetchUserPayments(true, false, currentPage - 1);
+    if (currentPage > 1 && !isLoading && !isLoadingMore && !isUpdating) {
+      fetchUserPayments(false, false, currentPage - 1);
     }
   };
 

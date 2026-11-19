@@ -329,7 +329,35 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       .sort((a, b) => b.orderCount - a.orderCount || a.name.localeCompare(b.name, 'vi'))
       .slice(0, 5);
   }, [liveAdminTodayOrders, currentLang]);
-  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments(undefined, needAdminPaymentsData);
+
+  const getVietnamCurrentMonth = useCallback(() => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit'
+    });
+    const parts = formatter.formatToParts(new Date());
+    const y = parts.find(p => p.type === 'year')?.value || String(new Date().getFullYear());
+    const m = parts.find(p => p.type === 'month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  }, []);
+
+  const [dashboardPaymentMonth, setDashboardPaymentMonth] = useState<string>(() => getVietnamCurrentMonth());
+
+  useEffect(() => {
+    const checkMonthRollover = () => {
+      const latestMonth = getVietnamCurrentMonth();
+      setDashboardPaymentMonth(prev => (prev === latestMonth ? prev : latestMonth));
+    };
+    const interval = setInterval(checkMonthRollover, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', checkMonthRollover);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkMonthRollover);
+    };
+  }, [getVietnamCurrentMonth]);
+
+  const { userPayments, paymentHistory, autoPaymentUsage, pagination, isLoading: isLoadingPayments, isUpdating: isUpdatingPayments, isLoadingMore, markAsPaid, loadMore, loadPrevious, refetch: refetchAdminPayments } = useAdminPayments(dashboardPaymentMonth, needAdminPaymentsData);
   const { stats: dashboardStats, isLoading: dashboardStatsLoading, refetch: refetchDashboardStats } = useDashboardStats();
   const { feedbacks, updateFeedbackStatus, createFeedback } = useFeedback(needFeedbackData);
   
@@ -598,7 +626,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
 
     return copies[currentLang];
   }, [currentLang]);
-  const orderOptionItems = [
+  const orderOptionItems = useMemo(() => [
     {
       key: 'extraRice',
       label: t.extraRice,
@@ -633,7 +661,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       checked: chopsticks,
       onChange: setChopsticks
     }
-  ];
+  ], [t.extraRice, t.chiliSauce, t.lessRice, t.chopsticks, currentLang, extraRice, chiliSauce, lessRice, chopsticks]);
   const activePageLabel = useMemo(() => {
     const labels: Record<string, string> = {
       dashboard: t.dashboard,
@@ -734,33 +762,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       (userId ? `Người dùng #${userId}` : 'Không xác định người dùng')
     ).trim();
   }, [getPaymentUserId]);
-
-  const getVietnamCurrentMonth = useCallback(() => {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric',
-      month: '2-digit'
-    });
-    const parts = formatter.formatToParts(new Date());
-    const y = parts.find(p => p.type === 'year')?.value || String(new Date().getFullYear());
-    const m = parts.find(p => p.type === 'month')?.value || String(new Date().getMonth() + 1).padStart(2, '0');
-    return `${y}-${m}`;
-  }, []);
-
-  const [dashboardPaymentMonth, setDashboardPaymentMonth] = useState<string>(() => getVietnamCurrentMonth());
-
-  useEffect(() => {
-    const checkMonthRollover = () => {
-      const latestMonth = getVietnamCurrentMonth();
-      setDashboardPaymentMonth(prev => (prev === latestMonth ? prev : latestMonth));
-    };
-    const interval = setInterval(checkMonthRollover, 5 * 60 * 1000);
-    document.addEventListener('visibilitychange', checkMonthRollover);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', checkMonthRollover);
-    };
-  }, [getVietnamCurrentMonth]);
 
   const getBankDisplayName = (bankId?: string) => {
     if (!bankId) return 'TPBank';
@@ -1194,7 +1195,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
     }
   };
 
-  const parseMultilingualText = () => {
+  const parseMultilingualText = (): Array<{vi: string, en: string, ja: string}> => {
     const lines = multilingualText.trim().split('\n').filter(line => line.trim() !== '');
     const parsedDishes: Array<{vi: string, en: string, ja: string}> = [];
     
@@ -1215,47 +1216,26 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
     });
     
     setMultilingualMenus(parsedDishes);
+    return parsedDishes;
   };
 
   const handleCreateMultilingualFromText = async () => {
-    parseMultilingualText();
+    const parsedDishes = parseMultilingualText();
     
-    if (multilingualMenus.length === 0) {
-      // Parse first, then check
-      const lines = multilingualText.trim().split('\n').filter(line => line.trim() !== '');
-      const parsedDishes: Array<{vi: string, en: string, ja: string}> = [];
-      
-      lines.forEach(line => {
-        const parts = line.split('>>>>>').map(part => part.trim());
-        if (parts.length === 3) {
-          // Remove markdown formatting (**, *, _, etc.)
-          const cleanVi = parts[0].replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-          const cleanEn = parts[1].replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-          const cleanJa = parts[2].replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-          
-          parsedDishes.push({
-            vi: cleanVi,
-            en: cleanEn, 
-            ja: cleanJa
-          });
-        }
-      });
-      
-      if (parsedDishes.length === 0) {
-        alert(t.menuFormatError);
-        return;
-      }
-      
-      try {
-        await createMultilingualMenu(parsedDishes);
-        setShowMultilingualModal(false);
-        setMultilingualMenus([]);
-        setMultilingualText('');
-        alert('Menu đa ngôn ngữ đã được tạo thành công!');
-      } catch (error) {
-        console.error('Lỗi khi tạo menu đa ngôn ngữ:', error);
-        alert('Lỗi khi tạo menu đa ngôn ngữ');
-      }
+    if (parsedDishes.length === 0) {
+      alert(t.menuFormatError);
+      return;
+    }
+    
+    try {
+      await createMultilingualMenu(parsedDishes);
+      setShowMultilingualModal(false);
+      setMultilingualMenus([]);
+      setMultilingualText('');
+      alert('Menu đa ngôn ngữ đã được tạo thành công!');
+    } catch (error) {
+      console.error('Lỗi khi tạo menu đa ngôn ngữ:', error);
+      alert('Lỗi khi tạo menu đa ngôn ngữ');
     }
   };
 

@@ -1132,9 +1132,17 @@ const isDeadlineCurrentlyClosed = () => {
   }
 
   const now = new Date();
-  const vnTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const vnDate = new Date(vnTimeStr);
-  const totalMinutes = vnDate.getHours() * 60 + vnDate.getMinutes();
+  const vnTimeFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  const parts = vnTimeFormatter.formatToParts(now);
+  const getPart = (type) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+  const hour = getPart('hour');
+  const minute = getPart('minute');
+  const totalMinutes = (hour === 24 ? 0 : hour) * 60 + minute;
   const deadlineMinutes = 11 * 60; // 11:00 AM VN Time = 660 phút
   return totalMinutes > deadlineMinutes;
 };
@@ -2095,31 +2103,21 @@ const getUserPaymentStats = async (supabase, userId, month) => {
     console.log(`💰 User payment stats: userId=${userId}, month=${month}, calculating cumulative debt up to ${nextMonth}`);
   }
   
-  // Fetch user's cumulative orders and cumulative payments in parallel
-  const [ordersRes, paymentsRes] = await Promise.all([
-    supabase
+  // Fetch user's cumulative orders and cumulative payments in parallel (paged safely with fetchAllRows)
+  const [orders, payments] = await Promise.all([
+    fetchAllRows(() => supabase
       .from('orders')
       .select('id, price, paid, user_id, ordered_for')
       .or(`user_id.eq.${userId},ordered_for.eq.${userId}`)
       .is('deleted_at', null)
-      .lt('created_at', `${nextMonth}T00:00:00Z`),
-    supabase
+      .lt('created_at', `${nextMonth}T00:00:00Z`)
+      .order('id', { ascending: true })),
+    fetchAllRows(() => supabase
       .from('payments')
       .select('amount')
       .eq('user_id', userId)
+      .order('id', { ascending: true }))
   ]);
-
-  const { data: orders, error: ordersError } = ordersRes;
-  const { data: payments, error: paymentsError } = paymentsRes;
-  
-  if (ordersError) {
-    console.error(`❌ Orders error for user ${userId}:`, ordersError);
-    throw ordersError;
-  }
-  if (paymentsError) {
-    console.error(`❌ Payments error for user ${userId}:`, paymentsError);
-    throw paymentsError;
-  }
   
   const ordersCount = orders?.length || 0;
   
@@ -4199,54 +4197,16 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
 
     console.log('✅ Payment marked successfully:', payment);
 
-    // Invalidate server caches immediately
-    cache.invalidate(`payments:user:${userId}:*`);
-    cache.invalidate('payments:admin:*');
-    cache.invalidate('stats:dashboard:*');
+    // Call unified markOrdersPaidForPayment (handles cumulative unpaid orders, order.price check, and ordered_for)
+    const paidOrders = await markOrdersPaidForPayment({
+      userId: Number(userId),
+      month,
+      amount: effectiveAmount
+    });
+    console.log(`✅ Marked ${paidOrders.markedCount} orders as paid (total: ${paidOrders.markedTotal}đ)`);
 
-    // Calculate how many orders should be marked as paid based on payment amount
-    // Each order costs 40,000đ
-    const mealsCount = Math.floor(effectiveAmount / 40000);
-    console.log(`💰 Payment amount: ${effectiveAmount}đ = ${mealsCount} meals`);
-    
-    // Get unpaid orders for this user up to selected month (cumulative, oldest first, including ordered_for IS NULL)
-    const [year, monthNum] = month.split('-');
-    const monthIndex = parseInt(monthNum) - 1;
-    const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
-    const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
-    
-    const { data: unpaidOrders, error: fetchError } = await supabase
-      .from('orders')
-      .select('id, created_at')
-      .or(`ordered_for.eq.${userId},and(ordered_for.is.null,user_id.eq.${userId})`)
-      .eq('paid', false)
-      .is('deleted_at', null)
-      .lt('created_at', `${nextMonth}T00:00:00Z`)
-      .order('created_at', { ascending: true });
-    
-    if (fetchError) {
-      console.error('⚠️  Error fetching unpaid orders:', fetchError);
-    } else {
-      console.log(`📋 Found ${unpaidOrders?.length || 0} unpaid orders`);
-      
-      const ordersToMarkPaid = unpaidOrders?.slice(0, mealsCount) || [];
-      const orderIds = ordersToMarkPaid.map(o => o.id);
-      
-      if (orderIds.length > 0) {
-        const { data: updatedOrders, error: updateError } = await dbForWrite('orders')
-          .update({ paid: true })
-          .in('id', orderIds)
-          .select();
-        
-        if (updateError) {
-          console.error('⚠️  Error updating orders paid status:', updateError);
-        } else {
-          console.log(`✅ Marked ${updatedOrders?.length || 0} orders as paid (oldest first)`);
-        }
-      } else {
-        console.log('ℹ️  No orders to mark as paid');
-      }
-    }
+    // Invalidate server caches immediately
+    invalidatePaymentCaches(Number(userId), month, 'manual_payment_marked');
 
     // Send SSE notification to the user whose payment was marked and broadcast to all admins
     const paymentMarkedNotification = {
@@ -4255,6 +4215,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
       data: {
         amount: effectiveAmount,
         month,
+        markedCount: paidOrders.markedCount,
         timestamp: Date.now()
       }
     };
@@ -4264,6 +4225,7 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     res.json({ 
       success: true, 
       payment,
+      paidOrders,
       amount: effectiveAmount,
       remainingTotal: Math.max(0, currentRemaining - effectiveAmount)
     });
