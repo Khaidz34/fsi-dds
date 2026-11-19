@@ -52,6 +52,8 @@ import { cacheService } from './services/cache';
 import { OrderSummary } from './components/OrderSummary';
 import { MultilingualMenuModal } from './components/MultilingualMenuModal';
 import { EditOrderModal } from './components/EditOrderModal';
+import { EditDishModal } from './components/EditDishModal';
+import { AddDishModal } from './components/AddDishModal';
 import { useAuth } from './contexts/AuthContext';
 import { useMenu, type MenuDish } from './hooks/useMenu';
 import { useOrders } from './hooks/useOrders';
@@ -282,7 +284,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const needAdminPaymentsData = isAdmin && Boolean(visitedTabs.payments);
   const needFeedbackData = isAdmin && Boolean(visitedTabs.feedback);
 
-  const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, refetch: refetchMenu } = useMenu(currentLang);
+  const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, addDish, updateDish, deleteDish, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers(needUsersData);
 
@@ -305,6 +307,16 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   }, [orders]);
 
   const liveAdminTodayOrdersCount = liveAdminTodayOrders.length;
+
+  // Thống kê số lượng đơn đặt cho từng món ăn HÔM NAY (đếm cả món 1 và món 2)
+  const dishOrderCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    liveAdminTodayOrders.forEach(o => {
+      if (o.dish1?.id) counts[o.dish1.id] = (counts[o.dish1.id] || 0) + 1;
+      if (o.dish2?.id) counts[o.dish2.id] = (counts[o.dish2.id] || 0) + 1;
+    });
+    return counts;
+  }, [liveAdminTodayOrders]);
 
   // Thống kê top món được chọn nhiều nhất HÔM NAY (đếm cả món 1 và món 2, tự cập nhật realtime)
   const liveAdminTodayPopularDishes = useMemo(() => {
@@ -484,6 +496,8 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [menuText, setMenuText] = useState('');
   const [showMultilingualModal, setShowMultilingualModal] = useState(false);
+  const [editingDish, setEditingDish] = useState<MenuDish | null>(null);
+  const [showAddSingleDishModal, setShowAddSingleDishModal] = useState(false);
   const [selectedDishes, setSelectedDishes] = useState<number[]>([]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
@@ -1153,7 +1167,9 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   };
 
   const handleCreateMenu = async () => {
-    const lines = menuText.trim().split('\n').filter(line => line.trim() !== '');
+    const lines = menuText.trim().split('\n')
+      .map(line => line.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim())
+      .filter(line => line !== '');
     if (lines.length === 0) {
       alert(t.pleaseEnterMenu);
       return;
@@ -1165,6 +1181,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       setMenuText('');
       // Refetch menu sau khi tạo thành công
       await refetchMenu();
+      alert('Thực đơn đã được tạo thành công!');
     } catch (error) {
       console.error('Lỗi khi tạo menu:', error);
       alert(t.menuError);
@@ -1190,15 +1207,21 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
     }
   };
 
-  const handleDeleteDish = async (dishId: number) => {
-    if (!confirm('Bạn có chắc muốn xóa món này?')) return;
+  const handleDeleteDish = async (dishId: number, orderCount = 0) => {
+    if (orderCount > 0) {
+      if (!confirm(`⚠️ Món ăn này hiện đang có ${orderCount} suất ăn đã được đặt hôm nay. Xóa món có thể gây lỗi đơn hàng của nhân viên. Bạn có chắc chắn muốn xóa không?`)) {
+        return;
+      }
+    } else {
+      if (!confirm('Bạn có chắc muốn xóa món này khỏi thực đơn hôm nay?')) return;
+    }
     
     try {
-      await menuAPI.deleteDish(dishId);
-      refetchMenu();
-    } catch (error) {
+      await deleteDish(dishId);
+      alert('Đã xóa món ăn thành công!');
+    } catch (error: any) {
       console.error('Lỗi khi xóa món:', error);
-      alert('Lỗi khi xóa món');
+      alert(error?.message || 'Lỗi khi xóa món');
     }
   };
 
@@ -3508,21 +3531,35 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-4 lg:p-10 shadow-sm">
-                  <div className="flex items-center justify-between mb-10">
-                    <h3 className="text-2xl font-display font-bold tracking-tight">{t.admin.menuManagement}</h3>
-                    <div className="flex gap-4">
+                <div className="bg-white border border-[#F5E6D3] rounded-[2.5rem] p-4 lg:p-8 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                      <h3 className="text-2xl font-display font-bold tracking-tight text-gray-900">{t.admin.menuManagement || 'Quản lý Menu'}</h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Thực đơn hôm nay ({menu?.dishes?.length || 0} món) • <span className="font-semibold text-emerald-700">{liveAdminTodayOrders.length} suất đã đặt</span>
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button 
+                        onClick={() => setShowAddSingleDishModal(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-2xl font-bold text-xs shadow-md shadow-emerald-600/20 hover:scale-105 transition-all flex items-center gap-1.5"
+                      >
+                        <Plus size={16} />
+                        Thêm 1 món
+                      </button>
                       <button 
                         onClick={() => setShowAddMenuModal(true)}
-                        className="bg-[#DA251D] text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-[#DA251D]/20 hover:scale-105 transition-all"
+                        className="bg-[#DA251D] hover:bg-[#c01f18] text-white px-5 py-2.5 rounded-2xl font-bold text-xs shadow-md shadow-[#DA251D]/20 hover:scale-105 transition-all flex items-center gap-1.5"
                       >
-                        + Thêm thực đơn 8 món
+                        <PlusCircle size={16} />
+                        Thêm thực đơn 8 món
                       </button>
                       <button 
                         onClick={() => setShowMultilingualModal(true)}
-                        className="bg-[#4ADE80] text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-[#4ADE80]/20 hover:scale-105 transition-all"
+                        className="bg-[#4ADE80] hover:bg-[#3ecb72] text-white px-5 py-2.5 rounded-2xl font-bold text-xs shadow-md shadow-[#4ADE80]/20 hover:scale-105 transition-all flex items-center gap-1.5"
                       >
-                        🌐 Menu đa ngôn ngữ
+                        <Globe size={16} />
+                        Menu đa ngôn ngữ
                       </button>
                       <button 
                         onClick={async () => {
@@ -3530,21 +3567,23 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                             try {
                               const result = await adminAPI.cleanupMarkdown();
                               alert(result.message);
-                              refetchMenu(); // Refresh menu to show cleaned names
+                              refetchMenu();
                             } catch (error) {
                               console.error('Lỗi khi làm sạch markdown:', error);
                               alert('Lỗi khi làm sạch markdown: ' + (error instanceof Error ? error.message : 'Unknown error'));
                             }
                           }
                         }}
-                        className="bg-[#F59E0B] text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-[#F59E0B]/20 hover:scale-105 transition-all"
+                        className="bg-[#F59E0B] hover:bg-[#e08e06] text-white px-4 py-2.5 rounded-2xl font-bold text-xs shadow-md shadow-[#F59E0B]/20 hover:scale-105 transition-all flex items-center gap-1.5"
+                        title="Dọn dẹp ký tự markdown ** nếu có"
                       >
-                        🧹 Làm sạch **
+                        <Sparkles size={14} />
+                        Làm sạch **
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <AnimatePresence mode="wait">
                       {isLanguageChanging ? (
                         <div
@@ -3560,92 +3599,144 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                           </div>
                         </div>
                       ) : (
-                        menu?.dishes?.map((dish, index) => (
-                          <div 
-                            key={`${dish.id}-mgmt-${currentLang}`}
-                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                            animate={{ 
-                              opacity: 1, 
-                              y: 0, 
-                              scale: 1,
-                              transition: {
-                                delay: index * 0.08,
-                                duration: 0.4,
-                                ease: "easeOut"
-                              }
-                            }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            whileHover={{ scale: 1.02 }}
-                            className="flex items-center gap-6 p-6 bg-[#FDF4E3]/30 rounded-3xl border border-[#F5E6D3] hover:border-[#DA251D]/40 transition-all duration-300"
-                          >
-                            <div className="flex-1">
-                              <p 
-                                key={`${dish.id}-mgmt-name-${currentLang}`}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.08 + 0.2 }}
-                                className="font-bold text-lg mb-3"
-                              >
-                                {getDishName(dish, currentLang)}
-                              </p>
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex gap-2">
-                                  {/* Language buttons */}
+                        menu?.dishes?.map((dish, index) => {
+                          const orderCount = dishOrderCounts[dish.id] || 0;
+                          const cleanVi = getDishDisplayName(dish, 'vi') || dish.name;
+                          const hasEn = Boolean(dish.name_en && dish.name_en !== dish.name && dish.name_en !== dish.name_vi);
+                          const hasJa = Boolean(dish.name_ja && dish.name_ja !== dish.name && dish.name_ja !== dish.name_vi);
+                          const isFullyTranslated = hasEn && hasJa;
+
+                          return (
+                            <div 
+                              key={`${dish.id}-mgmt-${dish.sort_order ?? index}`}
+                              className="group relative p-5 bg-[#FDFBF7] hover:bg-white rounded-2xl border border-[#F5E6D3] hover:border-[#DA251D]/30 hover:shadow-lg transition-all duration-200"
+                            >
+                              {/* Top Bar: Badge, Name, Actions */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="shrink-0 w-8 h-8 rounded-xl bg-[#DA251D]/10 text-[#DA251D] flex items-center justify-center font-black text-xs font-mono">
+                                    #{index + 1}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <h4 className="font-bold text-base text-gray-900 truncate" title={cleanVi}>
+                                      {cleanVi}
+                                    </h4>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {orderCount > 0 ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/60 font-bold text-xs">
+                                      <Flame size={12} className="text-amber-500 fill-amber-500" />
+                                      {orderCount} suất
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-400 font-medium text-xs">
+                                      0 suất
+                                    </span>
+                                  )}
                                   <button 
-                                    onClick={() => setCurrentLang('vi')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                                      currentLang === 'vi' 
-                                        ? 'bg-[#DA251D] text-white' 
-                                        : 'bg-white border border-[#F5E6D3] text-gray-600 hover:bg-gray-50'
-                                    }`}
-                                    title="Tiếng Việt"
+                                    onClick={() => setEditingDish(dish)}
+                                    className="p-1.5 bg-white rounded-lg border border-gray-200 text-gray-600 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 transition-all shadow-sm"
+                                    title="Chỉnh sửa món & bản dịch"
                                   >
-                                    🇻🇳 VI
+                                    <Edit size={15} />
                                   </button>
                                   <button 
-                                    onClick={() => setCurrentLang('en')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                                      currentLang === 'en' 
-                                        ? 'bg-[#DA251D] text-white' 
-                                        : 'bg-white border border-[#F5E6D3] text-gray-600 hover:bg-gray-50'
-                                    }`}
-                                    title="English"
+                                    onClick={() => handleDeleteDish(dish.id, orderCount)}
+                                    className="p-1.5 bg-white rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-all shadow-sm"
+                                    title="Xóa món khỏi thực đơn"
                                   >
-                                    🇬🇧 EN
-                                  </button>
-                                  <button 
-                                    onClick={() => setCurrentLang('ja')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                                      currentLang === 'ja' 
-                                        ? 'bg-[#DA251D] text-white' 
-                                        : 'bg-white border border-[#F5E6D3] text-gray-600 hover:bg-gray-50'
-                                    }`}
-                                    title="日本語"
-                                  >
-                                    🇯🇵 JA
+                                    <Trash2 size={15} />
                                   </button>
                                 </div>
-                                <button 
-                                  onClick={() => handleDeleteDish(dish.id)}
-                                  className="p-2 bg-white rounded-lg border border-[#F5E6D3] text-red-500 hover:text-red-700 hover:bg-red-50 transition-all duration-200 hover:scale-105"
-                                  title="Xóa món"
+                              </div>
+
+                              {/* Multilingual Details Box */}
+                              <div className="mt-3.5 pt-3 border-t border-[#F5E6D3]/70 space-y-1.5 text-xs">
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <span className="font-semibold text-gray-500 w-12 shrink-0 flex items-center gap-1">
+                                    <span>🇻🇳</span> VI:
+                                  </span>
+                                  <span className="font-medium text-gray-900 truncate">
+                                    {cleanVi}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <span className="font-semibold text-gray-500 w-12 shrink-0 flex items-center gap-1">
+                                    <span>🇬🇧</span> EN:
+                                  </span>
+                                  {hasEn ? (
+                                    <span className="font-medium text-emerald-800 truncate">
+                                      {dish.name_en.replace(/^\s*\d+[.)]\s*/, '')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 italic font-normal">
+                                      Chưa có bản dịch
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <span className="font-semibold text-gray-500 w-12 shrink-0 flex items-center gap-1">
+                                    <span>🇯🇵</span> JA:
+                                  </span>
+                                  {hasJa ? (
+                                    <span className="font-medium text-purple-800 truncate">
+                                      {dish.name_ja.replace(/^\s*\d+[.)]\s*/, '')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 italic font-normal">
+                                      Chưa có bản dịch
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Footer tag */}
+                              <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
+                                {isFullyTranslated ? (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                                    <CheckCircle2 size={12} /> Đầy đủ 3 ngôn ngữ
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] font-medium text-amber-600">
+                                    Chưa dịch đủ EN / JA
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => setEditingDish(dish)}
+                                  className="text-[11px] font-bold text-[#DA251D] hover:underline flex items-center gap-0.5"
                                 >
-                                  <Trash2 size={16} />
+                                  Sửa bản dịch →
                                 </button>
                               </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </AnimatePresence>
                     
                     {(!menu?.dishes || menu.dishes.length === 0) && (
-                      <div className="col-span-full text-center py-12">
+                      <div className="col-span-full text-center py-12 bg-[#FDFBF7] rounded-3xl border border-dashed border-[#E5E1D1]">
                         <div className="text-gray-400 mb-4">
                           <Utensils size={48} className="mx-auto" />
                         </div>
-                        <p className="text-gray-500 text-lg font-medium">{t.noData.noMenuToday}</p>
-                        <p className="text-gray-400 text-sm">{t.noData.addNewMenu}</p>
+                        <p className="text-gray-700 text-lg font-bold">{t.noData.noMenuToday}</p>
+                        <p className="text-gray-400 text-sm mt-1">{t.noData.addNewMenu}</p>
+                        <div className="mt-6 flex justify-center gap-3">
+                          <button 
+                            onClick={() => setShowAddMenuModal(true)}
+                            className="bg-[#DA251D] text-white px-5 py-2.5 rounded-xl font-bold text-xs"
+                          >
+                            + Thêm thực đơn 8 món
+                          </button>
+                          <button 
+                            onClick={() => setShowMultilingualModal(true)}
+                            className="bg-[#4ADE80] text-white px-5 py-2.5 rounded-xl font-bold text-xs"
+                          >
+                            🌐 Menu đa ngôn ngữ
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -4546,6 +4637,27 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
         onCreate={createMultilingualMenu}
         formatErrorText={t.menuFormatError}
         pleaseAddDishText={t.pleaseAddDish}
+      />
+
+      {/* Edit Dish Modal */}
+      <EditDishModal
+        isOpen={Boolean(editingDish)}
+        onClose={() => setEditingDish(null)}
+        dish={editingDish}
+        onSave={async (id, data) => {
+          await updateDish(id, data);
+          alert('Đã cập nhật món ăn thành công!');
+        }}
+      />
+
+      {/* Add Single Dish Modal */}
+      <AddDishModal
+        isOpen={showAddSingleDishModal}
+        onClose={() => setShowAddSingleDishModal(false)}
+        onAdd={async (data) => {
+          await addDish(data);
+          alert('Đã thêm món ăn vào thực đơn hôm nay!');
+        }}
       />
 
       {/* Order Summary Modal */}

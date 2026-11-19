@@ -50,6 +50,8 @@ const getVietnamTodayUtcRange = (date = new Date()) => {
   return { dateStr, startUtc, endUtc };
 };
 
+const cleanMarkdown = (str) => typeof str === 'string' ? str.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim() : '';
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -800,14 +802,17 @@ app.post('/api/menu', authenticateToken, async (req, res) => {
     }
 
     // Create dishes
-    const dishData = dishes.map((dishName, index) => ({
-      menu_id: menu.id,
-      name: dishName.trim(),
-      name_vi: dishName.trim(),
-      name_en: dishName.trim(),
-      name_ja: dishName.trim(),
-      sort_order: index
-    }));
+    const dishData = dishes.map((dishName, index) => {
+      const cleanName = cleanMarkdown(dishName);
+      return {
+        menu_id: menu.id,
+        name: cleanName,
+        name_vi: cleanName,
+        name_en: cleanName,
+        name_ja: cleanName,
+        sort_order: index
+      };
+    });
 
     console.log('Dish data to insert:', dishData);
 
@@ -877,14 +882,19 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
     }
 
     // Create dishes
-    const dishData = dishes.map((dish, index) => ({
-      menu_id: menu.id,
-      name: dish.vi,
-      name_vi: dish.vi,
-      name_en: dish.en || dish.vi,
-      name_ja: dish.ja || dish.vi,
-      sort_order: index
-    }));
+    const dishData = dishes.map((dish, index) => {
+      const vi = cleanMarkdown(dish.vi);
+      const en = cleanMarkdown(dish.en) || vi;
+      const ja = cleanMarkdown(dish.ja) || vi;
+      return {
+        menu_id: menu.id,
+        name: vi,
+        name_vi: vi,
+        name_en: en,
+        name_ja: ja,
+        sort_order: index
+      };
+    });
 
     console.log('Multilingual dish data to insert:', dishData);
 
@@ -4372,6 +4382,144 @@ app.patch('/api/feedback/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Add single dish to today's menu (admin only)
+app.post('/api/dishes', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền thêm món ăn' });
+    }
+
+    const { name, name_vi, name_en, name_ja } = req.body;
+    const cleanNameVi = cleanMarkdown(name_vi || name);
+    if (!cleanNameVi) {
+      return res.status(400).json({ error: 'Tên món ăn (Tiếng Việt) là bắt buộc' });
+    }
+
+    const today = getVietnamDateStr();
+    // Get today's menu
+    let { data: menu, error: menuFetchErr } = await supabase
+      .from('menus')
+      .select('id')
+      .eq('date', today)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (menuFetchErr) {
+      console.error('Fetch today menu error:', menuFetchErr);
+    }
+
+    // If no menu exists today, create a menu container
+    if (!menu) {
+      const { data: newMenu, error: createMenuErr } = await supabase
+        .from('menus')
+        .insert([{ date: today }])
+        .select('id')
+        .single();
+      if (createMenuErr) {
+        return res.status(500).json({ error: 'Lỗi tạo thực đơn hôm nay: ' + createMenuErr.message });
+      }
+      menu = newMenu;
+    }
+
+    // Get existing max sort_order
+    const { data: existingDishes } = await supabase
+      .from('dishes')
+      .select('sort_order')
+      .eq('menu_id', menu.id)
+      .order('sort_order', { ascending: false })
+      .limit(1);
+
+    const maxSortOrder = existingDishes && existingDishes.length > 0 ? (existingDishes[0].sort_order || 0) + 1 : 0;
+    const cleanNameEn = cleanMarkdown(name_en) || cleanNameVi;
+    const cleanNameJa = cleanMarkdown(name_ja) || cleanNameVi;
+
+    const { data: newDish, error: insertError } = await supabase
+      .from('dishes')
+      .insert([{
+        menu_id: menu.id,
+        name: cleanNameVi,
+        name_vi: cleanNameVi,
+        name_en: cleanNameEn,
+        name_ja: cleanNameJa,
+        sort_order: maxSortOrder
+      }])
+      .select()
+      .single();
+
+    if (insertError) {
+      return res.status(500).json({ error: 'Lỗi thêm món ăn: ' + insertError.message });
+    }
+
+    clearCache('menus');
+    clearCache('dishes');
+
+    res.json({ success: true, dish: newDish });
+  } catch (error) {
+    console.error('Add dish error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + (error.message || 'Unknown') });
+  }
+});
+
+// Update dish (admin only)
+app.put('/api/dishes/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền cập nhật món ăn' });
+    }
+
+    const dishId = req.params.id;
+    const { name, name_vi, name_en, name_ja, sort_order } = req.body;
+
+    const updatePayload = {};
+    if (name_vi !== undefined) {
+      const cleanVi = cleanMarkdown(name_vi);
+      if (!cleanVi) return res.status(400).json({ error: 'Tên món ăn (Tiếng Việt) không được để trống' });
+      updatePayload.name_vi = cleanVi;
+      updatePayload.name = cleanVi;
+    } else if (name !== undefined) {
+      const cleanName = cleanMarkdown(name);
+      if (!cleanName) return res.status(400).json({ error: 'Tên món ăn không được để trống' });
+      updatePayload.name = cleanName;
+      updatePayload.name_vi = cleanName;
+    }
+
+    if (name_en !== undefined) {
+      updatePayload.name_en = cleanMarkdown(name_en);
+    }
+    if (name_ja !== undefined) {
+      updatePayload.name_ja = cleanMarkdown(name_ja);
+    }
+    if (sort_order !== undefined) {
+      const numOrder = Number(sort_order);
+      if (!isNaN(numOrder)) updatePayload.sort_order = numOrder;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({ error: 'Không có dữ liệu cần cập nhật' });
+    }
+
+    const { data: updatedDish, error: updateError } = await supabase
+      .from('dishes')
+      .update(updatePayload)
+      .eq('id', dishId)
+      .select()
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ error: 'Lỗi cập nhật món ăn: ' + updateError.message });
+    }
+
+    clearCache('menus');
+    clearCache('dishes');
+
+    res.json({ success: true, dish: updatedDish });
+  } catch (error) {
+    console.error('Update dish error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + (error.message || 'Unknown') });
+  }
+});
+
 // Delete dish (admin only)
 app.delete('/api/dishes/:id', authenticateToken, async (req, res) => {
   try {
@@ -4380,6 +4528,19 @@ app.delete('/api/dishes/:id', authenticateToken, async (req, res) => {
     }
 
     const dishId = req.params.id;
+
+    // Safety check: check if this dish is referenced in active orders
+    const { count: orderCount, error: checkError } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .or(`dish1_id.eq.${dishId},dish2_id.eq.${dishId}`)
+      .is('deleted_at', null);
+
+    if (!checkError && orderCount && orderCount > 0) {
+      return res.status(400).json({ 
+        error: `Không thể xóa món này vì hiện đang có ${orderCount} suất ăn đã được đặt trong ngày. Bạn có thể chỉnh sửa tên món thay vì xóa.` 
+      });
+    }
     
     const { error } = await supabase
       .from('dishes')
@@ -4387,8 +4548,11 @@ app.delete('/api/dishes/:id', authenticateToken, async (req, res) => {
       .eq('id', dishId);
 
     if (error) {
-      return res.status(500).json({ error: 'Lỗi xóa món ăn' });
+      return res.status(500).json({ error: 'Lỗi xóa món ăn: ' + error.message });
     }
+
+    clearCache('menus');
+    clearCache('dishes');
 
     res.json({ success: true });
   } catch (error) {

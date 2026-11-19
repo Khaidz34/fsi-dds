@@ -168,6 +168,18 @@ export const menuAPI = {
       body: JSON.stringify({ dishes, imageUrl })
     }),
 
+  addDish: (dish: { name_vi: string; name_en?: string; name_ja?: string }) =>
+    apiCall<{ success: boolean; dish: any }>('/dishes', {
+      method: 'POST',
+      body: JSON.stringify(dish)
+    }),
+
+  updateDish: (dishId: number, dish: { name_vi?: string; name_en?: string; name_ja?: string; sort_order?: number }) =>
+    apiCall<{ success: boolean; dish: any }>(`/dishes/${dishId}`, {
+      method: 'PUT',
+      body: JSON.stringify(dish)
+    }),
+
   deleteDish: (dishId: number) =>
     apiCall<{ success: boolean }>(`/dishes/${dishId}`, {
       method: 'DELETE'

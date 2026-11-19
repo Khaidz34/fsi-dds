@@ -100,6 +100,39 @@ export const useMenu = (language?: Language) => {
     }
   };
 
+  const addDish = async (dish: { name_vi: string; name_en?: string; name_ja?: string }) => {
+    try {
+      const res = await menuAPI.addDish(dish);
+      cacheService.clear();
+      await fetchMenu(language, true);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const updateDish = async (dishId: number, dish: { name_vi?: string; name_en?: string; name_ja?: string; sort_order?: number }) => {
+    try {
+      const res = await menuAPI.updateDish(dishId, dish);
+      cacheService.clear();
+      await fetchMenu(language, true);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const deleteDish = async (dishId: number) => {
+    try {
+      const res = await menuAPI.deleteDish(dishId);
+      cacheService.clear();
+      await fetchMenu(language, true);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  };
+
   // Debounce refetch to prevent duplicate requests
   const debouncedFetch = debounce(() => {
     cacheService.clear();
@@ -123,6 +156,9 @@ export const useMenu = (language?: Language) => {
     error,
     refetch: (lang?: Language) => fetchMenu(lang, true),
     createMenu,
-    createMultilingualMenu
+    createMultilingualMenu,
+    addDish,
+    updateDish,
+    deleteDish
   };
 };
