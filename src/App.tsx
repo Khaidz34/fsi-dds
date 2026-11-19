@@ -50,6 +50,8 @@ import { Language } from './types';
 import { TRANSLATIONS } from './translations';
 import { cacheService } from './services/cache';
 import { OrderSummary } from './components/OrderSummary';
+import { MultilingualMenuModal } from './components/MultilingualMenuModal';
+import { EditOrderModal } from './components/EditOrderModal';
 import { useAuth } from './contexts/AuthContext';
 import { useMenu, type MenuDish } from './hooks/useMenu';
 import { useOrders } from './hooks/useOrders';
@@ -481,9 +483,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   }, [displayedOrders, orderPage, orderPageSize]);
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [menuText, setMenuText] = useState('');
-  const [multilingualMenus, setMultilingualMenus] = useState<Array<{vi: string, en: string, ja: string}>>([]);
   const [showMultilingualModal, setShowMultilingualModal] = useState(false);
-  const [multilingualText, setMultilingualText] = useState('');
   const [selectedDishes, setSelectedDishes] = useState<number[]>([]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [showOrderSummary, setShowOrderSummary] = useState(false);
@@ -507,10 +507,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   
-  // Export menu state
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportedMenu, setExportedMenu] = useState('');
-  
+
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<Array<{ name: string; orders: number; date: string }>>([]);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
@@ -531,9 +528,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   // Edit order state
   const [showEditOrderModal, setShowEditOrderModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
-  const [editDish1, setEditDish1] = useState<number>(0);
-  const [editDish2, setEditDish2] = useState<number>(0);
-  const [editNotes, setEditNotes] = useState('');
 
   // Payment confirmation state
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
@@ -1177,84 +1171,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
     }
   };
 
-  const handleCreateMultilingualMenu = async () => {
-    if (multilingualMenus.length === 0) {
-      alert(t.pleaseAddDish);
-      return;
-    }
-
-    try {
-      await createMultilingualMenu(multilingualMenus);
-      setShowMultilingualModal(false);
-      setMultilingualMenus([]);
-      setMultilingualText('');
-      alert('Menu đa ngôn ngữ đã được tạo thành công!');
-    } catch (error) {
-      console.error('Lỗi khi tạo menu đa ngôn ngữ:', error);
-      alert('Lỗi khi tạo menu đa ngôn ngữ');
-    }
-  };
-
-  const parseMultilingualText = (): Array<{vi: string, en: string, ja: string}> => {
-    const lines = multilingualText.trim().split('\n').filter(line => line.trim() !== '');
-    const parsedDishes: Array<{vi: string, en: string, ja: string}> = [];
-    
-    lines.forEach(line => {
-      const parts = line.split('>>>>>').map(part => part.trim());
-      if (parts.length === 3) {
-        // Remove markdown formatting (**, *, _, etc.)
-        const cleanVi = parts[0].replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-        const cleanEn = parts[1].replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-        const cleanJa = parts[2].replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-        
-        parsedDishes.push({
-          vi: cleanVi,
-          en: cleanEn, 
-          ja: cleanJa
-        });
-      }
-    });
-    
-    setMultilingualMenus(parsedDishes);
-    return parsedDishes;
-  };
-
-  const handleCreateMultilingualFromText = async () => {
-    const parsedDishes = parseMultilingualText();
-    
-    if (parsedDishes.length === 0) {
-      alert(t.menuFormatError);
-      return;
-    }
-    
-    try {
-      await createMultilingualMenu(parsedDishes);
-      setShowMultilingualModal(false);
-      setMultilingualMenus([]);
-      setMultilingualText('');
-      alert('Menu đa ngôn ngữ đã được tạo thành công!');
-    } catch (error) {
-      console.error('Lỗi khi tạo menu đa ngôn ngữ:', error);
-      alert('Lỗi khi tạo menu đa ngôn ngữ');
-    }
-  };
-
-  const addMultilingualDish = () => {
-    setMultilingualMenus([...multilingualMenus, { vi: '', en: '', ja: '' }]);
-  };
-
-  const updateMultilingualDish = (index: number, lang: 'vi' | 'en' | 'ja', value: string) => {
-    // Remove markdown formatting when updating dish names
-    const cleanValue = value.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim();
-    const updated = [...multilingualMenus];
-    updated[index][lang] = cleanValue;
-    setMultilingualMenus(updated);
-  };
-
-  const removeMultilingualDish = (index: number) => {
-    setMultilingualMenus(multilingualMenus.filter((_, i) => i !== index));
-  };
-
   const handleSubmitFeedback = async () => {
     if (!feedbackMessage.trim()) {
       alert(t.pleaseFeedback);
@@ -1283,111 +1199,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
     } catch (error) {
       console.error('Lỗi khi xóa món:', error);
       alert('Lỗi khi xóa món');
-    }
-  };
-
-  // Export menu function
-  const handleExportMenu = () => {
-    if (!orders || orders.length === 0) {
-      alert('Không có đơn hàng nào để xuất');
-      return;
-    }
-
-    // Filter orders for today only
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const todayOrders = orders.filter(order => {
-      const orderDate = new Date(order.created_at);
-      orderDate.setHours(0, 0, 0, 0);
-      return orderDate.getTime() === today.getTime();
-    });
-
-    if (todayOrders.length === 0) {
-      alert(t.ui?.noOrdersTodayToExport || 'Không có đơn hàng nào hôm nay để xuất');
-      return;
-    }
-
-    // Debug log
-    console.log('📋 Export menu - Today\'s Orders data:');
-    todayOrders.forEach((order, idx) => {
-      console.log(`Order ${idx + 1}:`, {
-        id: order.id,
-        date: order.created_at,
-        receiver: order.receiver?.fullname,
-        dish1: order.dish1 ? { name: order.dish1.name, sort_order: order.dish1.sort_order } : null,
-        dish2: order.dish2 ? { name: order.dish2.name, sort_order: order.dish2.sort_order } : null,
-        notes: order.notes
-      });
-    });
-
-    // Mapping tiếng Nhật sang tiếng Việt
-    const jaToViMapping = {
-      'ご飯追加': 'Thêm cơm',
-      'スープ追加': 'Thêm canh',
-      'チリソース': 'Thêm tương ớt',
-      'ヌクマム': 'Thêm mắm',
-      '箸': 'Thêm thìa',
-      'ご飯少なめ': 'Ít cơm'
-    };
-
-    // Create export format: Number. Name 1+2 (Notes)
-    const exportLines: string[] = [];
-
-    todayOrders.forEach((order, index) => {
-      const userName = order.receiver?.fullname || 'N/A';
-      
-      // Get dish positions (sort_order) and add 1 to get menu number
-      const dish1Position = (order.dish1?.sort_order ?? 0) + 1;
-      const dish2Position = order.dish2 ? ((order.dish2?.sort_order ?? 0) + 1) : 0;
-      
-      // Build dish text: 1+2 or just 1
-      let dishText = '';
-      if (dish2Position > 0) {
-        dishText = `${dish1Position}+${dish2Position}`;
-      } else {
-        dishText = `${dish1Position}`;
-      }
-
-      let line = `${index + 1}.\t${userName} ${dishText}`;
-      
-      // Add notes if available - convert Japanese to Vietnamese if needed
-      if (order.notes && order.notes.trim()) {
-        let notes = order.notes;
-        // Replace Japanese text with Vietnamese
-        Object.entries(jaToViMapping).forEach(([ja, vi]) => {
-          notes = notes.replace(new RegExp(ja, 'g'), vi);
-        });
-        line += ` (${notes})`;
-      }
-      
-      exportLines.push(line);
-    });
-
-    const exportText = exportLines.join('\n');
-    console.log('📋 Export text:', exportText);
-    setExportedMenu(exportText);
-    setShowExportModal(true);
-  };
-
-  // Copy to clipboard function
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(exportedMenu);
-      // Show success message
-      const button = document.querySelector('[data-copy-button]') as HTMLButtonElement;
-      if (button) {
-        const originalText = button.innerHTML;
-        button.innerHTML = `✅ ${t.copied}`;
-        button.disabled = true;
-        setTimeout(() => {
-          button.innerHTML = originalText;
-          button.disabled = false;
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Lỗi khi copy:', error);
-      alert('Lỗi khi copy. Vui lòng copy thủ công bằng cách chọn text và Ctrl+C.');
     }
   };
 
@@ -3403,15 +3214,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                         <RefreshCw size={18} className={ordersLoading || ordersUpdating ? 'animate-spin' : ''} />
                       </button>
                       {user?.role === 'admin' && (
-                        <button 
-                          onClick={handleExportMenu}
-                          className="px-4 py-2 bg-[#4ADE80] text-white rounded-xl font-bold text-sm hover:bg-[#4ADE80]/90 transition-colors flex items-center gap-2"
-                        >
-                          <FileText size={16} />
-                          {t.exportMenu}
-                        </button>
-                      )}
-                      {user?.role === 'admin' && (
                         <div className="relative">
                           <button 
                             onClick={() => setShowOrderFilter(!showOrderFilter)}
@@ -3561,9 +3363,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => {
                                     setEditingOrder(order);
-                                    setEditDish1(order.dish1?.id || 0);
-                                    setEditDish2(order.dish2?.id || 0);
-                                    setEditNotes(order.notes || '');
                                     setShowEditOrderModal(true);
                                   }}
                                   className="p-2 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-100 hover:text-blue-700 transition-all"
@@ -4680,99 +4479,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
         )}
       </AnimatePresence>
 
-      {/* Export Menu Modal */}
-      <AnimatePresence>
-        {showExportModal && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowExportModal(false)}
-              className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
-            />
-            <div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm sm:max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#E5E1D1] silk-texture mx-4"
-            >
-              <div className="p-4 sm:p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-2xl font-display font-bold tracking-tight">📋 {t.exportMenuTitle}</h3>
-                    <p className="text-sm text-app-ink/60 mt-1">{t.exportInstructions}</p>
-                  </div>
-                  <button onClick={() => setShowExportModal(false)} className="p-2 hover:bg-[#F5F2E9] rounded-xl transition-colors">
-                    <X size={24} className="text-[#1C1917]/20" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Display current menu for reference */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <h5 className="font-bold text-blue-800 mb-3">📋 Menu hôm nay (để tham khảo):</h5>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      {menu?.dishes?.map((dish, index) => (
-                        <div key={dish.id} className="flex items-center gap-2 text-blue-700">
-                          <span className="font-bold">{index + 1}.</span>
-                          <span className="truncate">{dish.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-[#F5F2E9] rounded-2xl p-6 border border-[#E5E1D1]">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-bold text-lg">Danh sách đặt món ({orders.length} đơn)</h4>
-                      <button
-                        onClick={copyToClipboard}
-                        data-copy-button
-                        className="px-4 py-2 bg-[#4ADE80] text-white rounded-xl font-bold text-sm hover:bg-[#4ADE80]/90 transition-colors flex items-center gap-2 disabled:opacity-50"
-                      >
-                        📋 {t.copyToClipboard}
-                      </button>
-                    </div>
-                    
-                    <textarea
-                      value={exportedMenu}
-                      readOnly
-                      rows={12}
-                      className="w-full bg-white border border-[#E5E1D1] rounded-xl p-4 text-sm font-mono resize-none focus:outline-none focus:border-[#DA251D]"
-                      placeholder="Thực đơn sẽ hiển thị ở đây..."
-                    />
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="text-blue-500 mt-0.5">💡</div>
-                      <div>
-                        <h5 className="font-bold text-blue-800 mb-1">Hướng dẫn sử dụng:</h5>
-                        <ul className="text-sm text-blue-700 space-y-1">
-                          <li>• Click "Copy" để copy toàn bộ thực đơn</li>
-                          <li>• Mở Zalo và paste (Ctrl+V) vào tin nhắn</li>
-                          <li>• Số đầu mỗi dòng là thứ tự món trong menu</li>
-                          <li>• Format: Tên + Món1+Món2 + (Ghi chú nếu có)</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 justify-end">
-                    <button 
-                      onClick={() => setShowExportModal(false)}
-                      className="px-6 py-3 rounded-2xl font-bold text-sm uppercase tracking-widest border border-[#E5E1D1] text-[#1C1917]/40 hover:bg-[#F5F2E9] transition-all"
-                    >
-                      {t.close}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {showAddMenuModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
@@ -4834,145 +4540,13 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       </AnimatePresence>
 
       {/* Multilingual Menu Modal */}
-      <AnimatePresence>
-        {showMultilingualModal && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-            <div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowMultilingualModal(false)}
-              className="absolute inset-0 bg-[#1C1917]/60 backdrop-blur-sm"
-            />
-            <div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm sm:max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#E5E1D1] silk-texture max-h-[90vh] overflow-y-auto mx-4"
-            >
-              <div className="p-4 sm:p-10">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="text-3xl font-display font-bold tracking-tight">🌐 Tạo menu đa ngôn ngữ</h3>
-                    <p className="text-sm text-app-ink/60 mt-2">Nhập menu theo format: Tiếng Việt {'>>>>>'} English {'>>>>>'} 日本語</p>
-                  </div>
-                  <button onClick={() => setShowMultilingualModal(false)} className="p-2 hover:bg-[#F5F2E9] rounded-xl transition-colors">
-                    <X size={24} className="text-[#1C1917]/20" />
-                  </button>
-                </div>
-
-                {/* Format Input Method */}
-                <div className="mb-8">
-                  <h4 className="text-lg font-bold mb-4">📝 Nhập nhanh theo format</h4>
-                  <div className="space-y-4">
-                    <textarea
-                      value={multilingualText}
-                      onChange={(e) => setMultilingualText(e.target.value)}
-                      placeholder="Ví dụ:&#10;Cá trắm sốt cà chua >>>>> Grass carp in tomato sauce >>>>> トマトソースのソウギョ（草魚）&#10;Tóp mỡ xào dưa cải >>>>> Stir-fried pork cracklings with pickled mustard greens >>>>> 豚脂かすと高菜の炒め物&#10;Sườn non sốt nấm tươi >>>>> Pork ribs with fresh mushroom sauce >>>>> スペアリブのフレッシュきのこソース"
-                      rows={8}
-                      className="w-full px-6 py-4 bg-[#F5F2E9]/50 border-2 border-[#E5E1D1] rounded-2xl focus:outline-none focus:border-[#DA251D] text-sm font-medium resize-none"
-                    />
-                    <div className="flex gap-4">
-                      <button
-                        onClick={parseMultilingualText}
-                        className="px-6 py-3 bg-[#4ADE80] text-white rounded-xl font-bold hover:bg-[#4ADE80]/90 transition-colors"
-                      >
-                        🔄 Xem trước
-                      </button>
-                      <button
-                        onClick={handleCreateMultilingualFromText}
-                        disabled={!multilingualText.trim()}
-                        className="px-6 py-3 bg-[#DA251D] text-white rounded-xl font-bold hover:bg-[#DA251D]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        🌐 Tạo menu ngay
-                      </button>
-                    </div>
-                    <p className="text-xs text-app-ink/40">
-                      💡 Mỗi món một dòng, phân cách bằng {'>>>>>'} giữa 3 ngôn ngữ
-                    </p>
-                  </div>
-                </div>
-
-                {/* Preview/Manual Edit */}
-                {multilingualMenus.length > 0 && (
-                  <div className="border-t border-[#E5E1D1] pt-8">
-                    <h4 className="text-lg font-bold mb-4">👀 Xem trước & chỉnh sửa</h4>
-                    <div className="space-y-6">
-                      {multilingualMenus.map((dish, index) => (
-                        <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-[#F5F2E9]/50 rounded-2xl border border-[#E5E1D1]">
-                          <div>
-                            <label className="block text-sm font-bold text-[#1C1917] mb-2">🇻🇳 Tiếng Việt</label>
-                            <input
-                              type="text"
-                              value={dish.vi}
-                              onChange={(e) => updateMultilingualDish(index, 'vi', e.target.value)}
-                              className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-bold text-[#1C1917] mb-2">🇺🇸 English</label>
-                            <input
-                              type="text"
-                              value={dish.en}
-                              onChange={(e) => updateMultilingualDish(index, 'en', e.target.value)}
-                              className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] text-sm"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <div className="flex-1">
-                              <label className="block text-sm font-bold text-[#1C1917] mb-2">🇯🇵 日本語</label>
-                              <input
-                                type="text"
-                                value={dish.ja}
-                                onChange={(e) => updateMultilingualDish(index, 'ja', e.target.value)}
-                                className="w-full px-4 py-3 border border-[#E5E1D1] rounded-xl focus:outline-none focus:border-[#DA251D] text-sm"
-                              />
-                            </div>
-                            <button
-                              onClick={() => removeMultilingualDish(index)}
-                              className="mt-7 p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                              title="Xóa món này"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      <button
-                        onClick={addMultilingualDish}
-                        className="w-full p-4 border-2 border-dashed border-[#E5E1D1] rounded-2xl text-[#1C1917]/40 hover:border-[#DA251D] hover:text-[#DA251D] transition-all"
-                      >
-                        + Thêm món ăn mới
-                      </button>
-                    </div>
-
-                    <div className="mt-8 flex gap-4 justify-end">
-                      <button 
-                        onClick={() => {
-                          setShowMultilingualModal(false);
-                          setMultilingualMenus([]);
-                          setMultilingualText('');
-                        }}
-                        className="px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest border border-[#E5E1D1] text-[#1C1917]/40 hover:bg-[#F5F2E9] transition-all"
-                      >
-                        Hủy
-                      </button>
-                      <button 
-                        onClick={handleCreateMultilingualMenu}
-                        disabled={multilingualMenus.length === 0}
-                        className="px-8 py-4 bg-[#4ADE80] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-[#4ADE80]/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        🌐 Tạo menu đa ngôn ngữ
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
+      <MultilingualMenuModal
+        isOpen={showMultilingualModal}
+        onClose={() => setShowMultilingualModal(false)}
+        onCreate={createMultilingualMenu}
+        formatErrorText={t.menuFormatError}
+        pleaseAddDishText={t.pleaseAddDish}
+      />
 
       {/* Order Summary Modal */}
       <AnimatePresence>
@@ -5033,136 +4607,22 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       </AnimatePresence>
 
       {/* Edit Order Modal */}
-      <AnimatePresence>
-        {showEditOrderModal && editingOrder && (
-          <div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowEditOrderModal(false)}
-          >
-            <div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-2xl font-bold text-[#1C1917] mb-6">Chỉnh sửa đơn hàng</h3>
-              
-              <div className="space-y-6">
-                {/* Current order info */}
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <p className="text-sm text-gray-600 mb-2">Đơn hàng hiện tại:</p>
-                  <p className="font-semibold">{editingOrder.receiver?.fullname}</p>
-                  <p className="text-sm text-gray-600">
-                    {getDishName(editingOrder.dish1, currentLang)} {editingOrder.dish2?.name ? `+ ${getDishName(editingOrder.dish2, currentLang)}` : ''}
-                  </p>
-                  {editingOrder.created_at && (
-                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1 font-medium">
-                      <Clock size={12} className="inline text-emerald-600" />
-                      <span>Đặt lúc: {new Date(editingOrder.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ({new Date(editingOrder.created_at).toLocaleDateString('vi-VN')})</span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Dish 1 Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Món chính *
-                  </label>
-                  <select
-                    value={editDish1}
-                    onChange={(e) => setEditDish1(Number(e.target.value))}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent"
-                  >
-                    <option value={0}>Chọn món chính</option>
-                    {menu?.dishes?.map((dish) => (
-                      <option key={dish.id} value={dish.id}>
-                        {getDishName(dish, currentLang)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Dish 2 Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Món phụ (tùy chọn)
-                  </label>
-                  <select
-                    value={editDish2}
-                    onChange={(e) => setEditDish2(Number(e.target.value))}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent"
-                  >
-                    <option value={0}>Không chọn món phụ</option>
-                    {menu?.dishes?.map((dish) => (
-                      <option key={dish.id} value={dish.id}>
-                        {getDishName(dish, currentLang)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ghi chú
-                  </label>
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Ghi chú đặc biệt..."
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent resize-none"
-                    rows={3}
-                  />
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => setShowEditOrderModal(false)}
-                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (!canPlaceOrder) {
-                        alert((t.deadline?.alertExpiredEdit || 'Đã hết giờ chỉnh sửa đơn cơm hôm nay (hạn chót là {deadline}). Bếp đã khóa danh sách để nấu món.').replace('{deadline}', deadlineString || '11:00'));
-                        return;
-                      }
-                      if (!editDish1) {
-                        alert('Vui lòng chọn món chính');
-                        return;
-                      }
-
-                      try {
-                        await updateOrder(editingOrder.id, {
-                          dish1Id: editDish1,
-                          dish2Id: editDish2 || undefined,
-                          notes: editNotes || undefined
-                        });
-                        
-                        setShowEditOrderModal(false);
-                        await refetchOrders();
-                        alert('Đã cập nhật đơn hàng thành công!');
-                      } catch (error) {
-                        console.error('Lỗi khi cập nhật đơn hàng:', error);
-                        alert('Lỗi khi cập nhật đơn hàng. Vui lòng thử lại.');
-                      }
-                    }}
-                    className="flex-1 px-6 py-3 bg-[#DA251D] text-white rounded-xl hover:bg-[#DA251D]/90 transition-colors"
-                  >
-                    Cập nhật
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
+      <EditOrderModal
+        isOpen={showEditOrderModal}
+        onClose={() => {
+          setShowEditOrderModal(false);
+          setEditingOrder(null);
+        }}
+        order={editingOrder}
+        menu={menu}
+        currentLang={currentLang}
+        canPlaceOrder={canPlaceOrder}
+        deadlineString={deadlineString}
+        deadlineExpiredEditAlert={t.deadline?.alertExpiredEdit}
+        getDishName={getDishName}
+        onUpdate={updateOrder}
+        onRefetchOrders={refetchOrders}
+      />
 
       {/* Modal Chỉnh sửa tài khoản */}
       <AnimatePresence>

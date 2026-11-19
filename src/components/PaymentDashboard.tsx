@@ -89,9 +89,18 @@ interface PaymentDashboardProps {
 
 const DEFAULT_MEAL_PRICE = 40000;
 
+const getVietnamMonthStr = () => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit'
+  });
+  return formatter.format(new Date()).slice(0, 7);
+};
+
 const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, currentLang = 'vi' }) => {
   const p = translations?.payment;
-  const actualCurrentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const actualCurrentMonth = useMemo(() => getVietnamMonthStr(), []);
   const [currentMonth, setCurrentMonth] = useState(actualCurrentMonth);
   const isPastMonth = currentMonth < actualCurrentMonth;
   const isViewingCurrentMonth = currentMonth === actualCurrentMonth;
@@ -441,13 +450,11 @@ const PaymentDashboard: React.FC<PaymentDashboardProps> = ({ translations, curre
   const calendarDays = generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    const date = new Date(currentMonth + '-01');
-    if (direction === 'prev') {
-      date.setMonth(date.getMonth() - 1);
-    } else {
-      date.setMonth(date.getMonth() + 1);
-    }
-    setCurrentMonth(date.toISOString().slice(0, 7));
+    const [y, m] = currentMonth.split('-').map(Number);
+    const date = new Date(y, m - 1 + (direction === 'prev' ? -1 : 1), 1);
+    const nextY = date.getFullYear();
+    const nextM = String(date.getMonth() + 1).padStart(2, '0');
+    setCurrentMonth(`${nextY}-${nextM}`);
   };
 
   if (isLoading) {

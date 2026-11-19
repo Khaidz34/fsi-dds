@@ -15,6 +15,15 @@ export interface PaymentStats {
   paidAt?: string;
 }
 
+const getVietnamMonthStr = () => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit'
+  });
+  return formatter.format(new Date()).slice(0, 7);
+};
+
 export const usePayments = (month?: string) => {
   const { user } = useAuth();
   const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
@@ -42,7 +51,7 @@ export const usePayments = (month?: string) => {
         if (response?.summary) {
           const summary = response.summary;
           setPaymentStats({
-            month: month || new Date().toISOString().slice(0, 7),
+            month: month || getVietnamMonthStr(),
             ordersCount: Number(summary.ordersCount) || 0,
             ordersTotal: Number(summary.ordersTotal) || 0,
             paidCount: Number(summary.paidCount) || 0,
@@ -57,7 +66,7 @@ export const usePayments = (month?: string) => {
         const data = Array.isArray(response) ? response : response?.data || [];
         
         const totalStats = data.reduce((acc: any, curr: any) => ({
-          month: month || new Date().toISOString().slice(0, 7),
+          month: month || getVietnamMonthStr(),
           ordersCount: acc.ordersCount + (Number(curr.ordersCount) || 0),
           ordersTotal: acc.ordersTotal + (Number(curr.ordersTotal) || 0),
           paidCount: acc.paidCount + (Number(curr.paidCount) || 0),
@@ -66,7 +75,7 @@ export const usePayments = (month?: string) => {
           remainingTotal: acc.remainingTotal + (Number(curr.remainingTotal) || 0),
           overpaidTotal: acc.overpaidTotal + (Number(curr.overpaidTotal) || 0)
         }), {
-          month: month || new Date().toISOString().slice(0, 7),
+          month: month || getVietnamMonthStr(),
           ordersCount: 0,
           ordersTotal: 0,
           paidCount: 0,
@@ -89,7 +98,7 @@ export const usePayments = (month?: string) => {
       console.error('Payment stats error:', err);
       setError(err instanceof Error ? err.message : 'Lỗi khi tải thông tin thanh toán');
       setPaymentStats({
-        month: month || new Date().toISOString().slice(0, 7),
+        month: month || getVietnamMonthStr(),
         ordersCount: 0,
         ordersTotal: 0,
         paidCount: 0,

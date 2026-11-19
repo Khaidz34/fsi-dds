@@ -40,6 +40,7 @@ const getVietnamDateParts = (date = new Date()) => {
 };
 
 const getVietnamDateStr = (date = new Date()) => getVietnamDateParts(date).dateStr;
+const getVietnamMonthStr = (date = new Date()) => getVietnamDateParts(date).monthStr;
 
 const getVietnamTodayUtcRange = (date = new Date()) => {
   const { year, month, day, dateStr } = getVietnamDateParts(date);
@@ -1322,7 +1323,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     // Asynchronous background task: Send SSE notifications without blocking user response
     setImmediate(async () => {
       try {
-        const currentMonth = new Date().toISOString().slice(0, 7);
+        const currentMonth = getVietnamMonthStr();
 
         // Fetch dish details, customer name in parallel
         const [dish1Res, dish2Res, customerRes] = await Promise.all([
@@ -1443,7 +1444,7 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     }
 
     // Invalidate cache when order is updated
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const currentMonth = getVietnamMonthStr();
     const affectedUserId = order.ordered_for || order.user_id;
     
     // Invalidate admin payments cache
@@ -1459,7 +1460,7 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     // Notify affected user and admin/staff users in background
     setImmediate(async () => {
       try {
-        const notifyData = { orderId, month, timestamp: Date.now() };
+        const notifyData = { orderId, month: currentMonth, timestamp: Date.now() };
         sendSSENotification(affectedUserId, {
           type: 'order_updated',
           userId: affectedUserId,
@@ -1530,7 +1531,7 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     const payingUserId = orderData.ordered_for || orderData.user_id;
 
     // Invalidate cache for the paying user's payment stats
-    const month = new Date().toISOString().slice(0, 7);
+    const month = getVietnamMonthStr();
     console.log(`🗑️  Invalidating cache for month ${month}, paying user: ${payingUserId}`);
     const invalidated1 = cache.invalidate(`payments:user:${payingUserId}:*`);
     const invalidated2 = cache.invalidate('payments:admin:*');
@@ -1782,6 +1783,19 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    // Safety check: Prevent deleting user who already has orders or payment transactions
+    const [ordersCountRes, paymentsCountRes] = await Promise.all([
+      supabase.from('orders').select('id', { count: 'exact', head: true }).or(`user_id.eq.${userId},ordered_for.eq.${userId},ordered_by.eq.${userId}`),
+      supabase.from('payments').select('id', { count: 'exact', head: true }).eq('user_id', userId)
+    ]);
+    const ordersCount = ordersCountRes.count || 0;
+    const paymentsCount = paymentsCountRes.count || 0;
+    if (ordersCount > 0 || paymentsCount > 0) {
+      return res.status(400).json({ 
+        error: `Không thể xóa tài khoản đã có lịch sử đơn hàng (${ordersCount} đơn) hoặc thanh toán (${paymentsCount} giao dịch) để bảo toàn dữ liệu kế toán và công nợ.` 
+      });
+    }
+
     const { error } = await supabase
         .from('users')
         .delete()
@@ -1803,137 +1817,8 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
 });
 
 // =====================================================
-// Payment Query Builder - Optimized JOIN queries
+// Payment Query Builder - Row Normalization & Helpers
 // =====================================================
-
-/**
- * Build optimized payment stats query using single JOIN
- * Replaces N+1 query pattern with database aggregation
- */
-const buildPaymentStatsQuery = async (supabase, month, limit = 20, offset = 0) => {
-  // Validate pagination parameters
-  const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
-  const validOffset = Math.max(parseInt(offset) || 0, 0);
-
-  const startDate = `${month}-01`;
-  // Get next month for proper date range - JavaScript months are 0-indexed
-  const [year, monthNum] = month.split('-');
-  const monthIndex = parseInt(monthNum) - 1; // Convert 1-indexed to 0-indexed
-  const nextMonthDate = new Date(parseInt(year), monthIndex + 1, 1);
-  const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
-
-  try {
-    // Try optimized SQL query - DEBT ONLY version
-    const { data: userStats, error: statsError } = await supabase.rpc('get_payment_stats_debt_only', {
-      p_month: month,
-      p_start_date: `${startDate}T00:00:00Z`,
-      p_next_month: `${nextMonth}T00:00:00Z`,
-      p_limit: validLimit,
-      p_offset: validOffset
-    });
-
-    if (!statsError && userStats) {
-      console.log('✅ Using optimized get_payment_stats_debt_only function');
-      
-      // Get total count of users with debt
-      const { data: totalCount, error: countError } = await supabase.rpc('get_debt_users_count', {
-        p_month: month,
-        p_start_date: `${startDate}T00:00:00Z`,
-        p_next_month: `${nextMonth}T00:00:00Z`
-      });
-
-      return {
-        data: userStats || [],
-        total: totalCount || 0,
-        limit: validLimit,
-        offset: validOffset
-      };
-    }
-
-    console.log('⚠️  Debt-only function not available, trying original function');
-    
-    // Fallback to original function
-    const { data: allUserStats, error: allStatsError } = await supabase.rpc('get_payment_stats', {
-      p_month: month,
-      p_start_date: `${startDate}T00:00:00Z`,
-      p_next_month: `${nextMonth}T00:00:00Z`,
-      p_limit: 1000, // Get all users first
-      p_offset: 0
-    });
-
-    if (!allStatsError && allUserStats) {
-      console.log('✅ Using original get_payment_stats function with client-side filtering');
-      
-      // Filter users with debt
-      const usersWithDebt = allUserStats.filter(user => user.remainingTotal > 0);
-      
-      // Sort by debt amount (highest first)
-      usersWithDebt.sort((a, b) => b.remainingTotal - a.remainingTotal);
-      
-      // Apply pagination
-      const paginatedData = usersWithDebt.slice(validOffset, validOffset + validLimit);
-      
-      return {
-        data: paginatedData,
-        total: usersWithDebt.length,
-        limit: validLimit,
-        offset: validOffset
-      };
-    }
-
-    console.log('⚠️  Function not available, using simple query');
-  } catch (err) {
-    console.error('❌ Error with optimized query:', err.message);
-  }
-
-  // Fallback: Simple query without complex aggregation
-  try {
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, fullname, username')
-      .eq('role', 'user')
-      .order('fullname')
-      .range(validOffset, validOffset + validLimit - 1);
-
-    if (usersError) throw usersError;
-
-    // Simple calculation without async loops
-    const userStats = users.map(user => ({
-      userId: user.id,
-      fullname: user.fullname,
-      username: user.username,
-      month,
-      ordersCount: 0,
-      ordersTotal: 0,
-      paidCount: 0,
-      paidTotal: 0,
-      remainingCount: 0,
-      remainingTotal: 0,
-      overpaidTotal: 0
-    }));
-
-    const { count: totalCount } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'user');
-
-    return {
-      data: userStats,
-      total: totalCount || 0,
-      limit: validLimit,
-      offset: validOffset
-    };
-  } catch (err) {
-    console.error('❌ Fallback query failed:', err.message);
-    // Return empty data instead of throwing error
-    return {
-      data: [],
-      total: 0,
-      limit: validLimit,
-      offset: validOffset
-    };
-  }
-};
 
 const normalizePaymentStatsRow = (row) => {
   const nestedUser = row?.user || row?.users || {};
@@ -2380,7 +2265,7 @@ const isValidPaymentMonth = (month) => {
 
 const normalizePaymentMonth = (month) => {
   const candidate = typeof month === 'string' ? month.trim() : '';
-  return isValidPaymentMonth(candidate) ? candidate : new Date().toISOString().slice(0, 7);
+  return isValidPaymentMonth(candidate) ? candidate : getVietnamMonthStr();
 };
 
 const getPaymentMonthBounds = (month) => {
@@ -3428,7 +3313,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
     
     if (req.user.role === 'admin') {
       // Admin gets aggregated stats for all users with pagination
-      const currentMonth = month || new Date().toISOString().slice(0, 7);
+      const currentMonth = month || getVietnamMonthStr();
       
       // Validate pagination parameters
       const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
@@ -3515,7 +3400,7 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
       }
     } else {
       // Regular user gets their own payment data
-      const currentMonth = month || new Date().toISOString().slice(0, 7);
+      const currentMonth = month || getVietnamMonthStr();
       const stats = await getUserPaymentStats(supabase, req.user.id, currentMonth);
       res.json({
         data: [stats],
@@ -3647,7 +3532,7 @@ app.get('/api/payments/my', authenticateToken, async (req, res) => {
     const { month } = req.query;
     
     // Calculate user's payment stats based on orders and payments
-    const currentMonth = month || new Date().toISOString().slice(0, 7);
+    const currentMonth = month || getVietnamMonthStr();
     
     const stats = await getUserPaymentStats(supabase, req.user.id, currentMonth);
     res.json(stats);
