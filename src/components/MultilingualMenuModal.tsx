@@ -161,6 +161,10 @@ export const MultilingualMenuModal: React.FC<MultilingualMenuModalProps> = ({
               <p className="text-xs text-app-ink/40">
                 💡 Mỗi món một dòng, phân cách bằng {'>>>>>'} giữa 3 ngôn ngữ
               </p>
+              <div className="p-3 bg-amber-50/90 border border-amber-200/70 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+                <span>🍜</span>
+                <span><strong>Món cố định:</strong> Hệ thống sẽ tự động bổ sung 3 món mặc định của quán (Bún gà, Miến gà, Phở gà) kèm bản dịch 3 thứ tiếng vào thực đơn hôm nay.</span>
+              </div>
             </div>
           </div>
 

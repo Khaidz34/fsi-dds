@@ -3552,7 +3552,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                         className="bg-[#DA251D] hover:bg-[#c01f18] text-white px-5 py-2.5 rounded-2xl font-bold text-xs shadow-md shadow-[#DA251D]/20 hover:scale-105 transition-all flex items-center gap-1.5"
                       >
                         <PlusCircle size={16} />
-                        Thêm thực đơn 8 món
+                        Thêm thực đơn ngày mới
                       </button>
                       <button 
                         onClick={() => setShowMultilingualModal(true)}
@@ -3728,7 +3728,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                             onClick={() => setShowAddMenuModal(true)}
                             className="bg-[#DA251D] text-white px-5 py-2.5 rounded-xl font-bold text-xs"
                           >
-                            + Thêm thực đơn 8 món
+                            + Thêm thực đơn ngày mới
                           </button>
                           <button 
                             onClick={() => setShowMultilingualModal(true)}
@@ -4598,6 +4598,10 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                 </div>
 
                 <div className="space-y-4">
+                  <div className="p-3 bg-amber-50/90 border border-amber-200/70 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+                    <span>🍜</span>
+                    <span><strong>Món cố định:</strong> Hệ thống sẽ tự động thêm 3 món mặc định của quán (Bún gà, Miến gà, Phở gà) vào cuối thực đơn mỗi khi tạo menu mới.</span>
+                  </div>
                   <textarea
                     value={menuText}
                     onChange={(e) => setMenuText(e.target.value)}

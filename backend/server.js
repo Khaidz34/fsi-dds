@@ -52,6 +52,32 @@ const getVietnamTodayUtcRange = (date = new Date()) => {
 
 const cleanMarkdown = (str) => typeof str === 'string' ? str.replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').trim() : '';
 
+// 3 món mặc định cố định luôn có tại quán cơm (Bún gà, Miến gà, Phở gà)
+const DEFAULT_MENU_DISHES = [
+  {
+    vi: 'Bún gà',
+    en: 'Chicken rice noodle soup',
+    ja: 'チキンブン（米粉麺）'
+  },
+  {
+    vi: 'Miến gà',
+    en: 'Chicken glass noodle soup',
+    ja: 'チキン春雨スープ'
+  },
+  {
+    vi: 'Phở gà',
+    en: 'Chicken Pho',
+    ja: 'チキンフォー'
+  }
+];
+
+const normalizeDishCompare = (str) => {
+  return (str || '')
+    .toLowerCase()
+    .replace(/^\s*\d+[.)]\s*/, '')
+    .trim();
+};
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -741,6 +767,42 @@ app.get('/api/menu/today', async (req, res) => {
       });
     }
 
+    // Tự động bổ sung 3 món mặc định (Bún gà, Miến gà, Phở gà) nếu menu hôm nay chưa có
+    if (menu && menu.id && Array.isArray(menu.dishes) && menu.dishes.length > 0) {
+      const missingDefaults = DEFAULT_MENU_DISHES.filter(def => {
+        return !menu.dishes.some(d => {
+          const norm = normalizeDishCompare(d.name_vi || d.name);
+          return norm === def.vi.toLowerCase() || norm.includes(def.vi.toLowerCase());
+        });
+      });
+
+      if (missingDefaults.length > 0) {
+        const maxOrder = menu.dishes.reduce((max, d) => Math.max(max, d.sort_order || 0), 0);
+        const toInsert = missingDefaults.map((m, idx) => ({
+          menu_id: menu.id,
+          name: m.vi,
+          name_vi: m.vi,
+          name_en: m.en,
+          name_ja: m.ja,
+          sort_order: maxOrder + idx + 1
+        }));
+
+        try {
+          const { data: inserted, error: insertErr } = await supabase
+            .from('dishes')
+            .insert(toInsert)
+            .select();
+
+          if (!insertErr && inserted && inserted.length > 0) {
+            menu.dishes.push(...inserted);
+            clearCache('dishes');
+          }
+        } catch (e) {
+          console.warn('Auto backfill default dishes warning:', e.message);
+        }
+      }
+    }
+
     // Sort dishes by sort_order
     if (menu.dishes) {
       menu.dishes.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -801,15 +863,35 @@ app.post('/api/menu', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi tạo menu: ' + menuError.message });
     }
 
+    // Clean user dishes
+    const cleanedUserDishes = dishes
+      .map(dishName => cleanMarkdown(dishName))
+      .filter(dishName => Boolean(dishName));
+
+    // Combine with 3 default dishes (Bún gà, Miến gà, Phở gà) if not already present
+    const combinedDishes = [...cleanedUserDishes];
+    for (const defDish of DEFAULT_MENU_DISHES) {
+      const alreadyExists = combinedDishes.some(d => {
+        const norm = normalizeDishCompare(d);
+        return norm === defDish.vi.toLowerCase() || norm.includes(defDish.vi.toLowerCase());
+      });
+      if (!alreadyExists) {
+        combinedDishes.push(defDish.vi);
+      }
+    }
+
     // Create dishes
-    const dishData = dishes.map((dishName, index) => {
+    const dishData = combinedDishes.map((dishName, index) => {
       const cleanName = cleanMarkdown(dishName);
+      const defMatch = DEFAULT_MENU_DISHES.find(d => 
+        normalizeDishCompare(cleanName) === d.vi.toLowerCase()
+      );
       return {
         menu_id: menu.id,
         name: cleanName,
         name_vi: cleanName,
-        name_en: cleanName,
-        name_ja: cleanName,
+        name_en: defMatch ? defMatch.en : cleanName,
+        name_ja: defMatch ? defMatch.ja : cleanName,
         sort_order: index
       };
     });
@@ -881,11 +963,30 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi tạo menu: ' + menuError.message });
     }
 
+    // Combine with 3 default dishes (Bún gà, Miến gà, Phở gà) if not already present
+    const combinedDishes = [...dishes];
+    for (const defDish of DEFAULT_MENU_DISHES) {
+      const alreadyExists = combinedDishes.some(d => {
+        const norm = normalizeDishCompare(d.vi);
+        return norm === defDish.vi.toLowerCase() || norm.includes(defDish.vi.toLowerCase());
+      });
+      if (!alreadyExists) {
+        combinedDishes.push({
+          vi: defDish.vi,
+          en: defDish.en,
+          ja: defDish.ja
+        });
+      }
+    }
+
     // Create dishes
-    const dishData = dishes.map((dish, index) => {
+    const dishData = combinedDishes.map((dish, index) => {
       const vi = cleanMarkdown(dish.vi);
-      const en = cleanMarkdown(dish.en) || vi;
-      const ja = cleanMarkdown(dish.ja) || vi;
+      const defMatch = DEFAULT_MENU_DISHES.find(d => 
+        normalizeDishCompare(vi) === d.vi.toLowerCase()
+      );
+      const en = cleanMarkdown(dish.en) || (defMatch ? defMatch.en : vi);
+      const ja = cleanMarkdown(dish.ja) || (defMatch ? defMatch.ja : vi);
       return {
         menu_id: menu.id,
         name: vi,
