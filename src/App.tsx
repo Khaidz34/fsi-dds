@@ -600,12 +600,12 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
         title: 'Chọn món hôm nay',
         helper: hasSingleOnlySelected ? 'Món nước (1 suất đầy đủ: 40,000đ)' : 'Chọn 2 món giá 40k',
         perMeal: 'Mỗi suất',
-        limit: hasSingleOnlySelected ? '1 suất trọn vẹn' : 'Tối đa 2 món',
+        limit: hasSingleOnlySelected ? 'Chỉ chọn 1 món' : 'Tối đa 2 món',
         selected: 'Đã chọn',
         empty: 'Chưa chọn món',
         clear: 'Xóa tất cả',
         removeDish: 'Xóa món',
-        chooseMore: hasSingleOnlySelected ? 'Suất 1 món đã trọn vẹn' : 'Có thể chọn thêm món thứ 2',
+        chooseMore: hasSingleOnlySelected ? 'Món nước chỉ chọn 1 món' : 'Có thể chọn thêm món thứ 2',
         orderFor: 'Đặt cho',
         quickOptions: 'Tùy chọn nhanh',
         noteHint: 'Ghi chú cho bếp',
@@ -1093,7 +1093,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       // Món nước (Bún gà, Miến gà, Phở gà) chỉ cho phép chọn 1 món duy nhất
       setSelectedDishes([dishId]);
       setDishSelectFeedback(
-        currentLang === 'ja' ? '🍜 麺料理（1品限定）を選択しました' : currentLang === 'en' ? '🍜 Selected noodle soup (single meal)' : '🍜 Đã chọn món nước (suất trọn vẹn 1 món)'
+        currentLang === 'ja' ? '🍜 麺料理（1品限定）を選択しました' : currentLang === 'en' ? '🍜 Selected noodle soup (1 dish)' : '🍜 Đã chọn món nước (chọn 1 món)'
       );
     } else if (hasSingleOnlySelected) {
       // Đang chọn món nước nhưng bấm chọn món cơm khác -> chuyển sang món mới
@@ -2541,13 +2541,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                             >
                               <div className="bg-app-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-app-accent/30 flex items-center gap-1.5 text-xs font-black tracking-wide border border-white/40">
                                 <CheckCircle2 size={14} className="stroke-[3]" />
-                                <span>
-                                  {isSingleOnlyDish(dish)
-                                    ? (currentLang === 'ja' ? '🍜 1品で1人前' : currentLang === 'en' ? '🍜 Single meal' : '🍜 Suất trọn vẹn')
-                                    : selectedDishes.indexOf(dish.id) === 0 
-                                      ? (currentLang === 'ja' ? '第1品' : currentLang === 'en' ? 'Dish 1' : 'Món 1') 
-                                      : (currentLang === 'ja' ? '第2品' : currentLang === 'en' ? 'Dish 2' : 'Món 2')}
-                                </span>
+                                <span>{selectedDishes.indexOf(dish.id) === 0 ? (currentLang === 'ja' ? '第1品' : currentLang === 'en' ? 'Dish 1' : 'Món 1') : (currentLang === 'ja' ? '第2品' : currentLang === 'en' ? 'Dish 2' : 'Món 2')}</span>
                               </div>
                             </div>
                           )}
@@ -2600,9 +2594,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                   }`}
                                 >
                                   {selectedDishes.includes(dish.id)
-                                    ? isSingleOnlyDish(dish)
-                                      ? `✓ ${currentLang === 'ja' ? '1品限定' : currentLang === 'en' ? '1 dish' : '1 món trọn vẹn'}`
-                                      : `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
+                                    ? `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
                                     : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
                                 </span>
                               </div>
@@ -3842,13 +3834,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                               >
                                 <div className="bg-app-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-app-accent/30 flex items-center gap-1.5 text-xs font-black tracking-wide border border-white/40">
                                   <CheckCircle2 size={14} className="stroke-[3]" />
-                                  <span>
-                                    {isSingleOnlyDish(dish)
-                                      ? (currentLang === 'ja' ? '🍜 1品で1人前' : currentLang === 'en' ? '🍜 Single meal' : '🍜 Suất trọn vẹn')
-                                      : selectedDishes.indexOf(dish.id) === 0 
-                                        ? (currentLang === 'ja' ? '第1品' : currentLang === 'en' ? 'Dish 1' : 'Món 1') 
-                                        : (currentLang === 'ja' ? '第2品' : currentLang === 'en' ? 'Dish 2' : 'Món 2')}
-                                  </span>
+                                  <span>{selectedDishes.indexOf(dish.id) === 0 ? (currentLang === 'ja' ? '第1品' : currentLang === 'en' ? 'Dish 1' : 'Món 1') : (currentLang === 'ja' ? '第2品' : currentLang === 'en' ? 'Dish 2' : 'Món 2')}</span>
                                 </div>
                               </div>
                             )}
@@ -3895,9 +3881,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                     }`}
                                   >
                                     {selectedDishes.includes(dish.id)
-                                      ? isSingleOnlyDish(dish)
-                                        ? `✓ ${currentLang === 'ja' ? '1品限定' : currentLang === 'en' ? '1 dish' : '1 món trọn vẹn'}`
-                                        : `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
+                                      ? `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
                                       : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
                                   </span>
                                 </div>

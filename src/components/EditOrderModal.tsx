@@ -166,7 +166,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
             </select>
             {isDish1SingleOnly && (
               <p className="text-xs text-amber-700 font-medium mt-1.5 flex items-center gap-1">
-                🍜 Bún gà, Miến gà, Phở gà là suất ăn trọn vẹn, không chọn kèm món thứ 2.
+                🍜 Bún gà, Miến gà, Phở gà là món nước (chọn 1 món), không chọn kèm món thứ 2.
               </p>
             )}
           </div>
