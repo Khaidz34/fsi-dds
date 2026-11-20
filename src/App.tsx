@@ -543,6 +543,11 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const [showEditOrderModal, setShowEditOrderModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
 
+  // Export menu state (Xuất thực đơn cho Zalo / Bếp)
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportedMenu, setExportedMenu] = useState('');
+  const [copiedMenu, setCopiedMenu] = useState(false);
+
   // Payment confirmation state
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<{ userId: number; amount: number; fullname?: string; paidTotal?: number; remainingTotal?: number } | null>(null);
@@ -1198,6 +1203,117 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
 
   const handlePlaceOrder = async () => {
     handleShowOrderSummary();
+  };
+
+  // Export menu function (Xuất danh sách đặt cơm hôm nay cho Zalo / Bếp)
+  const handleExportMenu = () => {
+    if (!orders || orders.length === 0) {
+      alert(t.ui?.noOrdersTodayToExport || 'Không có đơn hàng nào hôm nay để xuất');
+      return;
+    }
+
+    // Lọc các đơn hàng đặt trong ngày hôm nay theo múi giờ Việt Nam (UTC+7)
+    const todayVnStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+
+    const todayOrders = orders.filter(order => {
+      if (!order.created_at) return false;
+      const orderDateVn = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date(order.created_at));
+      return orderDateVn === todayVnStr;
+    });
+
+    if (todayOrders.length === 0) {
+      alert(t.ui?.noOrdersTodayToExport || 'Không có đơn hàng nào hôm nay để xuất');
+      return;
+    }
+
+    // Sắp xếp các đơn theo thứ tự đặt từ sớm tới muộn
+    const sortedTodayOrders = [...todayOrders].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    // Chuyển đổi các ghi chú tiếng Nhật sang tiếng Việt nếu có
+    const jaToViMapping: Record<string, string> = {
+      'ご飯追加': 'Thêm cơm',
+      'スープ追加': 'Thêm canh',
+      'チリソース': 'Thêm tương ớt',
+      'ヌクマム': 'Thêm mắm',
+      '箸': 'Thêm thìa',
+      'ご飯少なめ': 'Ít cơm'
+    };
+
+    // Hàm lấy số thứ tự của món ăn trong thực đơn hôm nay (1-based)
+    const getDishMenuPosition = (dish: any): number => {
+      if (!dish) return 0;
+      if (menu?.dishes && menu.dishes.length > 0) {
+        const idx = menu.dishes.findIndex((d: any) => d.id === dish.id);
+        if (idx >= 0) return idx + 1;
+        const nameIdx = menu.dishes.findIndex((d: any) =>
+          (d.name && dish.name && d.name.trim().toLowerCase() === dish.name.trim().toLowerCase()) ||
+          (d.name_vi && dish.name_vi && d.name_vi.trim().toLowerCase() === dish.name_vi.trim().toLowerCase())
+        );
+        if (nameIdx >= 0) return nameIdx + 1;
+      }
+      if (dish.sort_order !== undefined && dish.sort_order !== null) {
+        return Number(dish.sort_order) + 1;
+      }
+      return 0;
+    };
+
+    // Định dạng: STT. Tên Món1+Món2 (Ghi chú)
+    const exportLines: string[] = [];
+
+    sortedTodayOrders.forEach((order, index) => {
+      const userName = order.receiver?.fullname || 'N/A';
+      const dish1Pos = getDishMenuPosition(order.dish1);
+      const dish2Pos = order.dish2 ? getDishMenuPosition(order.dish2) : 0;
+
+      let dishText = '';
+      if (dish1Pos > 0 && dish2Pos > 0) {
+        dishText = `${dish1Pos}+${dish2Pos}`;
+      } else if (dish1Pos > 0) {
+        dishText = `${dish1Pos}`;
+      } else {
+        dishText = order.dish2 ? `${order.dish1?.name || ''} + ${order.dish2?.name || ''}` : (order.dish1?.name || '');
+      }
+
+      let line = `${index + 1}.\t${userName} ${dishText}`;
+
+      if (order.notes && order.notes.trim()) {
+        let notes = order.notes.trim();
+        Object.entries(jaToViMapping).forEach(([ja, vi]) => {
+          notes = notes.replace(new RegExp(ja, 'g'), vi);
+        });
+        line += ` (${notes})`;
+      }
+
+      exportLines.push(line);
+    });
+
+    const exportText = exportLines.join('\n');
+    setExportedMenu(exportText);
+    setCopiedMenu(false);
+    setShowExportModal(true);
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(exportedMenu);
+      setCopiedMenu(true);
+      setTimeout(() => setCopiedMenu(false), 2500);
+    } catch (error) {
+      console.error('Lỗi khi copy:', error);
+      alert('Lỗi khi copy. Vui lòng chọn toàn bộ văn bản và ấn Ctrl+C.');
+    }
   };
 
   const handleCreateMenu = async () => {
@@ -2262,12 +2378,22 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                         <Utensils className={theme === 'corporate' ? 'text-[#00A693]' : 'text-[#DA251D]'} size={24} />
                         <h3 className="text-xl font-display font-bold tracking-tight">{t.admin.menuToday}</h3>
                       </div>
-                      {menuLoading && (
-                        <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 animate-pulse">
-                          <RefreshCw size={11} className="animate-spin text-emerald-600" />
-                          <span>Đang tải...</span>
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleExportMenu}
+                          className="px-3.5 py-1.5 bg-[#4ADE80] hover:bg-[#4ADE80]/90 text-white rounded-xl font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                          title="Xuất thực đơn mọi người đặt hôm nay cho Zalo/Bếp"
+                        >
+                          <FileText size={14} />
+                          <span>{t.exportMenu || 'Xuất thực đơn'}</span>
+                        </button>
+                        {menuLoading && (
+                          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 animate-pulse">
+                            <RefreshCw size={11} className="animate-spin text-emerald-600" />
+                            <span>Đang tải...</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-4">
                       <AnimatePresence mode="wait">
@@ -3277,6 +3403,16 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                       >
                         <RefreshCw size={18} className={ordersLoading || ordersUpdating ? 'animate-spin' : ''} />
                       </button>
+                      {user?.role === 'admin' && (
+                        <button 
+                          onClick={handleExportMenu}
+                          className="px-4 py-2.5 bg-[#4ADE80] hover:bg-[#4ADE80]/90 text-white rounded-xl font-bold text-sm shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                          title="Xuất thực đơn mọi người đặt hôm nay cho Zalo/Bếp"
+                        >
+                          <FileText size={16} />
+                          <span>{t.exportMenu || 'Xuất thực đơn'}</span>
+                        </button>
+                      )}
                       {user?.role === 'admin' && (
                         <div className="relative">
                           <button 
@@ -4790,6 +4926,104 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
         onUpdate={updateOrder}
         onRefetchOrders={refetchOrders}
       />
+
+      {/* Export Menu Modal (Xuất thực đơn đặt cơm cho Zalo / Bếp) */}
+      <AnimatePresence>
+        {showExportModal && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6">
+            <div 
+              onClick={() => setShowExportModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <div 
+              className="relative w-full max-w-sm sm:max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#E5E1D1] silk-texture max-h-[90vh] flex flex-col z-10"
+            >
+              <div className="p-5 sm:p-8 overflow-y-auto space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-slate-900">
+                      📋 {t.exportMenuTitle || 'Xuất thực đơn cho Zalo'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      {t.exportInstructions || 'Copy đoạn text dưới đây và gửi vào group Zalo / Bếp:'}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowExportModal(false)} 
+                    className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-700"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Display current menu for reference */}
+                <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4">
+                  <h5 className="font-bold text-emerald-900 text-sm mb-2.5 flex items-center gap-2">
+                    <span>📋</span>
+                    <span>Thực đơn hôm nay để đối chiếu:</span>
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {menu?.dishes?.map((dish, index) => (
+                      <div key={dish.id} className="flex items-center gap-2 text-emerald-800 bg-white/70 px-2.5 py-1 rounded-lg border border-emerald-100">
+                        <span className="font-black text-emerald-700 w-5 shrink-0">#{index + 1}.</span>
+                        <span className="truncate font-semibold">{getDishDisplayName(dish, currentLang)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Exported text area */}
+                <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-sm text-slate-800">
+                      Danh sách suất ăn ({exportedMenu.split('\n').filter(Boolean).length} người đặt)
+                    </h4>
+                    <button
+                      onClick={copyToClipboard}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 shadow-xs cursor-pointer ${
+                        copiedMenu 
+                          ? 'bg-emerald-600 text-white ring-2 ring-emerald-300' 
+                          : 'bg-[#4ADE80] hover:bg-[#4ADE80]/90 text-white'
+                      }`}
+                    >
+                      {copiedMenu ? '✅ Đã copy!' : `📋 ${t.copyToClipboard || 'Copy danh sách'}`}
+                    </button>
+                  </div>
+                  
+                  <textarea
+                    value={exportedMenu}
+                    readOnly
+                    rows={10}
+                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs sm:text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-[#DA251D]/20 leading-relaxed text-slate-800"
+                    placeholder="Thực đơn sẽ hiển thị ở đây..."
+                  />
+                </div>
+
+                {/* Instructions */}
+                <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4">
+                  <div className="flex items-start gap-2.5">
+                    <div className="text-blue-500 text-base shrink-0 mt-0.5">💡</div>
+                    <div className="text-xs text-blue-900 space-y-1">
+                      <p className="font-bold">Hướng dẫn gửi bếp:</p>
+                      <p>• Bấm <strong>"Copy danh sách"</strong> rồi dán (Ctrl+V) vào Zalo nhóm hoặc gửi cho quán.</p>
+                      <p>• Ký hiệu số: <strong>1+2</strong> là chọn món 1 và 2; <strong>9</strong> là chọn món 9 (món nước 1 suất đầy đủ).</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button 
+                    onClick={() => setShowExportModal(false)}
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    {t.close || 'Đóng'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modal Chỉnh sửa tài khoản */}
       <AnimatePresence>
