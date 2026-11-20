@@ -78,6 +78,12 @@ const normalizeDishCompare = (str) => {
     .trim();
 };
 
+const isSingleDishName = (name) => {
+  const norm = normalizeDishCompare(name);
+  return norm === 'bún gà' || norm === 'miến gà' || norm === 'phở gà' ||
+         norm.includes('bún gà') || norm.includes('miến gà') || norm.includes('phở gà');
+};
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 
@@ -1363,6 +1369,20 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Không thể chọn trùng cùng một món 2 lần' });
     }
 
+    if (numericDish2Id !== null) {
+      const { data: dishesCheck } = await supabase
+        .from('dishes')
+        .select('id, name, name_vi')
+        .in('id', [numericDish1Id, numericDish2Id]);
+
+      const singleDish = (dishesCheck || []).find(d => isSingleDishName(d.name_vi || d.name));
+      if (singleDish) {
+        return res.status(400).json({
+          error: `Món "${singleDish.name_vi || singleDish.name}" là món nước (chọn 1 món duy nhất), không được chọn kèm món thứ 2.`
+        });
+      }
+    }
+
     const targetOrderedFor = Number(orderedFor) || req.user.id;
 
     // Deduplication check for accidental double-clicks or network retries
@@ -1510,6 +1530,20 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
 
     if (dish2Id && Number(dish1Id) === Number(dish2Id)) {
       return res.status(400).json({ error: 'Không thể chọn trùng cùng một món 2 lần' });
+    }
+
+    if (dish2Id) {
+      const { data: dishesCheck } = await supabase
+        .from('dishes')
+        .select('id, name, name_vi')
+        .in('id', [Number(dish1Id), Number(dish2Id)]);
+
+      const singleDish = (dishesCheck || []).find(d => isSingleDishName(d.name_vi || d.name));
+      if (singleDish) {
+        return res.status(400).json({
+          error: `Món "${singleDish.name_vi || singleDish.name}" là món nước (chọn 1 món duy nhất), không được chọn kèm món thứ 2.`
+        });
+      }
     }
 
     // Check if user owns this order

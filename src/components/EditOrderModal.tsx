@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
+const isSingleOnlyDish = (dish: any) => {
+  if (!dish) return false;
+  const name = (dish.name_vi || dish.name || '').toLowerCase().replace(/^\s*\d+[.)]\s*/, '').trim();
+  return name === 'bún gà' || name === 'miến gà' || name === 'phở gà' ||
+         name.includes('bún gà') || name.includes('miến gà') || name.includes('phở gà');
+};
+
 interface EditOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -41,6 +48,15 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
     }
   }, [order]);
 
+  const selectedDish1Obj = menu?.dishes?.find((d: any) => d.id === dish1);
+  const isDish1SingleOnly = isSingleOnlyDish(selectedDish1Obj);
+
+  useEffect(() => {
+    if (isDish1SingleOnly && dish2 !== 0) {
+      setDish2(0);
+    }
+  }, [isDish1SingleOnly, dish2]);
+
   if (!isOpen || !order) return null;
 
   const handleSubmit = async () => {
@@ -57,7 +73,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
       setIsSubmitting(true);
       await onUpdate(order.id, {
         dish1Id: dish1,
-        dish2Id: dish2 || undefined,
+        dish2Id: isDish1SingleOnly ? undefined : (dish2 || undefined),
         notes: notes || undefined
       });
       
@@ -120,21 +136,39 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
 
           {/* Dish 2 Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Món phụ (tùy chọn)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Món phụ (tùy chọn)
+              </label>
+              {isDish1SingleOnly && (
+                <span className="text-[11px] text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  Món nước (chỉ chọn 1 món)
+                </span>
+              )}
+            </div>
             <select
-              value={dish2}
+              value={isDish1SingleOnly ? 0 : dish2}
               onChange={(e) => setDish2(Number(e.target.value))}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent"
+              disabled={isDish1SingleOnly}
+              className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#DA251D] focus:border-transparent transition-all ${
+                isDish1SingleOnly ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-dashed' : ''
+              }`}
             >
-              <option value={0}>Không chọn món phụ</option>
-              {menu?.dishes?.map((d: any) => (
-                <option key={d.id} value={d.id}>
-                  {getDishName(d, currentLang)}
-                </option>
-              ))}
+              <option value={0}>{isDish1SingleOnly ? 'Không áp dụng món phụ cho món nước' : 'Không chọn món phụ'}</option>
+              {!isDish1SingleOnly && menu?.dishes?.map((d: any) => {
+                const isSingle = isSingleOnlyDish(d);
+                return (
+                  <option key={d.id} value={d.id} disabled={isSingle}>
+                    {getDishName(d, currentLang)} {isSingle ? ' (Món nước - chỉ chọn ở Món chính)' : ''}
+                  </option>
+                );
+              })}
             </select>
+            {isDish1SingleOnly && (
+              <p className="text-xs text-amber-700 font-medium mt-1.5 flex items-center gap-1">
+                🍜 Bún gà, Miến gà, Phở gà là suất ăn trọn vẹn, không chọn kèm món thứ 2.
+              </p>
+            )}
           </div>
 
           {/* Notes */}
