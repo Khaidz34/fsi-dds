@@ -44,7 +44,8 @@ import {
   Sparkles,
   Lock,
   RefreshCw,
-  SlidersHorizontal
+  SlidersHorizontal,
+  UserCheck
 } from 'lucide-react';
 import { Language } from './types';
 import { TRANSLATIONS } from './translations';
@@ -122,6 +123,248 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useDashboardStats } from './hooks/useDashboardStats';
 import { menuAPI, ordersAPI, usersAPI, adminAPI, paymentsAPI } from './services/api';
 import { AnimatePresence } from './framer-motion-mock';
+
+function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
+interface ColleagueSearchSelectProps {
+  user: any;
+  allUsers: Array<{ id: number; fullname: string }>;
+  orderForUserId: number | null;
+  onSelectUser: (userId: number | null) => void;
+  currentLang?: 'vi' | 'en' | 'ja';
+  label?: string;
+  className?: string;
+}
+
+function ColleagueSearchSelect({
+  user,
+  allUsers,
+  orderForUserId,
+  onSelectUser,
+  currentLang = 'vi',
+  label,
+  className = ''
+}: ColleagueSearchSelectProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm.trim()) return allUsers;
+    const term = searchTerm.toLowerCase().trim();
+    const termNoTone = removeVietnameseTones(term);
+    return allUsers.filter(u => {
+      const name = (u.fullname || '').toLowerCase();
+      const nameNoTone = removeVietnameseTones(name);
+      return name.includes(term) || nameNoTone.includes(termNoTone) || String(u.id).includes(term);
+    });
+  }, [allUsers, searchTerm]);
+
+  const selectedColleague = useMemo(() => {
+    if (!orderForUserId || orderForUserId === user?.id) return null;
+    return allUsers.find(u => u.id === orderForUserId) || null;
+  }, [orderForUserId, user?.id, allUsers]);
+
+  const placeholderText = currentLang === 'ja'
+    ? '同僚の名前や社員番号で検索...'
+    : currentLang === 'en'
+    ? 'Search colleague name or ID...'
+    : 'Gõ tên hoặc mã NV để tìm đồng nghiệp...';
+
+  return (
+    <div className={`relative ${className}`} ref={containerRef}>
+      {label && (
+        <span className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
+          <User size={14} className="text-app-accent" />
+          <span>{label}</span>
+        </span>
+      )}
+
+      {/* Selected recipient banner */}
+      {selectedColleague ? (
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 shadow-2xs mb-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-amber-200 text-amber-900 font-black text-xs flex items-center justify-center shrink-0">
+              {selectedColleague.fullname?.charAt(0) || 'U'}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="font-bold text-xs text-amber-950 truncate">
+                  {selectedColleague.fullname} (#{selectedColleague.id})
+                </p>
+                <span className="text-[10px] font-black text-amber-800 bg-amber-200/80 px-1.5 py-0.2 rounded">
+                  {currentLang === 'ja' ? '代理注文' : currentLang === 'en' ? 'For colleague' : 'Đặt hộ'}
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-700/90 truncate">
+                {currentLang === 'ja' ? 'この同僚の分として注文されます' : currentLang === 'en' ? 'Order will be billed to this colleague' : 'Đơn sẽ tính cho đồng nghiệp này'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onSelectUser(user?.id || null);
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-white border border-amber-300 px-2.5 py-1 rounded-lg shrink-0 transition-all shadow-2xs active:scale-95 cursor-pointer ml-2"
+          >
+            {currentLang === 'ja' ? '自分に戻す' : currentLang === 'en' ? 'Order for self' : 'Đặt cho tôi'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 mb-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center shrink-0">
+              {user?.fullname?.charAt(0) || 'U'}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="font-bold text-xs text-slate-900 truncate">
+                  {user?.fullname} {user?.id ? `(#${user.id})` : ''}
+                </p>
+                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded">
+                  {currentLang === 'ja' ? '本人' : currentLang === 'en' ? 'Myself' : 'Bản thân'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                {currentLang === 'ja' ? 'デフォルトで自分用に注文します' : currentLang === 'en' ? 'Default: ordering for yourself' : 'Mặc định đặt cho chính bạn'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Input Box */}
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholderText}
+          className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent focus:ring-2 focus:ring-app-accent/15 bg-white text-slate-900 shadow-2xs font-medium"
+        />
+        {searchTerm ? (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {/* Auto-suggest dropdown menu */}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-56 overflow-y-auto z-50 divide-y divide-slate-100 overscroll-contain animate-slide-up">
+          {/* Option: Bản thân (Tôi) */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectUser(user?.id || null);
+              setIsOpen(false);
+              setSearchTerm('');
+            }}
+            className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer ${
+              !selectedColleague ? 'bg-app-accent/5' : ''
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs flex items-center justify-center shrink-0">
+                {user?.fullname?.charAt(0) || 'U'}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-xs text-slate-900 truncate">
+                  {user?.fullname} {user?.id ? `(#${user.id})` : ''}
+                </p>
+                <p className="text-[10px] text-emerald-600 font-bold">
+                  👤 {currentLang === 'ja' ? '本人（自分用）' : currentLang === 'en' ? 'Myself' : 'Đặt cho chính mình (Bản thân)'}
+                </p>
+              </div>
+            </div>
+            {!selectedColleague && (
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            )}
+          </button>
+
+          {/* List of matching colleagues */}
+          {filteredUsers.filter(u => u.id !== user?.id).map(u => {
+            const isSelected = orderForUserId === u.id;
+            return (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => {
+                  onSelectUser(u.id);
+                  setIsOpen(false);
+                  setSearchTerm('');
+                }}
+                className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between hover:bg-app-accent/5 transition-colors cursor-pointer ${
+                  isSelected ? 'bg-app-accent/10' : ''
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0 border border-slate-200">
+                    {u.fullname?.charAt(0) || 'U'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-xs text-slate-900 truncate">{u.fullname}</p>
+                    <p className="text-[10px] text-slate-400">Mã NV: #{u.id}</p>
+                  </div>
+                </div>
+                {isSelected ? (
+                  <CheckCircle2 size={16} className="text-app-accent shrink-0" />
+                ) : (
+                  <span className="text-[11px] font-bold text-app-accent/75 hover:text-app-accent shrink-0">
+                    {currentLang === 'ja' ? '選択' : currentLang === 'en' ? 'Select' : 'Chọn'}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {filteredUsers.length === 0 && (
+            <div className="py-5 px-3 text-center text-xs text-slate-400">
+              {currentLang === 'ja'
+                ? `「${searchTerm}」に一致する同僚が見つかりません`
+                : currentLang === 'en'
+                ? `No colleagues found for "${searchTerm}"`
+                : `Không tìm thấy đồng nghiệp nào với từ khóa "${searchTerm}"`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface DashboardAutoPaymentInfo {
   code: string;
@@ -562,7 +805,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const [dishSelectFeedback, setDishSelectFeedback] = useState<string | null>(null);
   const [isMobileOrderSheetExpanded, setIsMobileOrderSheetExpanded] = useState(false);
   const [isDesktopOrderExpanded, setIsDesktopOrderExpanded] = useState(false);
-  const [orderForSearch, setOrderForSearch] = useState('');
 
   const handleCopyDashboardField = async (text: string, field: 'account' | 'content' | 'amount') => {
     try {
@@ -1073,12 +1315,6 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       console.error('Lỗi khi tải danh sách người dùng:', error);
     }
   };
-
-  const filteredOrderForUsers = useMemo(() => {
-    if (!orderForSearch.trim()) return allUsers;
-    const term = orderForSearch.toLowerCase().trim();
-    return allUsers.filter(u => u.fullname?.toLowerCase().includes(term) || String(u.id).includes(term));
-  }, [allUsers, orderForSearch]);
 
   const handleSelectDish = (dishId: number) => {
     if (selectedDishes.includes(dishId)) {
@@ -2581,7 +2817,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                 </div>
 
                 {/* Menu List */}
-                <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-4 xl:gap-5 ${
+                <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 lg:gap-4 xl:gap-5 ${
                   selectedDishes.length > 0 ? 'pb-64 sm:pb-60 lg:pb-44' : 'pb-28'
                 }`}>
                   {/* Floating micro-toast when selecting dishes */}
@@ -2650,20 +2886,19 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                             transition: { duration: 0.2 }
                           }}
                           whileTap={{ scale: 0.98 }}
-                          className={`mobile-dish-card desktop-dish-card menu-dish-card lacquer-card p-4 sm:p-4 lg:p-4 xl:p-5 min-h-[92px] sm:min-h-[128px] lg:min-h-[154px] flex flex-col cursor-pointer group relative overflow-hidden transition-all duration-300 ${
+                          className={`mobile-dish-card desktop-dish-card menu-dish-card lacquer-card p-2 sm:p-4 lg:p-4 xl:p-5 min-h-[48px] sm:min-h-[128px] lg:min-h-[154px] flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-2.5 sm:gap-0 cursor-pointer group relative overflow-hidden transition-all duration-200 ${
                             selectedDishes.includes(dish.id) 
-                              ? 'menu-dish-card-selected border-2 border-app-accent ring-4 ring-app-accent/25 bg-app-accent/15 shadow-xl shadow-app-accent/25 scale-[1.02] -translate-y-1' 
+                              ? 'menu-dish-card-selected border-2 border-app-accent ring-2 sm:ring-4 ring-app-accent/25 bg-app-accent/15 shadow-md sm:shadow-xl shadow-app-accent/25 scale-[1.01] sm:scale-[1.02]' 
                               : selectedDishes.length >= maxSelectableDishes 
                                 ? 'menu-dish-card-muted border-slate-200 bg-white/80 opacity-60'
                                 : 'hover:border-app-accent/40 hover:shadow-lg bg-white/95 border-slate-200'
                           }`}
                           onClick={() => handleSelectDish(dish.id)}
                         >
+                          {/* Desktop Selection Badge (Hidden on mobile) */}
                           {selectedDishes.includes(dish.id) && (
                             <div 
-                              initial={{ scale: 0, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10"
+                              className="hidden sm:block absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10"
                             >
                               <div className="bg-app-accent text-white px-2.5 py-1 rounded-full shadow-md shadow-app-accent/30 flex items-center gap-1.5 text-xs font-black tracking-wide border border-white/40">
                                 <CheckCircle2 size={14} className="stroke-[3]" />
@@ -2672,9 +2907,9 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                             </div>
                           )}
                           
-                          
-                          <div className="flex items-center gap-1.5 flex-wrap mb-2.5 lg:mb-3">
-                            <div className={`menu-dish-number inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] transition-all ${
+                          {/* Left (Mobile) / Top (Desktop): Number badge & Noodle tag */}
+                          <div className="flex items-center gap-1.5 shrink-0 sm:flex-wrap sm:mb-2.5 lg:mb-3">
+                            <div className={`menu-dish-number inline-flex items-center justify-center rounded-lg sm:rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] font-black uppercase tracking-[0.14em] transition-all ${
                               selectedDishes.includes(dish.id)
                                 ? 'bg-app-accent text-white shadow-xs'
                                 : 'border border-app-accent/15 bg-app-accent/5 text-app-accent'
@@ -2682,58 +2917,68 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                               #{index + 1}
                             </div>
                             {isSingleOnlyDish(dish) && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shadow-2xs">
+                              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shadow-2xs">
                                 🍜 {currentLang === 'ja' ? '麺料理（1品限定）' : currentLang === 'en' ? 'Noodle soup (1 dish)' : 'Món nước (chọn 1 món)'}
                               </span>
                             )}
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-1.5 sm:mb-3">
+                          {/* Middle (Mobile) / Body (Desktop): Dish title */}
+                          <div className="flex-1 min-w-0 flex flex-col justify-center">
+                            <div className="flex items-center gap-1.5 flex-wrap sm:mb-1.5 sm:mb-3">
                               <h4 
                                 key={`${dish.id}-name-${currentLang}`}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 + 0.1 }}
-                                className={`mobile-dish-title text-[15px] sm:text-[17px] lg:text-[1.05rem] xl:text-[1.1rem] font-display leading-snug break-words pr-9 transition-all duration-300 ${
+                                className={`mobile-dish-title text-[13px] sm:text-[17px] lg:text-[1.05rem] xl:text-[1.1rem] font-display font-bold leading-snug break-words transition-all duration-300 ${
                                   selectedDishes.includes(dish.id) 
-                                    ? 'text-app-accent font-black tracking-tight drop-shadow-xs text-[16px] sm:text-[18px] lg:text-[1.12rem]' 
+                                    ? 'text-app-accent font-black tracking-tight drop-shadow-xs text-[13.5px] sm:text-[18px] lg:text-[1.12rem]' 
                                     : selectedDishes.length >= maxSelectableDishes 
                                       ? 'text-slate-400 font-semibold'
-                                      : 'text-[#1C1917] font-bold group-hover:text-app-accent'
+                                      : 'text-[#1C1917] group-hover:text-app-accent'
                                 }`}
                               >
                                 {getDishDisplayName(dish, currentLang)}
                               </h4>
-                            </div>
-                            
-                            {/* Selection indicator */}
-                            <div className="menu-dish-footer mt-auto pt-2.5 flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  initial={{ opacity: 0, scale: 0.8 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  className={`menu-dish-status text-[11px] px-2.5 py-1 rounded-full font-black transition-colors ${
-                                    selectedDishes.includes(dish.id)
-                                      ? 'bg-app-accent text-white shadow-xs ring-1 ring-white/30'
-                                      : 'bg-white text-app-ink/45 border border-app-accent/10'
-                                  }`}
-                                >
-                                  {selectedDishes.includes(dish.id)
-                                    ? `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
-                                    : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
+                              {isSingleOnlyDish(dish) && (
+                                <span className="inline-flex sm:hidden items-center text-[9px] font-bold text-amber-700 bg-amber-100/90 border border-amber-300 px-1.5 py-0.2 rounded-full">
+                                  🍜 Món nước
                                 </span>
-                              </div>
-                              
-                              {!selectedDishes.includes(dish.id) && selectedDishes.length < maxSelectableDishes && (
-                                <div 
-                                  whileHover={{ scale: 1.1 }}
-                                  className="w-7 h-7 border-2 border-app-accent/30 rounded-full group-hover:border-app-accent transition-colors flex items-center justify-center bg-white"
-                                >
-                                  <Plus size={14} className="text-app-accent/70" />
-                                </div>
                               )}
                             </div>
+                          </div>
+                          
+                          {/* Right (Mobile) / Footer (Desktop): Status & Action */}
+                          <div className="menu-dish-footer sm:mt-auto sm:pt-2.5 flex items-center justify-end sm:justify-between gap-2 shrink-0">
+                            {/* Desktop status pill */}
+                            <div className="hidden sm:flex items-center gap-2">
+                              <span
+                                className={`menu-dish-status text-[11px] px-2.5 py-1 rounded-full font-black transition-colors ${
+                                  selectedDishes.includes(dish.id)
+                                    ? 'bg-app-accent text-white shadow-xs ring-1 ring-white/30'
+                                    : 'bg-white text-app-ink/45 border border-app-accent/10'
+                                }`}
+                              >
+                                {selectedDishes.includes(dish.id)
+                                  ? `✓ ${mobileOrderCopy.optionPrefix} ${selectedDishes.indexOf(dish.id) + 1}`
+                                  : `${mobileOrderCopy.optionPrefix} ${index + 1}`}
+                              </span>
+                            </div>
+
+                            {/* Mobile status pill when selected */}
+                            {selectedDishes.includes(dish.id) && (
+                              <span className="sm:hidden bg-app-accent text-white px-2 py-0.5 rounded-full text-[11px] font-black shadow-xs flex items-center gap-1">
+                                <CheckCircle2 size={12} className="stroke-[3]" />
+                                <span>{selectedDishes.indexOf(dish.id) === 0 ? 'Món 1' : 'Món 2'}</span>
+                              </span>
+                            )}
+                            
+                            {/* Plus button when not selected */}
+                            {!selectedDishes.includes(dish.id) && selectedDishes.length < maxSelectableDishes && (
+                              <div 
+                                className="w-6 h-6 sm:w-7 sm:h-7 border border-app-accent/30 rounded-full group-hover:border-app-accent transition-colors flex items-center justify-center bg-white"
+                              >
+                                <Plus size={13} className="text-app-accent/70" />
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))
@@ -3036,35 +3281,16 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                   {t.orderOptions}
                                 </h4>
                                 
-                                {/* Đặt cho ai */}
-                                <div className="mb-3">
-                                  <label className="block text-xs font-bold text-slate-600 mb-1.5">{t.orderForLabel}</label>
-                                  {allUsers.length > 5 && (
-                                    <div className="relative mb-1.5">
-                                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                      <input
-                                        type="text"
-                                        value={orderForSearch}
-                                        onChange={(e) => setOrderForSearch(e.target.value)}
-                                        placeholder={currentLang === 'ja' ? '同僚の名前を検索...' : currentLang === 'en' ? 'Search colleague name...' : 'Gõ tìm đồng nghiệp...'}
-                                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
-                                      />
-                                    </div>
-                                  )}
-                                  <select
-                                    value={orderForUserId || user?.id || ''}
-                                    onChange={(e) => {
-                                      const value = e.target.value ? Number(e.target.value) : null;
-                                      setOrderForUserId(value);
-                                    }}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-900 font-bold text-xs"
-                                  >
-                                    <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
-                                    {filteredOrderForUsers.filter(u => u.id !== user?.id).map(u => (
-                                      <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
-                                    ))}
-                                  </select>
-                                </div>
+                                {/* Đặt cho ai with real-time auto-suggest */}
+                                <ColleagueSearchSelect
+                                  user={user}
+                                  allUsers={allUsers}
+                                  orderForUserId={orderForUserId}
+                                  onSelectUser={(userId) => setOrderForUserId(userId)}
+                                  currentLang={currentLang}
+                                  label={t.orderForLabel}
+                                  className="mb-3"
+                                />
                                 
                                 {/* Quick Options */}
                                 <div>
@@ -4748,35 +4974,15 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                     ))}
                   </div>
 
-                  {/* Đặt cho ai with search */}
-                  <div>
-                    <span className="block text-xs font-black text-slate-500 mb-1.5">{mobileOrderCopy.orderFor}</span>
-                    {allUsers.length > 5 && (
-                      <div className="relative mb-2">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          value={orderForSearch}
-                          onChange={(e) => setOrderForSearch(e.target.value)}
-                          placeholder={currentLang === 'ja' ? '同僚の名前を検索...' : currentLang === 'en' ? 'Search colleague name...' : 'Gõ tìm đồng nghiệp...'}
-                          className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
-                        />
-                      </div>
-                    )}
-                    <select
-                      value={orderForUserId || user?.id || ''}
-                      onChange={(e) => {
-                        const value = e.target.value ? Number(e.target.value) : null;
-                        setOrderForUserId(value);
-                      }}
-                      className="w-full min-h-11 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-sm"
-                    >
-                      <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
-                      {filteredOrderForUsers.filter(u => u.id !== user?.id).map(u => (
-                        <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Đặt cho ai with real-time auto-suggest */}
+                  <ColleagueSearchSelect
+                    user={user}
+                    allUsers={allUsers}
+                    orderForUserId={orderForUserId}
+                    onSelectUser={(userId) => setOrderForUserId(userId)}
+                    currentLang={currentLang}
+                    label={mobileOrderCopy.orderFor}
+                  />
 
                   {/* Quick options */}
                   <div>
