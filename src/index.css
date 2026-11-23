@@ -1097,6 +1097,7 @@
     max-width: 100%;
     padding-left: clamp(0.75rem, 3.5vw, 1rem) !important;
     padding-right: clamp(0.75rem, 3.5vw, 1rem) !important;
+    padding-bottom: calc(var(--mobile-bottom-nav-height, 70px) + var(--ios-safe-bottom, 0px) + 2.5rem) !important;
   }
 
   .bazi-mobile-hero {
@@ -1295,7 +1296,7 @@
 /* iPhone Safari safe-area layout for fixed bottom controls */
 @media (max-width: 768px) {
   :root {
-    --mobile-bottom-nav-height: 88px;
+    --mobile-bottom-nav-height: 70px;
     --ios-safe-bottom: env(safe-area-inset-bottom, 0px);
     --ios-safe-top: env(safe-area-inset-top, 0px);
   }
@@ -1303,7 +1304,15 @@
   .mobile-bottom-nav {
     min-height: calc(var(--mobile-bottom-nav-height) + var(--ios-safe-bottom));
     padding-bottom: max(0.5rem, var(--ios-safe-bottom));
-    z-index: 50;
+    z-index: 40;
+  }
+
+  .mobile-floating-order-bar {
+    position: fixed;
+    bottom: calc(var(--mobile-bottom-nav-height) + var(--ios-safe-bottom) + 12px);
+    left: 0.75rem;
+    right: 0.75rem;
+    z-index: 45;
   }
 
   .mobile-order-action-sheet {

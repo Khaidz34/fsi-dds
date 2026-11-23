@@ -1824,7 +1824,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-app-ink/10 px-4 py-2 z-50 mobile-bottom-nav">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-app-ink/10 px-4 py-2 z-40 mobile-bottom-nav shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
         <div className="flex justify-around items-center">
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -1896,7 +1896,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       </nav>
 
       {/* Main Content */}
-      <main className="app-main flex-1 flex flex-col overflow-hidden relative pb-20 lg:pb-0">
+      <main className="app-main flex-1 flex flex-col overflow-hidden relative">
         {/* Header - Hidden on mobile */}
         <header className="desktop-topbar hidden lg:flex h-24 border-b border-app-ink/10 items-center justify-between px-10 shrink-0 bg-white/85 backdrop-blur-md z-20 silk-texture relative">
           {/* Theme transition overlay */}
@@ -2020,7 +2020,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
         </header>
 
         {/* Content Area */}
-        <div className="app-content desktop-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-10 bg-app-bg relative">
+        <div className="app-content desktop-content flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-10 bg-app-bg relative">
           {/* Tab transition overlay */}
           <AnimatePresence>
             {isLanguageChanging && (
@@ -2582,7 +2582,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
 
                 {/* Menu List */}
                 <div className={`mobile-menu-dish-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-4 xl:gap-5 ${
-                  selectedDishes.length > 0 ? 'pb-48 sm:pb-48 lg:pb-44' : 'pb-28'
+                  selectedDishes.length > 0 ? 'pb-64 sm:pb-60 lg:pb-44' : 'pb-28'
                 }`}>
                   {/* Floating micro-toast when selecting dishes */}
                   <AnimatePresence>
@@ -2756,7 +2756,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                   <>
                     {/* Mobile: Floating Bottom Bar when collapsed */}
                     {!isMobileOrderSheetExpanded && (
-                      <div className={`lg:hidden fixed bottom-16 left-3 right-3 z-40 rounded-2xl p-3 text-white border border-white/20 backdrop-blur-md flex flex-col gap-2.5 animate-slide-up ${
+                      <div className={`lg:hidden mobile-floating-order-bar rounded-2xl p-3 text-white border border-white/20 backdrop-blur-md flex flex-col gap-2.5 animate-slide-up shadow-xl ${
                         theme === 'corporate'
                           ? 'bg-gradient-to-r from-[#008C7A] via-[#00A693] to-[#009684] shadow-[0_12px_32px_rgba(0,140,122,0.42)]'
                           : 'bg-gradient-to-r from-[#B81D16] via-[#DA251D] to-[#C82018] shadow-[0_12px_32px_rgba(184,29,22,0.42)]'
@@ -2780,14 +2780,14 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               onClick={() => setSelectedDishes([])}
-                              className="w-8 h-8 rounded-full bg-white/15 text-white/85 hover:text-white hover:bg-black/25 flex items-center justify-center transition-colors border border-white/20"
+                              className="w-8 h-8 rounded-full bg-white/15 text-white/85 hover:text-white hover:bg-black/25 flex items-center justify-center transition-colors border border-white/20 cursor-pointer"
                               title={mobileOrderCopy.clear}
                             >
                               <X size={15} />
                             </button>
                             <button
                               onClick={() => setIsMobileOrderSheetExpanded(true)}
-                              className={`px-3.5 py-2 rounded-xl bg-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all ${
+                              className={`px-3.5 py-2 rounded-xl bg-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer ${
                                 theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'
                               }`}
                             >
@@ -2804,7 +2804,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                               key={option.key}
                               type="button"
                               onClick={() => option.onChange(!option.checked)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0 transition-all ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0 transition-all cursor-pointer ${
                                 option.checked
                                   ? `bg-white border-white shadow-sm ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
                                   : 'bg-white/15 border-white/25 text-white/95'
@@ -2820,13 +2820,13 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
 
                     {/* Mobile: Slide-up Bottom Sheet Modal when expanded */}
                     {isMobileOrderSheetExpanded && (
-                      <div className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-fade-in">
+                      <div className="lg:hidden fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-fade-in">
                         <div 
                           className="fixed inset-0" 
                           onClick={() => setIsMobileOrderSheetExpanded(false)} 
                         />
-                        <div className="relative z-10 bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl border-t-4 border-app-accent overflow-hidden animate-slide-up">
-                          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                        <div className="relative z-10 bg-white rounded-t-3xl max-h-[88vh] max-h-[88dvh] flex flex-col shadow-2xl border-t-4 border-app-accent overflow-hidden animate-slide-up">
+                          <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                             <div className="flex items-center gap-2">
                               <ShoppingBag size={20} className="text-app-accent" />
                               <h3 className="font-black text-base text-slate-900">{currentLang === 'ja' ? '昼食注文の詳細' : currentLang === 'en' ? 'Your Lunch Order Details' : 'Chi tiết bữa trưa của bạn'}</h3>
@@ -2836,13 +2836,13 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                             </div>
                             <button
                               onClick={() => setIsMobileOrderSheetExpanded(false)}
-                              className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                              className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
                             >
                               <ChevronDown size={20} />
                             </button>
                           </div>
 
-                          <div className="p-4 overflow-y-auto space-y-4 flex-1">
+                          <div className="p-4 overflow-y-auto space-y-4 flex-1 overscroll-contain">
                             {/* Selected dishes */}
                             <div className="space-y-1.5">
                               {selectedDishDetails.map((dish, index) => (
@@ -2857,7 +2857,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                   </div>
                                   <button
                                     onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
-                                    className="w-8 h-8 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors shrink-0"
+                                    className="w-8 h-8 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                                   >
                                     <X size={15} />
                                   </button>
@@ -2934,12 +2934,14 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                 rows={2}
                               />
                             </div>
+                          </div>
 
-                            {/* Place order button */}
+                          {/* Sticky Bottom Action Footer for Place Order Button */}
+                          <div className="p-4 border-t border-slate-100 bg-white shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-[max(1rem,env(safe-area-inset-bottom))]">
                             <button 
                               onClick={handleShowOrderSummary}
                               disabled={!canPlaceOrder || selectedDishes.length === 0}
-                              className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 ${
+                              className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer ${
                                 !canPlaceOrder || selectedDishes.length === 0
                                   ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
                                   : theme === 'corporate' 
@@ -2958,11 +2960,11 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                   <span>
                                     {orderForUserId && orderForUserId !== user?.id
                                       ? (currentLang === 'ja'
-                                          ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文`
+                                          ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文 (${mealPriceText})`
                                           : currentLang === 'en'
-                                          ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'}`
-                                          : `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'}`)
-                                      : t.orderNow}
+                                          ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'} (${mealPriceText})`
+                                          : `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'} (${mealPriceText})`)
+                                      : `${t.orderNow} (${mealPriceText})`}
                                   </span>
                                 </>
                               )}
@@ -4858,7 +4860,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
             onClick={() => !isPlacingOrder && setShowOrderSummary(false)}
           >
             <div onClick={(e) => e.stopPropagation()}>
