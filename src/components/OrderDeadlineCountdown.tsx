@@ -131,6 +131,21 @@ export async function setDeadlineOverride(mode: AdminDeadlineMode): Promise<void
     console.error('Failed to save deadline override locally', e);
   }
 
+  // Thông báo xác nhận thao tác cho Admin
+  if (mode === 'extended_15' && extendedUntilTimestamp) {
+    const timeStr = new Date(extendedUntilTimestamp).toLocaleTimeString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    alert(`⏳ Đã mở thêm 15 phút đặt cơm cho toàn bộ nhân viên!\nHạn chốt mới là: ${timeStr}`);
+  } else if (mode === 'locked') {
+    alert('🔒 Đã khóa nhận đơn cơm hôm nay!');
+  } else if (mode === 'auto') {
+    alert('⏱️ Đã chuyển về chế độ chốt đơn tự động (11:00)!');
+  }
+
   // 2. Đồng bộ lên Backend Server để toàn bộ nhân viên và backend logic cùng mở
   try {
     const res: any = await deadlineAPI.setOverride(mode);
@@ -330,7 +345,7 @@ async function syncDeadlineFromServerOnce(force = false) {
 
 function handleDeadlineVisibilitySync() {
   if (document.visibilityState === 'visible') {
-    syncDeadlineFromServerOnce(false);
+    syncDeadlineFromServerOnce(true);
   }
 }
 
@@ -338,8 +353,8 @@ function registerDeadlineServerSync(): () => void {
   activeDeadlineSyncSubscribers += 1;
   if (activeDeadlineSyncSubscribers === 1) {
     syncDeadlineFromServerOnce(true);
-    // SSE đã đẩy realtime `deadline_override_changed`, chỉ fallback poll 60s khi tab hiển thị
-    deadlineSyncInterval = setInterval(() => syncDeadlineFromServerOnce(false), 60000);
+    // Poll mỗi 15s để đồng bộ trạng thái hạn chốt từ admin tới toàn bộ thiết bị
+    deadlineSyncInterval = setInterval(() => syncDeadlineFromServerOnce(false), 15000);
     document.addEventListener('visibilitychange', handleDeadlineVisibilitySync);
   }
 

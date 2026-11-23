@@ -1487,7 +1487,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[85] lg:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <div
@@ -1495,9 +1495,9 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 h-full w-80 bg-white z-50 lg:hidden"
+              className="fixed left-0 top-0 bottom-0 h-full h-[100dvh] max-h-[100dvh] w-80 max-w-[85vw] bg-white z-[90] lg:hidden flex flex-col shadow-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-app-ink/10">
+              <div className="p-5 border-b border-app-ink/10 shrink-0 bg-white">
                 <div className="flex items-center justify-between">
                   <div className="fsi-logo">
                     <div className="fsi-logo-icon">
@@ -1510,14 +1510,14 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                   </div>
                   <button
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-2 rounded-lg hover:bg-gray-100"
+                    className="p-2 rounded-lg hover:bg-gray-100 cursor-pointer"
                   >
                     <X size={20} />
                   </button>
                 </div>
               </div>
               
-              <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+              <nav className="flex-1 min-h-0 px-4 py-4 space-y-2 overflow-y-auto overscroll-contain">
                 <div className="mb-4">
                   <p className={`px-4 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 ${theme === 'corporate' ? 'text-[#00A693]/40' : 'text-[#DA251D]/40'}`}>
                     {currentLang === 'vi' ? 'Mục lục' : currentLang === 'en' ? 'Menu' : 'メニュー'}
@@ -1666,10 +1666,10 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                 </div>
               </nav>
               
-              <div className="p-4 border-t border-app-ink/10">
+              <div className="p-4 border-t border-app-ink/10 shrink-0 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.05)] pb-[max(1rem,env(safe-area-inset-bottom))]">
                 {/* Theme Switcher */}
-                <div className="mb-4">
-                  <p className="text-xs font-bold text-app-ink/60 mb-2">Theme</p>
+                <div className="mb-3">
+                  <p className="text-xs font-bold text-app-ink/60 mb-1.5">Theme</p>
                   <div className="flex items-center gap-2 bg-app-cream p-1.5 rounded-xl border border-app-ink/10">
                     {(['fusion', 'corporate'] as const).map((t) => (
                       <button
@@ -1688,12 +1688,12 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full border border-app-accent/10 bg-app-accent flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-full border border-app-accent/10 bg-app-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
                     {user?.fullname?.charAt(0) || 'U'}
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-app-ink">{user?.fullname}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm text-app-ink truncate">{user?.fullname}</p>
                     <p className="text-xs text-app-ink/40">{user?.role === 'admin' ? 'Administrator' : 'User'}</p>
                   </div>
                 </div>
@@ -1702,10 +1702,10 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                     logout();
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-sm transition-colors border border-red-200/60 active:scale-[0.98] cursor-pointer"
                 >
-                  <LogOut size={18} />
-                  <span className="font-bold text-sm">{t.logout}</span>
+                  <LogOut size={17} />
+                  <span>{t.logout}</span>
                 </button>
               </div>
             </div>
@@ -2751,228 +2751,9 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                   )}
                 </div>
 
-                {/* Place Order Bar - Mobile Optimized */}
+                {/* Place Order Bar */}
                 {selectedDishes.length > 0 && (
                   <>
-                    {/* Mobile: Floating Bottom Bar when collapsed */}
-                    {!isMobileOrderSheetExpanded && (
-                      <div className={`lg:hidden mobile-floating-order-bar rounded-2xl p-3 text-white border border-white/20 backdrop-blur-md flex flex-col gap-2.5 animate-slide-up shadow-xl ${
-                        theme === 'corporate'
-                          ? 'bg-gradient-to-r from-[#008C7A] via-[#00A693] to-[#009684] shadow-[0_12px_32px_rgba(0,140,122,0.42)]'
-                          : 'bg-gradient-to-r from-[#B81D16] via-[#DA251D] to-[#C82018] shadow-[0_12px_32px_rgba(184,29,22,0.42)]'
-                      }`}>
-                        <div className="flex items-center justify-between gap-2.5">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${
-                              selectedDishes.length >= maxSelectableDishes
-                                ? `bg-white ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
-                                : 'bg-white/20 text-white border border-white/30'
-                            }`}>
-                              {selectedDishes.length}/{maxSelectableDishes}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-black text-white truncate">
-                                {selectedDishDetails.map(d => getDishDisplayName(d, currentLang)).join(' + ')}
-                              </p>
-                              <p className="text-[11px] font-bold text-white/85 mt-0.5">{mealPriceText}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => setSelectedDishes([])}
-                              className="w-8 h-8 rounded-full bg-white/15 text-white/85 hover:text-white hover:bg-black/25 flex items-center justify-center transition-colors border border-white/20 cursor-pointer"
-                              title={mobileOrderCopy.clear}
-                            >
-                              <X size={15} />
-                            </button>
-                            <button
-                              onClick={() => setIsMobileOrderSheetExpanded(true)}
-                              className={`px-3.5 py-2 rounded-xl bg-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer ${
-                                theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'
-                              }`}
-                            >
-                              <span>{currentLang === 'ja' ? '確認＆注文' : currentLang === 'en' ? 'Review & Order' : 'Xem & Đặt'}</span>
-                              <ChevronUp size={15} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Mobile Quick Options Row */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-white/20">
-                          {orderOptionItems.map(option => (
-                            <button
-                              key={option.key}
-                              type="button"
-                              onClick={() => option.onChange(!option.checked)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0 transition-all cursor-pointer ${
-                                option.checked
-                                  ? `bg-white border-white shadow-sm ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
-                                  : 'bg-white/15 border-white/25 text-white/95'
-                              }`}
-                            >
-                              <span>{option.checked ? '✓' : '+'}</span>
-                              <span>{option.compactLabel}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Mobile: Slide-up Bottom Sheet Modal when expanded */}
-                    {isMobileOrderSheetExpanded && (
-                      <div className="lg:hidden fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-fade-in">
-                        <div 
-                          className="fixed inset-0" 
-                          onClick={() => setIsMobileOrderSheetExpanded(false)} 
-                        />
-                        <div className="relative z-10 bg-white rounded-t-3xl max-h-[88vh] max-h-[88dvh] flex flex-col shadow-2xl border-t-4 border-app-accent overflow-hidden animate-slide-up">
-                          <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
-                            <div className="flex items-center gap-2">
-                              <ShoppingBag size={20} className="text-app-accent" />
-                              <h3 className="font-black text-base text-slate-900">{currentLang === 'ja' ? '昼食注文の詳細' : currentLang === 'en' ? 'Your Lunch Order Details' : 'Chi tiết bữa trưa của bạn'}</h3>
-                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent">
-                                {selectedDishes.length}/{maxSelectableDishes} {currentLang === 'ja' ? '品' : currentLang === 'en' ? 'dishes' : 'món'}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => setIsMobileOrderSheetExpanded(false)}
-                              className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
-                            >
-                              <ChevronDown size={20} />
-                            </button>
-                          </div>
-
-                          <div className="p-4 overflow-y-auto space-y-4 flex-1 overscroll-contain">
-                            {/* Selected dishes */}
-                            <div className="space-y-1.5">
-                              {selectedDishDetails.map((dish, index) => (
-                                <div key={dish.id} className="flex items-start justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-7 h-7 bg-app-accent text-white rounded-full flex items-center justify-center font-black text-xs shrink-0">
-                                      {index + 1}
-                                    </div>
-                                    <span className="mobile-selected-dish-name font-bold text-slate-950 text-sm leading-snug">
-                                      {getDishDisplayName(dish, currentLang)}
-                                    </span>
-                                  </div>
-                                  <button
-                                    onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
-                                    className="w-8 h-8 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors shrink-0 cursor-pointer"
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Đặt cho ai with search */}
-                            <div>
-                              <span className="block text-xs font-black text-slate-500 mb-1.5">{mobileOrderCopy.orderFor}</span>
-                              {allUsers.length > 5 && (
-                                <div className="relative mb-2">
-                                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                  <input
-                                    type="text"
-                                    value={orderForSearch}
-                                    onChange={(e) => setOrderForSearch(e.target.value)}
-                                    placeholder={currentLang === 'ja' ? '同僚の名前を検索...' : currentLang === 'en' ? 'Search colleague name...' : 'Gõ tìm đồng nghiệp...'}
-                                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
-                                  />
-                                </div>
-                              )}
-                              <select
-                                value={orderForUserId || user?.id || ''}
-                                onChange={(e) => {
-                                  const value = e.target.value ? Number(e.target.value) : null;
-                                  setOrderForUserId(value);
-                                }}
-                                className="w-full min-h-11 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-sm"
-                              >
-                                <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
-                                {filteredOrderForUsers.filter(u => u.id !== user?.id).map(u => (
-                                  <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Quick options */}
-                            <div>
-                              <div className="mobile-order-options-header mb-1.5">
-                                <p>{mobileOrderCopy.quickOptions}</p>
-                                <span>{orderOptionItems.filter(option => option.checked).length}/{orderOptionItems.length}</span>
-                              </div>
-                              <div className="mobile-order-option-grid">
-                                {orderOptionItems.map(option => (
-                                  <label
-                                    key={option.key}
-                                    className={`mobile-order-option-chip ${option.checked ? 'is-selected' : ''}`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={option.checked}
-                                      onChange={(e) => option.onChange(e.target.checked)}
-                                      className="sr-only"
-                                    />
-                                    <span className="mobile-order-option-check" aria-hidden="true" />
-                                    <span className="mobile-order-option-label">{option.compactLabel}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Notes */}
-                            <div>
-                              <span className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
-                                <FileText size={14} className="text-app-accent" />
-                                {t.orderNotes}
-                              </span>
-                              <textarea
-                                value={orderNotes}
-                                onChange={(e) => setOrderNotes(e.target.value)}
-                                placeholder={t.orderNotesPlaceholder}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent resize-none text-slate-950 text-sm"
-                                rows={2}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Sticky Bottom Action Footer for Place Order Button */}
-                          <div className="p-4 border-t border-slate-100 bg-white shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-[max(1rem,env(safe-area-inset-bottom))]">
-                            <button 
-                              onClick={handleShowOrderSummary}
-                              disabled={!canPlaceOrder || selectedDishes.length === 0}
-                              className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer ${
-                                !canPlaceOrder || selectedDishes.length === 0
-                                  ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
-                                  : theme === 'corporate' 
-                                    ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
-                                    : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
-                              }`}
-                            >
-                              {!canPlaceOrder ? (
-                                <>
-                                  <Lock size={18} />
-                                  <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', deadlineString || '11:00')}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 size={20} />
-                                  <span>
-                                    {orderForUserId && orderForUserId !== user?.id
-                                      ? (currentLang === 'ja'
-                                          ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文 (${mealPriceText})`
-                                          : currentLang === 'en'
-                                          ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'} (${mealPriceText})`
-                                          : `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'} (${mealPriceText})`)
-                                      : `${t.orderNow} (${mealPriceText})`}
-                                  </span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Desktop: Themed Compact Floating Bottom Dock with Quick Options */}
                     {!isDesktopOrderExpanded && (
@@ -4853,6 +4634,231 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
         }}
       />
 
+      {/* Mobile Floating Order Bar & Mobile Bottom Sheet (Rendered at Root Level to avoid any container clipping/stacking context issues) */}
+      {activeTab === 'menu' && selectedDishes.length > 0 && (
+        <>
+          {/* Mobile: Floating Bottom Bar when collapsed */}
+          {!isMobileOrderSheetExpanded && (
+            <div className={`lg:hidden mobile-floating-order-bar rounded-2xl p-3 text-white border border-white/20 backdrop-blur-md flex flex-col gap-2.5 animate-slide-up shadow-xl ${
+              theme === 'corporate'
+                ? 'bg-gradient-to-r from-[#008C7A] via-[#00A693] to-[#009684] shadow-[0_12px_32px_rgba(0,140,122,0.42)]'
+                : 'bg-gradient-to-r from-[#B81D16] via-[#DA251D] to-[#C82018] shadow-[0_12px_32px_rgba(184,29,22,0.42)]'
+            }`}>
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${
+                    selectedDishes.length >= maxSelectableDishes
+                      ? `bg-white ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
+                      : 'bg-white/20 text-white border border-white/30'
+                  }`}>
+                    {selectedDishes.length}/{maxSelectableDishes}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-white truncate">
+                      {selectedDishDetails.map(d => getDishDisplayName(d, currentLang)).join(' + ')}
+                    </p>
+                    <p className="text-[11px] font-bold text-white/85 mt-0.5">{mealPriceText}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setSelectedDishes([])}
+                    className="w-8 h-8 rounded-full bg-white/15 text-white/85 hover:text-white hover:bg-black/25 flex items-center justify-center transition-colors border border-white/20 cursor-pointer"
+                    title={mobileOrderCopy.clear}
+                  >
+                    <X size={15} />
+                  </button>
+                  <button
+                    onClick={() => setIsMobileOrderSheetExpanded(true)}
+                    className={`px-3.5 py-2 rounded-xl bg-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer ${
+                      theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'
+                    }`}
+                  >
+                    <span>{currentLang === 'ja' ? '確認＆注文' : currentLang === 'en' ? 'Review & Order' : 'Xem & Đặt'}</span>
+                    <ChevronUp size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Quick Options Row */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-white/20">
+                {orderOptionItems.map(option => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => option.onChange(!option.checked)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0 transition-all cursor-pointer ${
+                      option.checked
+                        ? `bg-white border-white shadow-sm ${theme === 'corporate' ? 'text-[#008C7A]' : 'text-[#B81D16]'}`
+                        : 'bg-white/15 border-white/25 text-white/95'
+                    }`}
+                  >
+                    <span>{option.checked ? '✓' : '+'}</span>
+                    <span>{option.compactLabel}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mobile: Slide-up Bottom Sheet Modal when expanded (Root z-[85]) */}
+          {isMobileOrderSheetExpanded && (
+            <div className="lg:hidden fixed inset-0 z-[85] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-fade-in">
+              <div 
+                className="fixed inset-0" 
+                onClick={() => setIsMobileOrderSheetExpanded(false)} 
+              />
+              <div className="relative z-10 bg-white rounded-t-3xl max-h-[85vh] max-h-[85dvh] flex flex-col shadow-2xl border-t-4 border-app-accent overflow-hidden animate-slide-up">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag size={20} className="text-app-accent" />
+                    <h3 className="font-black text-base text-slate-900">{currentLang === 'ja' ? '昼食注文の詳細' : currentLang === 'en' ? 'Your Lunch Order Details' : 'Chi tiết bữa trưa của bạn'}</h3>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent">
+                      {selectedDishes.length}/{maxSelectableDishes} {currentLang === 'ja' ? '品' : currentLang === 'en' ? 'dishes' : 'món'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsMobileOrderSheetExpanded(false)}
+                    className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
+                  >
+                    <ChevronDown size={20} />
+                  </button>
+                </div>
+
+                <div className="p-4 overflow-y-auto space-y-4 flex-1 min-h-0 overscroll-contain">
+                  {/* Selected dishes */}
+                  <div className="space-y-1.5">
+                    {selectedDishDetails.map((dish, index) => (
+                      <div key={dish.id} className="flex items-start justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-7 h-7 bg-app-accent text-white rounded-full flex items-center justify-center font-black text-xs shrink-0">
+                            {index + 1}
+                          </div>
+                          <span className="mobile-selected-dish-name font-bold text-slate-950 text-sm leading-snug">
+                            {getDishDisplayName(dish, currentLang)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedDishes(prev => prev.filter(id => id !== dish.id))}
+                          className="w-8 h-8 bg-white text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Đặt cho ai with search */}
+                  <div>
+                    <span className="block text-xs font-black text-slate-500 mb-1.5">{mobileOrderCopy.orderFor}</span>
+                    {allUsers.length > 5 && (
+                      <div className="relative mb-2">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={orderForSearch}
+                          onChange={(e) => setOrderForSearch(e.target.value)}
+                          placeholder={currentLang === 'ja' ? '同僚の名前を検索...' : currentLang === 'en' ? 'Search colleague name...' : 'Gõ tìm đồng nghiệp...'}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-app-accent bg-slate-50 text-slate-900"
+                        />
+                      </div>
+                    )}
+                    <select
+                      value={orderForUserId || user?.id || ''}
+                      onChange={(e) => {
+                        const value = e.target.value ? Number(e.target.value) : null;
+                        setOrderForUserId(value);
+                      }}
+                      className="w-full min-h-11 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent bg-white text-slate-950 font-bold text-sm"
+                    >
+                      <option value={user?.id || ''}>{user?.fullname} {user?.id ? `(#${user.id})` : ''} {t.myself}</option>
+                      {filteredOrderForUsers.filter(u => u.id !== user?.id).map(u => (
+                        <option key={u.id} value={u.id}>{u.fullname} (#{u.id})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quick options */}
+                  <div>
+                    <div className="mobile-order-options-header mb-1.5">
+                      <p>{mobileOrderCopy.quickOptions}</p>
+                      <span>{orderOptionItems.filter(option => option.checked).length}/{orderOptionItems.length}</span>
+                    </div>
+                    <div className="mobile-order-option-grid">
+                      {orderOptionItems.map(option => (
+                        <label
+                          key={option.key}
+                          className={`mobile-order-option-chip ${option.checked ? 'is-selected' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={option.checked}
+                            onChange={(e) => option.onChange(e.target.checked)}
+                            className="sr-only"
+                          />
+                          <span className="mobile-order-option-check" aria-hidden="true" />
+                          <span className="mobile-order-option-label">{option.compactLabel}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <span className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
+                      <FileText size={14} className="text-app-accent" />
+                      {t.orderNotes}
+                    </span>
+                    <textarea
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                      placeholder={t.orderNotesPlaceholder}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-app-accent resize-none text-slate-950 text-sm"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                {/* Sticky Bottom Action Footer for Place Order Button */}
+                <div className="p-4 border-t border-slate-100 bg-white shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <button 
+                    onClick={handleShowOrderSummary}
+                    disabled={!canPlaceOrder || selectedDishes.length === 0}
+                    className={`w-full text-white py-3.5 rounded-xl font-black text-base transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer ${
+                      !canPlaceOrder || selectedDishes.length === 0
+                        ? 'bg-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                        : theme === 'corporate' 
+                          ? 'bg-[#00A693] hover:bg-[#00A693]/90' 
+                          : 'bg-[#DA251D] hover:bg-[#DA251D]/90'
+                    }`}
+                  >
+                    {!canPlaceOrder ? (
+                      <>
+                        <Lock size={18} />
+                        <span>{(t.deadline?.btnExpired || 'Đã hết giờ đặt ({deadline})').replace('{deadline}', deadlineString || '11:00')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={20} />
+                        <span>
+                          {orderForUserId && orderForUserId !== user?.id
+                            ? (currentLang === 'ja'
+                                ? `${allUsers.find(u => u.id === orderForUserId)?.fullname || '他の同僚'}の分を注文 (${mealPriceText})`
+                                : currentLang === 'en'
+                                ? `Order for ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'colleague'} (${mealPriceText})`
+                                : `Đặt cơm cho ${allUsers.find(u => u.id === orderForUserId)?.fullname || 'người khác'} (${mealPriceText})`)
+                            : `${t.orderNow} (${mealPriceText})`}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Order Summary Modal */}
       <AnimatePresence>
         {showOrderSummary && (
@@ -4860,7 +4866,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[95] p-4"
             onClick={() => !isPlacingOrder && setShowOrderSummary(false)}
           >
             <div onClick={(e) => e.stopPropagation()}>
@@ -4900,7 +4906,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl p-8 shadow-2xl z-[70] text-center"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl p-8 shadow-2xl z-[100] text-center"
           >
             <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 size={32} className="text-white" />

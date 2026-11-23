@@ -90,7 +90,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-[70] p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-[90] p-4"
       onClick={onClose}
     >
       <div
