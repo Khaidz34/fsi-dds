@@ -60,5 +60,14 @@ ON auto_payment_transactions(payment_code);
 CREATE INDEX IF NOT EXISTS idx_auto_payment_transactions_user_month
 ON auto_payment_transactions(user_id, month);
 
--- Disable Row Level Security on auto_payment_transactions so that backend webhook can safely insert transactions
-ALTER TABLE auto_payment_transactions DISABLE ROW LEVEL SECURITY;
+-- Enable strict Row Level Security on auto_payment_transactions; backend uses SUPABASE_SERVICE_ROLE_KEY
+ALTER TABLE auto_payment_transactions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE auto_payment_transactions FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE auto_payment_transactions TO service_role;
+DROP POLICY IF EXISTS "deny_public_access_auto_payment_transactions" ON auto_payment_transactions;
+CREATE POLICY "deny_public_access_auto_payment_transactions"
+  ON auto_payment_transactions
+  FOR ALL
+  TO anon, authenticated
+  USING (false)
+  WITH CHECK (false);

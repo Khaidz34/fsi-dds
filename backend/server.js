@@ -230,10 +230,31 @@ console.log('Node Version:', process.version);
 console.log('Target Port:', PORT);
 console.log('Environment:', process.env.NODE_ENV || 'development');
 
-// Supabase Clients
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Supabase Clients (sanitize accidental whitespace/quotes from env dashboard)
+const cleanEnvSecret = (val) => (val ? String(val).trim().replace(/^["']|["']$/g, '') : '');
+const supabaseUrl = cleanEnvSecret(process.env.SUPABASE_URL);
+const supabaseKey = cleanEnvSecret(process.env.SUPABASE_ANON_KEY);
+const supabaseServiceKey = cleanEnvSecret(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+// Helper: inspect Supabase key role without external deps (supports legacy JWT service_role & new sb_secret_ format)
+const detectSupabaseKeyRole = (key) => {
+  if (!key) return 'missing';
+  if (key.startsWith('sb_secret_')) return 'service_role';
+  if (key.startsWith('sb_publishable_')) return 'anon';
+  const parts = key.split('.');
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+      return payload?.role || 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
+  return 'unknown';
+};
+
+const serviceKeyRole = detectSupabaseKeyRole(supabaseServiceKey);
+const isValidServiceRoleKey = Boolean(supabaseServiceKey && serviceKeyRole === 'service_role');
 
 // Secure JWT Secret handling - Enforce in production, ephemeral random in development
 const JWT_SECRET = process.env.JWT_SECRET || (
@@ -252,25 +273,36 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'production') {
 let supabase = null;
 let supabaseAdmin = null;
 let supabaseConfigured = false;
+let supabaseAuthMode = 'unconfigured';
+const effectiveSupabaseKey = supabaseServiceKey || supabaseKey;
 
-if (!supabaseUrl || !supabaseKey) {
+if (!supabaseUrl || !effectiveSupabaseKey) {
   console.warn('⚠️  WARNING: Missing Supabase credentials');
   console.warn('SUPABASE_URL:', supabaseUrl ? 'OK' : 'MISSING');
+  console.warn('SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? 'OK' : 'MISSING');
   console.warn('SUPABASE_ANON_KEY:', supabaseKey ? 'OK' : 'MISSING');
   console.warn('Server will run in degraded mode - API calls will return empty data');
   console.warn('Please configure environment variables on Render Dashboard');
 } else {
-  supabase = createClient(supabaseUrl, supabaseKey);
   supabaseConfigured = true;
   console.log('✅ Supabase URL:', supabaseUrl);
-  console.log('✅ Supabase Key: Configured');
   if (supabaseServiceKey) {
     supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
-    console.log('✅ Supabase Service Role: Configured (bypasses RLS)');
+    // Use Service Role client for ALL backend queries so strict RLS can block public/anon PostgREST access
+    supabase = supabaseAdmin;
+    if (isValidServiceRoleKey) {
+      supabaseAuthMode = 'service_role';
+      console.log('✅ Supabase Service Role: Verified & Configured (bypasses RLS for all backend queries)');
+    } else {
+      supabaseAuthMode = `misconfigured_${serviceKeyRole}`;
+      console.error(`❌ CRITICAL: SUPABASE_SERVICE_ROLE_KEY has role "${serviceKeyRole}" instead of "service_role"! Do NOT enable strict RLS until the real service_role key is set.`);
+    }
   } else {
-    console.warn('⚠️  SUPABASE_SERVICE_ROLE_KEY missing - admin writes may fail with RLS deny');
+    supabase = createClient(supabaseUrl, supabaseKey);
+    supabaseAuthMode = 'anon_fallback';
+    console.warn('⚠️  SUPABASE_SERVICE_ROLE_KEY missing - falling back to ANON KEY! Strict RLS will block backend queries until SUPABASE_SERVICE_ROLE_KEY is set.');
   }
 }
 
@@ -484,6 +516,15 @@ app.get('/health', async (req, res) => {
 // Database health check (separate endpoint)
 app.get('/health/db', async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(503).json({
+        status: 'error',
+        database: 'unconfigured',
+        authMode: supabaseAuthMode,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Database health check timeout')), 5000);
@@ -491,29 +532,32 @@ app.get('/health/db', async (req, res) => {
     
     const dbPromise = supabase
       .from('users')
-      .select('count', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
     
-    const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
+    const { error } = await Promise.race([dbPromise, timeoutPromise]);
     
     if (error) {
       return res.status(500).json({ 
         status: 'error', 
         database: 'disconnected',
-        error: error.message 
+        authMode: supabaseAuthMode,
+        timestamp: new Date().toISOString()
       });
     }
     
     res.json({ 
       status: 'ok', 
       database: 'connected',
-      timestamp: new Date().toISOString(),
-      users: data || 0
+      authMode: supabaseAuthMode,
+      rlsReady: supabaseAuthMode === 'service_role',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     res.status(500).json({ 
       status: 'error', 
       database: 'error',
-      error: error.message 
+      authMode: supabaseAuthMode,
+      timestamp: new Date().toISOString()
     });
   }
 });
