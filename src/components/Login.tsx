@@ -137,6 +137,8 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
   
   // Generate random form ID to prevent browser autofill
   const [formId] = useState(() => Math.random().toString(36).substring(7));
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
@@ -147,6 +149,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
   // Reset form when view mode changes
   useEffect(() => {
     setUsername('');
+    setCurrentPassword('');
     setPassword('');
     setFullname('');
     setConfirmPassword('');
@@ -156,6 +159,7 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
 
   const resetForm = () => {
     setUsername('');
+    setCurrentPassword('');
     setPassword('');
     setFullname('');
     setConfirmPassword('');
@@ -238,10 +242,17 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
-      setError(currentLang === 'vi' ? 'Vui lòng nhập tên đăng nhập và mật khẩu mới' :
-              currentLang === 'en' ? 'Please enter username and new password' :
-              'ユーザー名と新しいパスワードを入力してください');
+    if (!username || !currentPassword || !password) {
+      setError(currentLang === 'vi' ? 'Vui lòng nhập tên đăng nhập, mật khẩu hiện tại và mật khẩu mới' :
+              currentLang === 'en' ? 'Please enter username, current password, and new password' :
+              'ユーザー名、現在のパスワード、新しいパスワードを入力してください');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError(currentLang === 'vi' ? 'Mật khẩu mới phải có ít nhất 6 ký tự' :
+              currentLang === 'en' ? 'New password must be at least 6 characters' :
+              '新しいパスワードは6文字以上にしてください');
       return;
     }
 
@@ -256,22 +267,23 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
     setError('');
     
     try {
-      await authAPI.resetPassword(username, password);
+      await authAPI.resetPassword(username, password, currentPassword);
 
-      setSuccess(currentLang === 'vi' ? 'Đặt lại mật khẩu thành công!' :
-                currentLang === 'en' ? 'Password reset successful!' :
-                'パスワードリセット成功！');
+      setSuccess(currentLang === 'vi' ? 'Đổi mật khẩu thành công!' :
+                currentLang === 'en' ? 'Password changed successfully!' :
+                'パスワードを変更しました！');
       setTimeout(() => {
         setViewMode('login');
+        setCurrentPassword('');
         setPassword('');
         setConfirmPassword('');
         setSuccess('');
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message :
-              currentLang === 'vi' ? 'Đặt lại mật khẩu thất bại' :
-              currentLang === 'en' ? 'Password reset failed' :
-              'パスワードリセットに失敗しました');
+              currentLang === 'vi' ? 'Đổi mật khẩu thất bại' :
+              currentLang === 'en' ? 'Password change failed' :
+              'パスワード変更に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -742,7 +754,11 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
               className="space-y-6"
             >
               <p className="text-sm text-app-ink/60 text-center mb-4">
-                {t.resetPasswordDesc}
+                {currentLang === 'vi'
+                  ? 'Nhập mật khẩu hiện tại để đổi mật khẩu mới. Nếu bạn quên mật khẩu cũ, vui lòng liên hệ Admin để đặt lại.'
+                  : currentLang === 'en'
+                  ? 'Enter your current password to set a new one. If you forgot it, please contact Admin.'
+                  : '現在のパスワードを入力して変更してください。忘れた場合は管理者にお問い合わせください。'}
               </p>
 
               <div className="space-y-2">
@@ -758,6 +774,30 @@ export const Login: React.FC<LoginProps> = ({ theme, currentLang, setTheme, setC
                   autoComplete="off"
                   className="w-full bg-app-cream/50 border-2 border-app-ink/10 rounded-2xl py-4 px-6 text-app-ink outline-none focus:border-app-accent/30 focus:ring-4 focus:ring-app-accent/5 transition-all placeholder:text-app-ink/20 font-medium disabled:opacity-50"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-app-accent/60 ml-2">
+                  {currentLang === 'vi' ? 'Mật khẩu hiện tại' : currentLang === 'en' ? 'Current Password' : '現在のパスワード'}
+                </label>
+                <div className="relative">
+                  <input 
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={isLoading}
+                    autoComplete="current-password"
+                    className="w-full bg-app-cream/50 border-2 border-app-ink/10 rounded-2xl py-4 px-6 pr-12 text-app-ink outline-none focus:border-app-accent/30 focus:ring-4 focus:ring-app-accent/5 transition-all placeholder:text-app-ink/20 font-medium disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-app-ink/40 hover:text-app-accent transition-colors"
+                  >
+                    {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
               </div>
               
               <div className="space-y-2">

@@ -16,6 +16,13 @@
 --      do đó khóa 100% quyền truy cập qua PUBLIC / anon / authenticated.
 -- ============================================================================
 
+-- 0. Tạo bảng system_settings để lưu trạng thái khóa/gia hạn đơn bền vững qua Render restart
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 1. Khóa toàn bộ bảng trong schema public (bỏ qua an toàn nếu có bảng hệ thống/extension)
 DO $$
 DECLARE

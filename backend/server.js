@@ -607,17 +607,30 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { username, password, fullname } = req.body;
+    const { username, password, fullname, inviteCode } = req.body;
 
-    if (!username || !password || !fullname) {
+    // Optional invite code protection for internal company deployments
+    const requiredInviteCode = (process.env.COMPANY_INVITE_CODE || '').trim();
+    if (requiredInviteCode && String(inviteCode || '').trim() !== requiredInviteCode) {
+      return res.status(403).json({ error: 'Mã mời nội bộ không đúng. Vui lòng liên hệ Admin để được cấp tài khoản.' });
+    }
+
+    const cleanUsername = String(username || '').trim().toLowerCase();
+    const cleanFullname = String(fullname || '').trim();
+
+    if (!cleanUsername || !password || !cleanFullname) {
       return res.status(400).json({ error: 'Tất cả các trường là bắt buộc' });
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
     }
 
     // Check if user exists
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
-      .eq('username', username)
+      .eq('username', cleanUsername)
       .single();
 
     if (existingUser) {
@@ -632,9 +645,9 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       .from('users')
       .insert([
         {
-          username,
+          username: cleanUsername,
           password: hashedPassword,
-          fullname,
+          fullname: cleanFullname,
           role: 'user'
         }
       ])
@@ -672,7 +685,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
   res.json(userWithoutPassword);
 });
 
-// Reset password endpoint - secured with rate limit & admin protection
+// Reset password endpoint - secured for ALL roles (requires either currentPassword or verified Admin JWT)
 app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
   try {
     const { username, newPassword, currentPassword } = req.body;
@@ -689,35 +702,38 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
     const { data: user, error: fetchError } = await supabase
       .from('users')
       .select('id, role, password')
-      .eq('username', username)
+      .eq('username', String(username).trim())
       .single();
 
     if (fetchError || !user) {
       return res.status(404).json({ error: 'Tài khoản không tồn tại' });
     }
 
-    // Bảo vệ tài khoản admin: Không cho phép đổi mật khẩu admin tự do mà không xác thực mật khẩu cũ hoặc không qua admin panel
-    if (user.role === 'admin') {
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1];
-      let isVerifiedAdmin = false;
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, JWT_SECRET);
-          if (decoded.role === 'admin') isVerifiedAdmin = true;
-        } catch {}
-      }
+    // Bắt buộc xác thực cho MỌI tài khoản (user, staff, admin): hoặc Admin đang đăng nhập, hoặc cung cấp đúng mật khẩu hiện tại
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    let isAuthorized = false;
 
-      if (!isVerifiedAdmin && currentPassword) {
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (isMatch) isVerifiedAdmin = true;
-      }
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.role === 'admin') {
+          isAuthorized = true;
+        }
+      } catch {}
+    }
 
-      if (!isVerifiedAdmin) {
-        return res.status(403).json({ 
-          error: 'Tài khoản Quản trị viên chỉ có thể đổi mật khẩu khi đăng nhập hoặc cung cấp mật khẩu hiện tại.' 
-        });
+    if (!isAuthorized && currentPassword) {
+      const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+      if (isMatch) {
+        isAuthorized = true;
       }
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({ 
+        error: 'Vui lòng nhập đúng mật khẩu hiện tại để đổi mật khẩu. Nếu quên mật khẩu, hãy liên hệ Quản trị viên để được cấp lại.' 
+      });
     }
 
     // Hash new password
@@ -734,6 +750,7 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
       return res.status(500).json({ error: 'Lỗi cập nhật mật khẩu' });
     }
 
+    tokenCache.delete(`user_${user.id}`);
     res.json({ message: 'Mật khẩu đã được cập nhật thành công' });
 
   } catch (error) {
@@ -966,6 +983,16 @@ app.post('/api/menu', authenticateToken, async (req, res) => {
     // Tự động reset chế độ khóa đơn ("Khóa ngay" / "Mở thêm 15p") về "Tự động" khi up menu mới
     const deadlineOverride = resetSystemDeadlineOverrideToAuto(req.user?.fullname || req.user?.username || 'admin');
 
+    // Phát thông báo SSE tới toàn bộ nhân viên để tự động nạp thực đơn mới không cần F5
+    broadcastToAllUsers({
+      type: 'menu_updated',
+      data: {
+        date: today,
+        dishCount: dishData.length,
+        timestamp: Date.now()
+      }
+    });
+
     res.json({ success: true, menu, deadlineOverride });
   } catch (error) {
     console.error('❌ Menu creation error:', error);
@@ -1066,6 +1093,16 @@ app.post('/api/menu/multilingual', authenticateToken, async (req, res) => {
 
     // Tự động reset chế độ khóa đơn ("Khóa ngay" / "Mở thêm 15p") về "Tự động" khi up menu mới
     const deadlineOverride = resetSystemDeadlineOverrideToAuto(req.user?.fullname || req.user?.username || 'admin');
+
+    // Phát thông báo SSE tới toàn bộ nhân viên để tự động nạp thực đơn mới không cần F5
+    broadcastToAllUsers({
+      type: 'menu_updated',
+      data: {
+        date: today,
+        dishCount: dishData.length,
+        timestamp: Date.now()
+      }
+    });
     
     res.json({ success: true, menu, deadlineOverride });
   } catch (error) {
@@ -1212,7 +1249,37 @@ const saveSystemDeadlineOverride = (override) => {
   } catch (e) {
     console.warn('Could not save deadline-override.json:', e.message);
   }
+  // Persist to Supabase system_settings (survives Render ephemeral disk restarts; gracefully ignored if table not yet created)
+  if (supabaseConfigured && supabase) {
+    dbForWrite('system_settings')
+      .upsert([{ key: 'deadline_override', value: override, updated_at: new Date().toISOString() }], { onConflict: 'key' })
+      .then(({ error }) => {
+        if (error && !String(error.message || '').includes('does not exist')) {
+          if (DEBUG_LOGS) console.warn('Could not persist deadline_override to DB:', error.message);
+        }
+      })
+      .catch(() => {});
+  }
 };
+
+// Load saved override from Supabase on startup (survives Render cold starts), falling back to local file
+const loadSystemDeadlineOverrideFromDB = async () => {
+  if (!supabaseConfigured || !supabase) return;
+  try {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'deadline_override')
+      .maybeSingle();
+    if (!error && data?.value && data.value.date === getVietnamDateStr()) {
+      systemDeadlineOverride = data.value;
+      console.log('📅 Loaded persistent deadline override from Supabase:', systemDeadlineOverride);
+    }
+  } catch {
+    // Graceful fallback to local/default override
+  }
+};
+loadSystemDeadlineOverrideFromDB();
 
 // Load saved override if active for today
 try {
@@ -1689,26 +1756,43 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
 app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
   try {
     const orderId = req.params.id;
-    
-    // Only admin can delete orders
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Chỉ admin mới có thể xóa đơn hàng' });
-    }
+    const isAdmin = req.user.role === 'admin';
 
-    // Get order details before deletion to know which user to notify
+    // Get order details before deletion to check ownership, paid status, date, and who to notify
     const { data: orderData, error: fetchError } = await supabase
       .from('orders')
-      .select('user_id, price, ordered_for')
+      .select('id, user_id, ordered_by, ordered_for, price, paid, created_at')
       .eq('id', orderId)
+      .is('deleted_at', null)
       .single();
 
     if (fetchError || !orderData) {
       return res.status(404).json({ error: 'Đơn hàng không tồn tại' });
     }
 
+    // Non-admin users can cancel their own unpaid order of TODAY before the cutoff deadline
+    if (!isAdmin) {
+      const isOwner =
+        Number(orderData.user_id) === Number(req.user.id) ||
+        Number(orderData.ordered_by) === Number(req.user.id) ||
+        Number(orderData.ordered_for) === Number(req.user.id);
+      if (!isOwner) {
+        return res.status(403).json({ error: 'Bạn chỉ có thể hủy đơn hàng của chính mình' });
+      }
+      if (isOrderDeadlinePassed(req.user)) {
+        return res.status(400).json({ error: 'Đã hết giờ hủy đơn hôm nay (sau giờ chốt). Vui lòng liên hệ Admin nếu cần hỗ trợ.' });
+      }
+      if (orderData.paid === true) {
+        return res.status(400).json({ error: 'Đơn hàng này đã được thanh toán, không thể tự hủy. Vui lòng liên hệ Admin.' });
+      }
+      const orderVnDate = orderData.created_at ? getVietnamDateStr(new Date(orderData.created_at)) : '';
+      if (orderVnDate !== getVietnamDateStr()) {
+        return res.status(400).json({ error: 'Chỉ có thể tự hủy đơn đặt trong ngày hôm nay.' });
+      }
+    }
+
     // Soft delete: mark as deleted instead of removing
-    const { error } = await supabase
-      .from('orders')
+    const { error } = await dbForWrite('orders')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', orderId);
 
@@ -1721,49 +1805,28 @@ app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
 
     // Invalidate cache for the paying user's payment stats
     const month = getVietnamMonthStr();
-    console.log(`🗑️  Invalidating cache for month ${month}, paying user: ${payingUserId}`);
-    const invalidated1 = cache.invalidate(`payments:user:${payingUserId}:*`);
-    const invalidated2 = cache.invalidate('payments:admin:*');
-    const invalidated3 = cache.invalidate('stats:dashboard:*');
-    const invalidated4 = cache.invalidate(`stats:user:${payingUserId}:*`);
-    console.log(`🗑️  Cache invalidated: ${invalidated1 + invalidated2 + invalidated3 + invalidated4} entries`);
+    cache.invalidate(`payments:user:${payingUserId}:*`);
+    cache.invalidate('payments:admin:*');
+    cache.invalidate('stats:dashboard:*');
+    cache.invalidate(`stats:user:${payingUserId}:*`);
 
-    console.log(`🗑️  Order ${orderId} deleted by admin ${req.user.id}, notifying paying user ${payingUserId}`);
+    console.log(`🗑️  Order #${orderId} deleted by ${req.user.role} #${req.user.id}, notifying paying user #${payingUserId}`);
 
-    // Send SSE notification to the paying user
-    sendSSENotification(payingUserId, {
+    const deletedPayload = {
       type: 'order_deleted',
       userId: payingUserId,
       data: {
         orderId,
         price: orderData.price,
-        month
+        month,
+        affectedUserId: payingUserId
       },
       timestamp: Date.now()
-    });
+    };
 
-    // Broadcast order_deleted notification to all admin and staff users to update their dashboards
-    console.log(`📢 Broadcasting order_deleted notification to admin/staff users`);
-    const { data: adminStaffUsers } = await supabase
-      .from('users')
-      .select('id')
-      .in('role', ['admin', 'staff']);
-
-    if (adminStaffUsers && adminStaffUsers.length > 0) {
-      adminStaffUsers.forEach(u => {
-        sendSSENotification(u.id, {
-          type: 'order_deleted',
-          userId: payingUserId,
-          data: {
-            orderId,
-            price: orderData.price,
-            month,
-            affectedUserId: payingUserId
-          },
-          timestamp: Date.now()
-        });
-      });
-    }
+    // Send SSE notification to the paying user and broadcast to all admin/staff sessions
+    sendSSENotification(payingUserId, deletedPayload);
+    broadcastToAdmins(deletedPayload, [payingUserId]);
 
     res.json({ success: true });
   } catch (error) {
@@ -1828,6 +1891,9 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
     if (role && ['user', 'admin'].includes(role)) updateData.role = role;
     if (username && username.trim()) updateData.username = username.trim().toLowerCase();
     if (password && password.trim()) {
+      if (password.trim().length < 6) {
+        return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+      }
       updateData.password = await bcrypt.hash(password.trim(), 10);
     }
 
@@ -3472,6 +3538,10 @@ app.get('/api/debug/payments', authenticateToken, async (req, res) => {
 // Payments Routes
 app.get('/api/payments/today', authenticateToken, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Chỉ quản trị viên mới có quyền xem toàn bộ giao dịch trong ngày' });
+    }
+
     const { startUtc, endUtc } = getVietnamTodayUtcRange();
     
     const { data: payments, error } = await supabase
@@ -4305,6 +4375,97 @@ app.post('/api/payments/mark-paid', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Mark paid error:', error);
+    res.status(500).json({ error: 'Lỗi server: ' + error.message });
+  }
+});
+
+// Admin Undo / Delete accidental payment record (restores unpaid status on corresponding orders)
+app.delete('/api/payments/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Chỉ Quản trị viên mới có quyền hoàn tác giao dịch thanh toán' });
+    }
+
+    const paymentId = Number(req.params.id);
+    if (!Number.isInteger(paymentId) || paymentId <= 0) {
+      return res.status(400).json({ error: 'ID thanh toán không hợp lệ' });
+    }
+
+    const { data: payment, error: fetchError } = await supabase
+      .from('payments')
+      .select('id, user_id, amount, created_at')
+      .eq('id', paymentId)
+      .single();
+
+    if (fetchError || !payment) {
+      return res.status(404).json({ error: 'Không tìm thấy giao dịch thanh toán' });
+    }
+
+    const { error: deleteError } = await dbForWrite('payments')
+      .delete()
+      .eq('id', paymentId);
+
+    if (deleteError) {
+      console.error('❌ Delete payment error:', deleteError);
+      return res.status(500).json({ error: 'Lỗi xóa giao dịch thanh toán: ' + deleteError.message });
+    }
+
+    const targetUserId = Number(payment.user_id);
+    const amount = Number(payment.amount || 0);
+    const mealPrice = PAYMENT_MEAL_PRICE || 40000;
+    const mealsToUnmark = Math.floor(amount / mealPrice);
+    let unmarkedCount = 0;
+
+    // Reopen newest paid orders corresponding to the deleted payment amount
+    if (mealsToUnmark > 0) {
+      const { data: paidOrders } = await supabase
+        .from('orders')
+        .select('id, price')
+        .or(`ordered_for.eq.${targetUserId},and(ordered_for.is.null,user_id.eq.${targetUserId})`)
+        .eq('paid', true)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(mealsToUnmark);
+
+      const idsToUnmark = (paidOrders || []).map(o => o.id);
+      if (idsToUnmark.length > 0) {
+        const { data: unmarked } = await dbForWrite('orders')
+          .update({ paid: false })
+          .in('id', idsToUnmark)
+          .select('id');
+        unmarkedCount = unmarked?.length || 0;
+      }
+    }
+
+    const month = getVietnamMonthStr();
+    invalidatePaymentCaches(targetUserId, month, 'payment_undone');
+
+    console.log(`📝 [AUDIT] Admin #${req.user.id} (${req.user.username}) đã hoàn tác/xóa thanh toán #${paymentId} của user #${targetUserId} (${amount}đ, mở lại ${unmarkedCount} đơn) lúc ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`);
+
+    const undoPayload = {
+      type: 'payment_marked',
+      userId: targetUserId,
+      data: {
+        paymentId,
+        amount: -amount,
+        month,
+        undone: true,
+        unmarkedCount,
+        timestamp: Date.now()
+      }
+    };
+    sendSSENotification(targetUserId, undoPayload);
+    broadcastSSEToRole(['admin', 'staff'], undoPayload);
+
+    res.json({
+      success: true,
+      deletedPaymentId: paymentId,
+      userId: targetUserId,
+      amount,
+      unmarkedCount
+    });
+  } catch (error) {
+    console.error('❌ Undo payment error:', error);
     res.status(500).json({ error: 'Lỗi server: ' + error.message });
   }
 });
@@ -5288,7 +5449,10 @@ app.post('/api/admin/auto-payments/reconcile-text', authenticateToken, async (re
             .limit(1);
           if (existingPayments && existingPayments.length > 0) {
             alreadyProcessed = true;
-            reconciledTxIds.add(deterministicTxId);
+            if (reconciledTxIds.size > 2000) {
+          reconciledTxIds.clear();
+        }
+        reconciledTxIds.add(deterministicTxId);
           }
         }
 
@@ -5304,6 +5468,9 @@ app.post('/api/admin/auto-payments/reconcile-text', authenticateToken, async (re
           continue;
         }
 
+        if (reconciledTxIds.size > 2000) {
+          reconciledTxIds.clear();
+        }
         reconciledTxIds.add(deterministicTxId);
         const payment = await recordCompletedPayment({
           userId: targetUser.id,

@@ -527,7 +527,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const needAdminPaymentsData = isAdmin && Boolean(visitedTabs.payments);
   const needFeedbackData = isAdmin && Boolean(visitedTabs.feedback);
 
-  const { menu, isLoading: menuLoading, createMenu, createMultilingualMenu, addDish, updateDish, deleteDish, refetch: refetchMenu } = useMenu(currentLang);
+  const { menu, isLoading: menuLoading, error: menuError, createMenu, createMultilingualMenu, addDish, updateDish, deleteDish, refetch: refetchMenu } = useMenu(currentLang);
   const { orders, isLoading: ordersLoading, isUpdating: ordersUpdating, createOrder, updateOrder, deleteOrder, refetch: refetchOrders } = useOrders(currentLang);
   const { users, updateUser, deleteUser, refetch: refetchUsers } = useUsers(needUsersData);
 
@@ -746,7 +746,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const [showOrderSummary, setShowOrderSummary] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   
-  // Order options
+  // Order options (persisted per user in localStorage)
   const [orderNotes, setOrderNotes] = useState('');
   const [extraRice, setExtraRice] = useState(false);
   const [extraSoup, setExtraSoup] = useState(false);
@@ -754,7 +754,49 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
   const [fishSauce, setFishSauce] = useState(false);
   const [chopsticks, setChopsticks] = useState(false);
   const [lessRice, setLessRice] = useState(false);
+  const [prefsLoadedForUserId, setPrefsLoadedForUserId] = useState<number | null>(null);
   const [orderForUserId, setOrderForUserId] = useState<number | null>(null);
+
+  // Load saved meal preferences when user logs in
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const raw = localStorage.getItem(`fsi_meal_prefs_${user.id}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setExtraRice(Boolean(parsed.extraRice));
+        setExtraSoup(Boolean(parsed.extraSoup));
+        setChiliSauce(Boolean(parsed.chiliSauce));
+        setFishSauce(Boolean(parsed.fishSauce));
+        setChopsticks(Boolean(parsed.chopsticks));
+        setLessRice(Boolean(parsed.lessRice));
+      }
+    } catch {
+      // ignore storage errors
+    } finally {
+      setPrefsLoadedForUserId(user.id);
+    }
+  }, [user?.id]);
+
+  // Save meal preferences whenever user toggles them
+  useEffect(() => {
+    if (!user?.id || prefsLoadedForUserId !== user.id) return;
+    try {
+      localStorage.setItem(
+        `fsi_meal_prefs_${user.id}`,
+        JSON.stringify({ extraRice, extraSoup, chiliSauce, fishSauce, chopsticks, lessRice })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  }, [user?.id, prefsLoadedForUserId, extraRice, extraSoup, chiliSauce, fishSauce, chopsticks, lessRice]);
+
+  // Auto-collapse mobile order bottom sheet when all selected dishes are cleared
+  useEffect(() => {
+    if (selectedDishes.length === 0) {
+      setIsMobileOrderSheetExpanded(false);
+    }
+  }, [selectedDishes.length]);
   
   // Users for ordering
   const [allUsers, setAllUsers] = useState<Array<{id: number, fullname: string}>>([]);
@@ -1413,14 +1455,8 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
       setShowOrderSummary(false);
       setShowOrderSuccess(true);
       setSelectedDishes([]);
-      // Reset options
+      // Keep saved meal preferences (extraRice, extraSoup, etc.), only reset one-off note & orderFor
       setOrderNotes('');
-      setExtraRice(false);
-      setExtraSoup(false);
-      setChiliSauce(false);
-      setFishSauce(false);
-      setChopsticks(false);
-      setLessRice(false);
       setOrderForUserId(null);
 
       // Instantly refresh admin stats (createOrder already dispatches app:order-update)
@@ -2990,8 +3026,27 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                       <div className="text-gray-400 mb-4">
                         <Utensils size={48} className="mx-auto" />
                       </div>
-                      <p className="text-gray-500 text-lg font-medium">{t.noData.noMenuToday}</p>
-                      <p className="text-gray-400 text-sm">{t.noData.pleaseComeLater}</p>
+                      {menuError ? (
+                        <>
+                          <p className="text-red-600 text-lg font-medium mb-1">
+                            {currentLang === 'vi' ? 'Không thể tải thực đơn' : currentLang === 'en' ? 'Failed to load menu' : 'メニューを読み込めませんでした'}
+                          </p>
+                          <p className="text-gray-500 text-sm mb-4">{menuError}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-gray-500 text-lg font-medium">{t.noData.noMenuToday}</p>
+                          <p className="text-gray-400 text-sm mb-4">{t.noData.pleaseComeLater}</p>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => refetchMenu(currentLang)}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-app-accent text-white font-semibold text-sm shadow-sm hover:opacity-90 transition-all active:scale-95"
+                      >
+                        <RefreshCw size={15} />
+                        <span>{currentLang === 'vi' ? 'Tải lại thực đơn' : currentLang === 'en' ? 'Reload menu' : 'メニューを再読み込み'}</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -3581,25 +3636,49 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                 </button>
                               )}
                               
-                              {/* Delete button - admin only */}
-                              {user?.role === 'admin' && (
+                              {/* Delete button - admin always, or owner for today's unpaid order before deadline */}
+                              {(() => {
+                                const isOwner =
+                                  order.user_id === user?.id ||
+                                  order.ordered_by === user?.id ||
+                                  order.ordered_for === user?.id;
+                                const isTodayOrder = (() => {
+                                  if (!order.created_at) return false;
+                                  const fmt = new Intl.DateTimeFormat('en-CA', {
+                                    timeZone: 'Asia/Ho_Chi_Minh',
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                  });
+                                  return fmt.format(new Date(order.created_at)) === fmt.format(new Date());
+                                })();
+                                const canSelfCancel = isOwner && !order.paid && isTodayOrder && canPlaceOrder;
+                                return user?.role === 'admin' || canSelfCancel;
+                              })() && (
                                 <button 
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={async () => {
-                                    if (confirm(`${t.confirmDeleteOrder} ${order.receiver?.fullname || 'N/A'}?\n\n${t.dish1}: ${getDishName(order.dish1, currentLang) || 'N/A'}\n${t.dish2}: ${getDishName(order.dish2, currentLang) || t.noSecondDish}`)) {
+                                    const confirmLabel = user?.role === 'admin'
+                                      ? `${t.confirmDeleteOrder} ${order.receiver?.fullname || 'N/A'}?`
+                                      : (currentLang === 'vi'
+                                          ? 'Bạn có chắc muốn hủy đơn cơm hôm nay?'
+                                          : currentLang === 'en'
+                                          ? 'Are you sure you want to cancel your order today?'
+                                          : '本日の注文をキャンセルしますか？');
+                                    if (confirm(`${confirmLabel}\n\n${t.dish1}: ${getDishName(order.dish1, currentLang) || 'N/A'}\n${t.dish2}: ${getDishName(order.dish2, currentLang) || t.noSecondDish}`)) {
                                       try {
                                         await deleteOrder(order.id);
                                         // Refresh orders list to ensure UI is updated
                                         await refetchOrders();
                                       } catch (error) {
                                         console.error('Lỗi khi xóa đơn hàng:', error);
-                                        alert('Lỗi khi xóa đơn hàng. Vui lòng thử lại.');
+                                        alert(error instanceof Error ? error.message : 'Lỗi khi xóa đơn hàng. Vui lòng thử lại.');
                                       }
                                     }
                                   }}
                                   className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 hover:text-red-700 transition-all"
-                                  title="Xóa đơn hàng"
+                                  title={user?.role === 'admin' ? 'Xóa đơn hàng' : (currentLang === 'vi' ? 'Hủy đơn hôm nay' : 'Cancel order')}
                                 >
                                   <Trash2 size={16} />
                                 </button>
@@ -4551,6 +4630,7 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                     <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Người chuyển</th>
                                     <th className="text-left py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Ngày giờ</th>
                                     <th className="text-right py-3 px-4 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs">Số tiền</th>
+                                    <th className="text-right py-3 px-3 font-bold text-[#1C1917]/70 uppercase tracking-widest text-xs w-14"></th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -4578,6 +4658,28 @@ function AuthenticatedApp({ user, logout, token, theme, setTheme, currentLang, s
                                       </td>
                                       <td className="py-3 px-4 text-right">
                                         <p className="font-bold text-emerald-600">{history.amount.toLocaleString()}đ</p>
+                                      </td>
+                                      <td className="py-3 px-3 text-right">
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            const payer = history.payerName || history.payer_name || fullname;
+                                            const ok = confirm(
+                                              `Hoàn tác khoản thanh toán ${history.amount.toLocaleString()}đ của ${payer}?\n\nHệ thống sẽ xóa bản ghi này và mở lại trạng thái chưa thanh toán cho các đơn tương ứng.`
+                                            );
+                                            if (!ok) return;
+                                            try {
+                                              await paymentsAPI.deletePayment(history.id);
+                                              await refetchAdminPayments();
+                                            } catch (err) {
+                                              alert(err instanceof Error ? err.message : 'Lỗi khi hoàn tác thanh toán');
+                                            }
+                                          }}
+                                          className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors"
+                                          title="Hoàn tác / Xóa thanh toán nhầm"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
                                       </td>
                                     </tr>
                                   ))}

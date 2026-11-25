@@ -44,7 +44,12 @@ export const useMenu = (language?: Language) => {
       }
       setError(null);
       const data = await menuAPI.getToday(activeLang);
-      cacheService.set(cacheKey, data, 180); // Cache 3 phút
+      // Only cache non-empty menus so users who open the app before the morning menu is posted never get stuck on an empty menu for 3 minutes
+      if (data?.dishes && data.dishes.length > 0) {
+        cacheService.set(cacheKey, data, 180);
+      } else {
+        cacheService.clear(cacheKey);
+      }
       setMenu(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi khi tải menu');
@@ -142,10 +147,18 @@ export const useMenu = (language?: Language) => {
   useEffect(() => {
     fetchMenu(language);
     
+    // Listen to live SSE menu_updated events when Admin publishes a new morning menu
+    const handleLiveMenuUpdate = () => {
+      cacheService.clear();
+      fetchMenu(language, true);
+    };
+    window.addEventListener('app:menu-update', handleLiveMenuUpdate);
+
     // Setup Supabase Realtime subscription for menu changes
     const channel = subscribeToTable('menus', debouncedFetch, 'menu_changes');
 
     return () => {
+      window.removeEventListener('app:menu-update', handleLiveMenuUpdate);
       unsubscribeFromTable(channel);
     };
   }, [language]);

@@ -109,10 +109,10 @@ export const authAPI = {
 
   getMe: () => apiCall<any>('/auth/me'),
 
-  resetPassword: (username: string, newPassword: string) =>
+  resetPassword: (username: string, newPassword: string, currentPassword?: string) =>
     apiCall<{ success: boolean; message: string }>('/auth/reset-password', {
       method: 'POST',
-      body: JSON.stringify({ username, newPassword })
+      body: JSON.stringify({ username, newPassword, currentPassword })
     })
 };
 
@@ -292,6 +292,11 @@ export const paymentsAPI = {
     apiCall<any>('/payments/mark-paid', {
       method: 'POST',
       body: JSON.stringify({ userId, month, amount })
+    }),
+
+  deletePayment: (paymentId: number) =>
+    apiCall<{ success: boolean; deletedPaymentId: number; userId: number; amount: number; unmarkedCount: number }>(`/payments/${paymentId}`, {
+      method: 'DELETE'
     }),
 
   reprocessAutoPayments: () =>

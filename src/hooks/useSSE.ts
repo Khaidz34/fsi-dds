@@ -140,6 +140,13 @@ export function useSSE(
                 console.error('Failed to handle deadline_override_changed SSE:', e);
               }
               break;
+            case 'menu_updated':
+              try {
+                window.dispatchEvent(new CustomEvent('app:menu-update', { detail: (data as any).data || data }));
+              } catch (e) {
+                console.error('Failed to handle menu_updated SSE:', e);
+              }
+              break;
             default:
               console.log('Unknown SSE event type:', data.type);
           }

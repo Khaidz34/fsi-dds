@@ -42,9 +42,6 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('lucide-react')) {
             return 'vendor-icons';
           }
-          if (id.includes('@supabase/')) {
-            return 'vendor-supabase';
-          }
         }
       }
     }
